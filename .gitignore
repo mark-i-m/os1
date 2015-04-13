@@ -1,2 +1,6 @@
 *.swp
 *.o
+*.d
+kernel/kernel
+*.bin
+*.im
