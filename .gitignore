@@ -3,4 +3,4 @@
 *.d
 kernel/kernel
 *.bin
-*.im
+*.img
