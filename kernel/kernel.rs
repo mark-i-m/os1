@@ -3,6 +3,8 @@
 
 #![no_std]
 
+#![allow(dead_code)]
+
 // minimal declarations of rust stuff
 mod rusty;
 
