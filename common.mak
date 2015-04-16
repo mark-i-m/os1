@@ -1,5 +1,4 @@
-RSFLAGS = --target i686-unknown-linux-gnu --emit obj
-
+RSFLAGS = --target i686-unknown-linux-gnu -L . 
 RSFILES = $(wildcard *.rs)
 SFILES = $(wildcard *.S) $(wildcard *.s)
 
@@ -9,7 +8,7 @@ OFILES = $(subst .rs,.o,$(RSFILES)) $(subst .s,.o,$(subst .S,.o,$(SFILES)))
 .SECONDARY :
 
 %.o :  Makefile %.rs
-	rustc $(RSFLAGS) --crate-type lib -o $@ $*.rs
+	rustc $(RSFLAGS) --emit obj --emit dep-info --crate-type lib $*.rs
 
 %.o :  Makefile %.S
 	gcc -MD -m32 -c $*.S
@@ -28,3 +27,5 @@ clean ::
 	rm -f *.bin
 	rm -f *.o
 	rm -f *.d
+
+-include *.d

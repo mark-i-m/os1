@@ -3,22 +3,77 @@
 
 #![no_std]
 
-// Copied from <http://doc.rust-lang.org/core/marker/trait.PhantomFn.html>
-#[lang="phantom_fn"]
-trait PhantomFn<A: ?Sized, R: ?Sized = ()> {}
+// minimal declarations of rust stuff
+mod rusty;
 
-#[lang="sized"]
-trait Sized: PhantomFn<Self> {}
+//pub use Option::*;
 
-#[lang="copy"]
-trait Copy: PhantomFn<Self> {}
+// from rustboot on github:
+enum Color {
+    Black      = 0,
+    Blue       = 1,
+    Green      = 2,
+    Cyan       = 3,
+    Red        = 4,
+    Pink       = 5,
+    Brown      = 6,
+    LightGray  = 7,
+    DarkGray   = 8,
+    LightBlue  = 9,
+    LightGreen = 10,
+    LightCyan  = 11,
+    LightRed   = 12,
+    LightPink  = 13,
+    Yellow     = 14,
+    White      = 15,
+}
 
-#[lang="sync"]
-trait Sync: PhantomFn<Self> {}
+//pub enum Option<T> {
+//    None,
+//    Some(T)
+//}
+//
+//pub struct IntRange {
+//    cur: i32,
+//    max: i32
+//}
+//
+//impl IntRange {
+//    fn next(&mut self) -> Option<i32> {
+//        if self.cur < self.max {
+//            self.cur += 1;
+//            Some(self.cur - 1)
+//        } else {
+//            None
+//        }
+//    }
+//}
+//
+//fn range(lo: i32, hi: i32) -> IntRange {
+//    IntRange { cur: lo, max: hi }
+//}
 
+// These functions are invoked by the compiler, but not
+// // for a bare-bones hello world. These are normally
+// // provided by libstd.
+#[lang = "stack_exhausted"] extern fn stack_exhausted() {}
+#[lang = "eh_personality"] extern fn eh_personality() {}
 
+fn clear_screen(background: u16) {
+    let mut i = 0;
+    while i < 80 * 25 {
+        unsafe {
+            *((0xb8000 + i * 2) as *mut u16) = background << 12;
+        }
+        i += 1;
+    }
+}
+
+// this is the first rust to run in the kernel
+// it is called by the kStart function in start.S
 #[no_mangle]
 #[no_stack_check]
 pub fn kernel_main() {
-
+    let color = Color::White as u16;
+    clear_screen(color);
 }
