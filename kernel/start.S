@@ -19,6 +19,7 @@ kStart:
 loop:
 	jmp loop
 
+    .align 8
 	.skip 4096
 kernelStack:
 	.word 0
