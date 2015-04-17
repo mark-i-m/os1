@@ -1,4 +1,7 @@
-RSFLAGS = --target i686-unknown-linux-gnu -L . 
+RUSTC = rustc
+CC = gcc
+
+RSFLAGS = --target i686-unknown-linux-gnu -L . -L libcore 
 RSFILES = $(wildcard *.rs)
 SFILES = $(wildcard *.S) $(wildcard *.s)
 
@@ -8,13 +11,13 @@ OFILES = $(subst .rs,.o,$(RSFILES)) $(subst .s,.o,$(subst .S,.o,$(SFILES)))
 .SECONDARY :
 
 %.o :  Makefile %.rs
-	rustc $(RSFLAGS) --emit obj --emit dep-info --crate-type lib $*.rs
+	$(RUSTC) $(RSFLAGS) --emit obj --emit dep-info --crate-type lib $*.rs
 
 %.o :  Makefile %.S
-	gcc -MD -m32 -c $*.S
+	$(CC) -MD -m32 -c $*.S
 
 %.o :  Makefile %.s
-	gcc -MD -m32 -c $*.s
+	$(CC) -MD -m32 -c $*.s
 
 %.bin : Makefile %
 	objcopy -O binary $* $*.bin

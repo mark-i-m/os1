@@ -6,9 +6,7 @@
 #![allow(dead_code)]
 
 // minimal declarations of rust stuff
-mod rusty;
-
-//pub use Option::*;
+mod core;
 
 // from rustboot on github:
 enum Color {
@@ -30,34 +28,13 @@ enum Color {
     White      = 15,
 }
 
-//pub enum Option<T> {
-//    None,
-//    Some(T)
-//}
-//
-//pub struct IntRange {
-//    cur: i32,
-//    max: i32
-//}
-//
-//impl IntRange {
-//    fn next(&mut self) -> Option<i32> {
-//        if self.cur < self.max {
-//            self.cur += 1;
-//            Some(self.cur - 1)
-//        } else {
-//            None
-//        }
-//    }
-//}
-//
 //fn range(lo: i32, hi: i32) -> IntRange {
 //    IntRange { cur: lo, max: hi }
 //}
 
 // These functions are invoked by the compiler, but not
-// // for a bare-bones hello world. These are normally
-// // provided by libstd.
+// for a bare-bones hello world. These are normally
+// provided by libstd.
 #[lang = "stack_exhausted"] extern fn stack_exhausted() {}
 #[lang = "eh_personality"] extern fn eh_personality() {}
 
