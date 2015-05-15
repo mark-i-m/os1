@@ -1,3 +1,5 @@
+use machine;
+
 #[derive(Copy, Clone)]
 pub enum Color {
     Black      = 0,
@@ -100,7 +102,24 @@ impl VGA {
 
     // set position of the cursor
     pub fn set_cursor(& mut self, pos: (isize, isize)) {
+        // update struct
         self.cursor = pos;
+
+        // draw new cursor
+        const VGA_CMD: u16 = 0x3d4;
+        const VGA_DATA: u16 = 0x3d5;
+
+        let (row, col) = pos;
+        let cursor_offset = (row * COLS + col) as u16;
+        let lsb = (cursor_offset & 0xFF) as u8;
+        let msb = (cursor_offset >> 8) as u8;
+
+        unsafe {
+            machine::outb(VGA_CMD, 0x0f);
+            machine::outb(VGA_DATA, lsb);
+            machine::outb(VGA_CMD, 0x0e);
+            machine::outb(VGA_DATA, msb);
+        }
     }
 }
 

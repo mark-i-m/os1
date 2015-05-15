@@ -23,6 +23,7 @@ use vga::{Color, clear_screen};
 // kernel module declarations
 mod bare_bones;
 
+mod machine;
 mod vga;
 
 // This is the entry point to the kernel. It is the first rust code that runs.
