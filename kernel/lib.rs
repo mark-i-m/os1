@@ -13,11 +13,11 @@ extern crate rlibc;
 use window::{Window, Color};
 
 // kernel module declarations
+#[macro_use]
+mod debug;
 mod bare_bones;
 
 mod machine;
-
-mod debug;
 
 mod vga;
 mod window;
@@ -30,6 +30,8 @@ pub fn kernel_main() {
 
     // draw a test window
     draw_window();
+
+    log! ("Hi!");
 }
 
 fn draw_window() {
