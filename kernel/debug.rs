@@ -30,10 +30,13 @@ impl Write for Debug {
     }
 }
 
+#[allow(dead_code)]
+// Print to console
 pub fn puts(string: &str) {
     let _ = Debug.write_str(string);
 }
 
+// Print to console
 #[macro_export]
 macro_rules! log {
     ($($arg:tt)*) => ({

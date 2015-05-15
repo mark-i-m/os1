@@ -32,6 +32,7 @@ pub fn kernel_main() {
     draw_window();
 
     log! ("Hi!");
+    debug::puts("Test1");
 }
 
 fn draw_window() {
