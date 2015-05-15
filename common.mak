@@ -32,12 +32,6 @@ libasmcode.a: ${OFILES}
 librustcode.a: ${RUSTFILES}
 	${RUSTC} ${RUSTFLAGS} lib.rs
 
-%.bin: %
-	${OBJCOPY} -O binary $< $@
-
-%.img: %.bin
-	${DD} if=$< of=$@ bs=512 conv=sync
-
 clean::
 	rm -f *.o
 	rm -f *.a

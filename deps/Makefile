@@ -5,9 +5,9 @@ RUSTC = rustc
 RUSTFLAGS_LIBS = --target=../i686-unknown-elf.json -L . --crate-type=rlib -C opt-level=3 -Z no-landing-pads
 
 clean:
-	rm -ff *.rlib
+	rm -f *.rlib
 
-all: libcollections.rlib librlibc.rlib
+all: librlibc.rlib #libcollections.rlib
 
 libcore.rlib: ../i686-unknown-elf.json
 	${RUSTC} ${RUSTFLAGS_LIBS} ${RUSTSRC}/src/libcore/lib.rs
