@@ -4,18 +4,10 @@
 #![crate_type = "staticlib"]
 #![crate_name = "rustcode"]
 
-#![allow(dead_code)]
-
 // use libcore
 #[macro_use]
 extern crate core;
 extern crate rlibc;
-
-#[allow(unused_imports)]
-use core::prelude::*;
-
-#[allow(unused_imports)]
-use bare_bones::*;
 
 // kernel module imports
 use window::{Window, Color};
@@ -24,6 +16,8 @@ use window::{Window, Color};
 mod bare_bones;
 
 mod machine;
+
+mod debug;
 
 mod vga;
 mod window;
