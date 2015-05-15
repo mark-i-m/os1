@@ -1,8 +1,8 @@
-#![feature(no_std,lang_items,asm,core,alloc,collections,step_by,start)]
+#![feature(no_std,lang_items,core)]
 #![no_std]
 
-#![crate_type="staticlib"]
-#![crate_name="rustcode"]
+#![crate_type = "staticlib"]
+#![crate_name = "rustcode"]
 
 #[macro_use]
 extern crate core;
@@ -10,8 +10,6 @@ extern crate rlibc;
 
 use core::fmt;
 
-#[lang="start"]
-#[start]
 #[no_mangle]
 pub fn kernel_main() {
 
