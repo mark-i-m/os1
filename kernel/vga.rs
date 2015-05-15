@@ -1,5 +1,6 @@
 use machine;
 
+// colors for VGA display
 #[derive(Copy, Clone)]
 pub enum Color {
     Black      = 0,
@@ -20,16 +21,20 @@ pub enum Color {
     White      = 15,
 }
 
-// unsafe construct that give direct access to VGA buffer
-pub const ROWS: isize = 25;
-pub const COLS: isize = 80;
+// size of VGA buffer
+pub const ROWS: usize = 25;
+pub const COLS: usize = 80;
 
+// represents a single character on the screen
 #[derive(Copy,Clone)]
 struct VGAChar {
     ch: u8,
     color: u8,
 }
 
+// unsafe construct that give direct access to VGA buffer
+#[allow(raw_pointer_derive)]
+#[derive(Copy, Clone)]
 struct VGABuff {
     buff: *mut VGAChar,
 }
@@ -43,25 +48,21 @@ impl VGABuff {
         ((bg as u8) << 4) | ((fg as u8))
     }
 
-    fn put_char(&self, (r,c): (isize, isize), ch: VGAChar) {
+    fn put_char(&self, (r,c): (usize, usize), ch: VGAChar) {
         unsafe {
-            *self.buff.offset(r * COLS + c) = ch;
-        }
-    }
-
-    fn get_char(&self, (r,c): (isize, isize)) -> &VGAChar {
-        unsafe {
-            &*self.buff.offset(r * COLS + c)
+            *self.buff.offset((r * COLS + c) as isize) = ch;
         }
     }
 }
 
 // safe wrapper around unsafe VGA buffer
+// Provides the abstraction of a cursor and "screen"
+#[derive(Copy, Clone)]
 pub struct VGA {
     buff: VGABuff,
     fg: Color,
     bg: Color,
-    cursor: (isize, isize),
+    cursor: (usize, usize),
 }
 
 impl VGA {
@@ -70,14 +71,27 @@ impl VGA {
         VGA {buff: VGABuff::get_buff(), fg: Color::White, bg: Color::Black, cursor: (0,0)}
     }
 
-    // clear the screen and paint it with the background color
-    pub fn fill(&self) {
+    // clear the rect and paint it with the background color
+    pub fn clear_screen(&self) {
+        self.fill_rect((0 as usize,0 as usize), ROWS as usize, COLS as usize);
+    }
+
+    // clear the rect and paint it with the background color
+    pub fn fill_rect(&self, pos: (usize, usize), height: usize, width: usize) {
         let colors = VGABuff::pack_colors(self.fg, self.bg);
         let c = VGAChar {ch: ' ' as u32 as u8, color: colors};
 
-        for i in 0..ROWS {
-            for j in 0..COLS {
-                self.buff.put_char((i,j), c);
+        let (row, col) = pos;
+
+        // check bounds
+        if row >= ROWS || col >= COLS {return;}
+
+        let rend = if row + height > ROWS { ROWS } else {row + height};
+        let cend = if col + width > COLS { COLS } else {col + width};
+
+        for i in row..rend {
+            for j in col..cend {
+                self.buff.put_char((i as usize,j as usize), c);
             }
         }
     }
@@ -101,11 +115,11 @@ impl VGA {
     }
 
     // set position of the cursor
-    pub fn set_cursor(& mut self, pos: (isize, isize)) {
+    pub fn set_cursor(& mut self, pos: (usize, usize)) {
         // update struct
         self.cursor = pos;
 
-        // draw new cursor
+        // draw new cursor if it is on the screen
         const VGA_CMD: u16 = 0x3d4;
         const VGA_DATA: u16 = 0x3d5;
 
@@ -114,24 +128,21 @@ impl VGA {
         let lsb = (cursor_offset & 0xFF) as u8;
         let msb = (cursor_offset >> 8) as u8;
 
-        unsafe {
-            machine::outb(VGA_CMD, 0x0f);
-            machine::outb(VGA_DATA, lsb);
-            machine::outb(VGA_CMD, 0x0e);
-            machine::outb(VGA_DATA, msb);
+        if row < ROWS && col < COLS {
+            unsafe {
+                machine::outb(VGA_CMD, 0x0f);
+                machine::outb(VGA_DATA, lsb);
+                machine::outb(VGA_CMD, 0x0e);
+                machine::outb(VGA_DATA, msb);
+            }
         }
     }
-}
 
+    pub fn get_fg_color(&self) -> Color {
+        self.fg
+    }
 
-pub fn clear_screen(background: Color) {
-    let mut buff = VGA::get_vga();
-
-    buff.set_bg_color(background);
-    buff.fill();
-
-    buff.set_cursor((10, 40));
-    buff.set_bg_color(Color::LightGreen);
-    buff.set_fg_color(Color::Red);
-    buff.put_char('a');
+    pub fn get_bg_color(&self) -> Color {
+        self.bg
+    }
 }

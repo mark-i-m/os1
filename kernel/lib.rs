@@ -18,17 +18,34 @@ use core::prelude::*;
 use bare_bones::*;
 
 // kernel module imports
-use vga::{Color, clear_screen};
+use window::{Window, Color};
 
 // kernel module declarations
 mod bare_bones;
 
 mod machine;
+
 mod vga;
+mod window;
 
 // This is the entry point to the kernel. It is the first rust code that runs.
 #[no_mangle]
 pub fn kernel_main() {
-    // clear screen to LightBlue
-    clear_screen(Color::LightBlue);
+    // clear the screen
+    Window::clear_screen();
+
+    // draw a test window
+    draw_window();
+}
+
+fn draw_window() {
+    let mut w0 = Window::new(40, 10, (4, 10));
+
+    w0.set_bg_color(Color::LightBlue);
+    w0.paint();
+
+    w0.set_cursor((0, 0));
+    w0.set_bg_color(Color::LightGreen);
+    w0.set_fg_color(Color::Red);
+    w0.put_str("Hello World!");
 }
