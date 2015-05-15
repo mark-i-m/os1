@@ -10,7 +10,7 @@ use debug::Debug;
 pub extern fn rust_begin_unwind(args: fmt::Arguments,
                                 file: &'static str, line: u32) -> ! {
     use core::fmt::Write;
-    log!("\r\nPanic at {}:{}: ", file, line);
+    printf!("\r\nPanic at {}:{}: ", file, line);
     let _ = Debug.write_fmt(args);
     loop {};
 }

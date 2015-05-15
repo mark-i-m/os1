@@ -31,8 +31,7 @@ pub fn kernel_main() {
     // draw a test window
     draw_window();
 
-    log! ("Hi!");
-    debug::puts("Test1");
+    printf! ("Hi, {}!", "mark");
 }
 
 fn draw_window() {

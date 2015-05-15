@@ -38,7 +38,7 @@ pub fn puts(string: &str) {
 
 // Print to console
 #[macro_export]
-macro_rules! log {
+macro_rules! printf {
     ($($arg:tt)*) => ({
         use ::core::fmt::Write;
         let _ = write!($crate::debug::Debug, $($arg)*);
