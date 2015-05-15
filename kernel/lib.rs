@@ -4,18 +4,10 @@
 #![crate_type = "staticlib"]
 #![crate_name = "rustcode"]
 
-#![allow(dead_code)]
-
 // use libcore
 #[macro_use]
 extern crate core;
 extern crate rlibc;
-
-#[allow(unused_imports)]
-use core::prelude::*;
-
-#[allow(unused_imports)]
-use bare_bones::*;
 
 // kernel module imports
 use window::{Window, Color};
@@ -23,6 +15,8 @@ use window::{Window, Color};
 use heap::{init};
 
 // kernel module declarations
+#[macro_use]
+mod debug; // debug must be first, since it defines macros the others need
 mod bare_bones;
 
 mod machine;
@@ -42,7 +36,9 @@ pub fn kernel_main() {
     draw_window();
 
     // initialize the heap
+    printf! ("Going to init heap\n");
     heap::init();
+    printf! ("Heap inited");
 }
 
 fn draw_window() {

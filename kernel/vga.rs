@@ -137,12 +137,4 @@ impl VGA {
             }
         }
     }
-
-    pub fn get_fg_color(&self) -> Color {
-        self.fg
-    }
-
-    pub fn get_bg_color(&self) -> Color {
-        self.bg
-    }
 }

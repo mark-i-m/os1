@@ -1,5 +1,6 @@
 #[link(name = "asmcode", repr="static")]
 
+#[allow(dead_code)]
 extern "C" {
     // pub fn switchToUser(pc: usize, esp: usize, eax: usize);
 
