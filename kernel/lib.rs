@@ -20,6 +20,8 @@ use bare_bones::*;
 // kernel module imports
 use window::{Window, Color};
 
+use heap::{init};
+
 // kernel module declarations
 mod bare_bones;
 
@@ -28,14 +30,19 @@ mod machine;
 mod vga;
 mod window;
 
+mod heap;
+
 // This is the entry point to the kernel. It is the first rust code that runs.
 #[no_mangle]
 pub fn kernel_main() {
     // clear the screen
     Window::clear_screen();
 
-    // draw a test window
+    // draw a test window to let the world know we're alive
     draw_window();
+
+    // initialize the heap
+    heap::init();
 }
 
 fn draw_window() {
