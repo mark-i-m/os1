@@ -1,23 +1,12 @@
-PROGS = shell ls shutdown echo cat test
-
-all : $(PROGS)
-
+.PHONY: all clean
+DEPDIR = ../deps
+default: all
 -include ../common.mak
 
-shell : CFILES=shell.c libc.c heap.c
+all: user.img
 
-echo : CFILES=echo.c libc.c heap.c
+user: ${BOOTFILES} ${AFILES}
+	${LD} --gc-sections -N -m elf_i386 -e start -Ttext=0x400000 -o user ${BOOTFILES} --start-group ${AFILES} --end-group
 
-ls : CFILES=ls.c libc.c heap.c
-
-shutdown : CFILES=shutdown.c libc.c heap.c
-
-cat : CFILES=cat.c libc.c heap.c
-
-test : CFILES=test.c libc.c heap.c
-
-$(PROGS) : % : Makefile $(OFILES)
-	ld -N -m elf_i386 -e start -Ttext=0x80000000 -o $@ $(OFILES)
-
-clean ::
-	rm -f $(PROGS)
+clean::
+	rm -f user

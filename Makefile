@@ -1,11 +1,27 @@
-default : all;
+.PHONY: all deps clean clean-all all-kernel
 
-run: all
-	qemu-system-x86_64 -enable-kvm -nographic --serial mon:stdio -hdc kernel/kernel.img
+RUSTSRC = rust
+export RUSTSRC
 
-rungraphic: all
-	qemu-system-x86_64 -enable-kvm --serial mon:stdio -hdc kernel/kernel.img
+default: all
 
-% :
-	(make -C kernel $@)
-	#(make -C user $@)
+all: kernel # user # Disable user mode for now
+
+deps:
+	${MAKE} -C deps all
+
+kernel: deps
+	${MAKE} -C kernel all
+
+user: deps
+	${MAKE} -C user all
+
+clean:
+	${MAKE} -C kernel clean
+	${MAKE} -C user clean
+
+clean-all: clean
+	${MAKE} -C deps clean
+
+run%: kernel
+	${MAKE} -C kernel $@

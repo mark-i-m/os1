@@ -1,34 +1,45 @@
+.PHONY: clean
+
+vpath %.rs interrupts/
+RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g -C opt-level=3 -Z no-landing-pads
+
 RUSTC = rustc
+RUSTFILES = $(notdir $(wildcard *.rs) $(wildcard interrupts/*.rs))
+SFILES = $(notdir $(wildcard *.S) $(wildcard *.s))
+OFILES = $(subst .s,.o,$(subst .S,.o,$(SFILES)))
+BOOTFILES = $(sort $(filter boot%,${OFILES}))
+NON_BOOTFILES = $(filter-out boot%,${OFILES})
+
+AFILES = libasmcode.a librustcode.a
+
+AR = ar
+LD = ld
+OBJCOPY = objcopy
+DD = dd
+
 CC = gcc
+ASFLAGS += -m32
 
-RSFLAGS = --target i686-unknown-linux-gnu -L . -L libcore 
-RSFILES = $(wildcard *.rs)
-SFILES = $(wildcard *.S) $(wildcard *.s)
+%.o: %.S
+	${CC} ${ASFLAGS} -c -o $@ $<
 
-OFILES = $(subst .rs,.o,$(RSFILES)) $(subst .s,.o,$(subst .S,.o,$(SFILES)))
+%.o: %.s
+	${CC} ${ASFLAGS} -c -o $@ $<
 
-# keep all files
-.SECONDARY :
+libasmcode.a: ${OFILES}
+	${AR} cr $@ ${NON_BOOTFILES}
 
-%.o :  Makefile %.rs
-	$(RUSTC) $(RSFLAGS) --emit obj --emit dep-info --crate-type lib $*.rs
+librustcode.a: ${RUSTFILES}
+	${RUSTC} ${RUSTFLAGS} lib.rs
 
-%.o :  Makefile %.S
-	$(CC) -MD -m32 -c $*.S
+%.bin: %
+	${OBJCOPY} -O binary $< $@
 
-%.o :  Makefile %.s
-	$(CC) -MD -m32 -c $*.s
+%.img: %.bin
+	${DD} if=$< of=$@ bs=512 conv=sync
 
-%.bin : Makefile %
-	objcopy -O binary $* $*.bin
-
-%.img : Makefile %.bin
-	dd if=$*.bin of=$*.img bs=512 conv=sync
-
-clean ::
+clean::
+	rm -f *.o
+	rm -f *.a
 	rm -f *.img
 	rm -f *.bin
-	rm -f *.o
-	rm -f *.d
-
--include *.d

@@ -4,3 +4,6 @@
 kernel/kernel
 *.bin
 *.img
+*.rlib
+*.swo
+*.a
