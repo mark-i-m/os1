@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 // This file contains the memory allocator used by the rust_alloc module
 //
+// TODO: maybe a buddy allocator?
+//
 // The comments below come from the rust src code
 
 // Init the heap

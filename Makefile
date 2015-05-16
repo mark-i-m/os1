@@ -5,7 +5,7 @@ export RUSTSRC
 
 default: all
 
-all: kernel # user # Disable user mode for now
+all: kernel user
 
 deps:
 	${MAKE} -C deps all
