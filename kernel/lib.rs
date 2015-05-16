@@ -25,10 +25,14 @@ mod vga;
 mod window;
 
 mod heap;
+mod rust_alloc;
 
 // This is the entry point to the kernel. It is the first rust code that runs.
 #[no_mangle]
 pub fn kernel_main() {
+    // print new line after "x"
+    printf! ("\n");
+
     // clear the screen
     Window::clear_screen();
 
@@ -38,7 +42,7 @@ pub fn kernel_main() {
     // initialize the heap
     printf! ("Going to init heap\n");
     heap::init();
-    printf! ("Heap inited");
+    printf! ("Heap inited\n");
 }
 
 fn draw_window() {
