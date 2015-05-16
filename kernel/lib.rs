@@ -45,6 +45,7 @@ pub fn kernel_main() {
     printf! ("Heap inited\n");
 }
 
+// Draw a test window
 fn draw_window() {
     let mut w0 = Window::new(40, 10, (4, 10));
 
