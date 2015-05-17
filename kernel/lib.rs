@@ -27,6 +27,10 @@ mod window;
 mod heap;
 mod rust_alloc;
 
+// kernel constans
+pub const KHEAP_START: usize = (1 << 20); // 1M
+pub const KHEAP_END: usize = (1 << 26); // 64M
+
 // This is the entry point to the kernel. It is the first rust code that runs.
 #[no_mangle]
 pub fn kernel_main() {
@@ -41,7 +45,7 @@ pub fn kernel_main() {
 
     // initialize the heap
     printf! ("Going to init heap\n");
-    heap::init();
+    heap::init(KHEAP_START, KHEAP_END);
     printf! ("Heap inited\n");
 }
 

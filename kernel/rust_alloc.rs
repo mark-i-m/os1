@@ -31,7 +31,7 @@ pub unsafe extern fn rust_allocate(size: usize, align: usize) -> *mut u8 {
 /// any value in range_inclusive(requested_size, usable_size).
 #[no_mangle]
 pub unsafe extern fn rust_deallocate(ptr: *mut u8, old_size: usize, align: usize) {
-    free(ptr)
+    free(ptr, old_size)
 }
 
 /// Resize the allocation referenced by `ptr` to `size` bytes.
@@ -53,7 +53,7 @@ pub unsafe extern fn rust_reallocate(ptr: *mut u8, old_size: usize, size: usize,
     let _try_alloc = malloc(size, align);
     match _try_alloc as usize {
         0 => {_try_alloc}
-        _ => {free(ptr); _try_alloc}
+        _ => {free(ptr, old_size); _try_alloc}
     }
 }
 
