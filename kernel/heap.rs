@@ -10,7 +10,7 @@
 // TODO: lock free list
 
 extern crate core;
-use core::mem::{transmute_copy};
+use core::mem::{transmute_copy, size_of};
 
 static mut START: usize = 0;
 static mut END: usize = 0;
@@ -18,48 +18,87 @@ static mut END: usize = 0;
 static mut free_list: *mut Block = (0 as *mut Block);
 
 // memory block
+// the last word of every block is its allocation size
 #[repr(C, packed)]
 struct Block {
     magic: usize, // If this is a free block, then it is magical: 0xCAFEFACE
-    size: usize,
+    size: usize, // Includes the size of the footer
     next: *mut Block,
     prev: *mut Block,
 }
 
 impl Block {
+    // METHODS FOR ALL BLOCKS
+
     // returns true if this is a valid free block
-    fn is_free(&self) -> bool { self.magic == 0xCAFEFACE && self.size % 0x10 == 0 }
+    fn is_free(&self) -> bool {
+        self.magic == 0xCAFEFACE && self.size % 0x10 == 0
+    }
+
+    // get the prev block in memory
+    //
+    // note: this is distinct from the prev block in the free list
+    // behavior is undefined if this is the last block.
+    unsafe fn get_prev(&self) -> *mut Block {
+        //TODO: deal with first block corner case
+        // get the addr of previous block's size
+        let prev_foot: *const usize = (self.this() - core::mem::size_of::<usize>()) as *const usize;
+        let prev_size = *prev_foot;
+
+        // get previous block's addr
+        let prev: *mut Block = (self.this() - prev_size) as *mut Block;
+    }
+
+    // get the next block in memory
+    //
+    // note: this is distinct from the next block in the free list
+    // behavior is undefined if this is the last block.
+    unsafe fn get_next(&self) -> *mut Block {
+        //TODO: deal with last block corner case
+        (self.this() + self.size) as *mut Block
+    }
+
+    // Set the footer for this block. This method does not error checking, so
+    // be careful!
+    unsafe fn set_footer(&mut self, size: usize) {
+        let footer = (self.this() + self.size - core::mem::size_of::<usize>()) as *mut Block
+        *footer = size;
+    }
+
+    #[inline]
+    unsafe fn this(&self) -> usize {
+        self as *const Block as usize;
+    }
+
+    // METHODS FOR ONLY FREE BLOCKS
 
     // split the block into two blocks. The first block will be of the
-    // given size. size must be a multiple of 16. The block must be free
+    // given size. The block must be free
     unsafe fn split(&mut self, size: usize) {
         // check that the math works out
         if !self.is_free() {
             panic!("Attempt to split non-free block 0x{:X}",
                    (self as *const Block) as usize);
         }
-        if !(size % 0x10 == 0) {
-            panic!("Size is not a multiple of 16: {}", size);
-        }
-        if size >= self.size {
+        if round_to_16(size + core::mem::size_of::<usize>) >= self.size {
             panic!("Splitting block that is too small: 0x{:X}, size {}",
                    (self as *const Block) as usize, size);
         }
 
         // get new block addr
-        let this: usize = self as *const Block as usize;
-        let new_addr: *const Block = (this + size) as *const Block;
+        let new_size = round_to_16(size + core::mem::size_of::<usize>);
+        let new_addr = (self.this() + new_size) as *const Block;
 
         // create new block and set magic bits
         let mut block: Block = core::mem::transmute_copy(&*new_addr);
         block.magic = 0xCAFEFACE;
-        block.size = self.size - size;
+        block.size = self.size - new_size;
 
         // adjust this block's metadata
-        self.size = size;
+        self.size = new_size;
 
         // insert at tail of free list
-        Block::free_insert(&mut block);
+        block.insert();
     }
 
     // coalesce this block with the next one. The two blocks must be free
@@ -76,7 +115,7 @@ impl Block {
         let next = self.get_next();
 
        // increase the size of this block
-       self.size += (*next).size;
+       self.size += (*next).size + core::mem::size_of::<usize>();
 
        // remove next block from free list
        (*next).remove();
@@ -89,35 +128,12 @@ impl Block {
         // TODO
     }
 
+    // METHODS FOR ONLY USED BLOCKS
+
     // inserts the given block at the tail of the free list and sets
     // the magic bits. The block cannot already be free.
-    unsafe fn insert(&mut self, block: &mut Block) {
+    unsafe fn insert(&mut self) {
         //TODO
-    }
-
-    // get the prev block in memory
-    // NOTE: this is distinct from the prev block in the free list
-    // behavior is undefined if this is the last block.
-    unsafe fn get_prev(&self) -> *mut Block {
-        //TODO
-    }
-
-    // get the next block in memory
-    // NOTE: this is distinct from the next block in the free list
-    // behavior is undefined if this is the last block.
-    unsafe fn get_next(&self) -> *mut Block {
-        if !self.is_free() {
-            panic!("Attempt to get next block of non-free block 0x{:X}",
-                   (self as *const Block) as usize);
-        }
-
-        //TODO: fixme
-        // get address of next block
-        let this = self as *const Block as usize;
-        let next_block: Block =
-            core::mem::transmute_copy(&*((this + self.size) as *mut Block));
-
-        &mut next_block
     }
 }
 
