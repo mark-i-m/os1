@@ -8,9 +8,13 @@
 // * All blocks will be 16B-aligned
 //
 // TODO: lock free list
+// TODO: make this more rustic
+// TODO: out of memory error
 
 extern crate core;
-use core::mem::{transmute_copy, size_of};
+
+use core::mem::{size_of};
+use core::option::Option::{self, Some, None};
 
 static mut START: usize = 0;
 static mut END: usize = 0;
@@ -179,11 +183,19 @@ impl Block {
             (*next).prev = self.this() as *mut Block;
         }
     }
+
+    // STATIC
+
+    // Find a block that fits the bill
+    unsafe fn find(size: usize, align: usize) -> Option<*mut Block> {
+        //TODO
+        Option::None
+    }
 }
 
 // round up to the nearest multiple of 16
 fn round_to_16(size: usize) -> usize {
-
+    if (size & 0xF) == 0 { size } else { (size & !0xF) + 0x10 }
 }
 
 // Init the heap
@@ -191,7 +203,7 @@ pub fn init(start: usize, end: usize) {
     // Round to nearest multiple of 16
     unsafe {
         // round START up
-        START = if (start & 0xF) == 0 {start} else {(start & !0xF) + 0x10};
+        START = round_to_16(start);
 
         // round END down
         END = end & !0xF;
@@ -215,7 +227,27 @@ pub fn init(start: usize, end: usize) {
 /// power of 2. The alignment must be no larger than the largest supported page
 /// size on the platform.
 pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
-    0 as *mut u8 // TODO
+    // TODO: alignment
+    // get free block
+    let block_addr = Block::find(size, align);
+
+    match block_addr {
+        None => { 0 as *mut u8 }
+        Some(addr) => {
+            let block: &mut Block = &mut*addr;
+
+            // Split the block if it is too big
+            if block.size > round_to_16(size + core::mem::size_of::<usize>()) {
+                block.split(size);
+            }
+
+            // Remove the block from the free list
+            block.remove();
+
+            // return ptr
+            addr as *mut u8
+        }
+    }
 }
 
 /// Deallocates the memory referenced by `ptr`.
