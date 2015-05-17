@@ -40,13 +40,17 @@ impl Block {
     // note: this is distinct from the prev block in the free list
     // behavior is undefined if this is the last block.
     unsafe fn get_prev(&self) -> *mut Block {
-        //TODO: deal with first block corner case
+        // check for corner cases
+        if self.this() == START {
+            panic!("Free block has no previous block: {}", self.this());
+        }
+
         // get the addr of previous block's size
         let prev_foot: *const usize = (self.this() - core::mem::size_of::<usize>()) as *const usize;
         let prev_size = *prev_foot;
 
         // get previous block's addr
-        let prev: *mut Block = (self.this() - prev_size) as *mut Block;
+        (self.this() - prev_size) as *mut Block
     }
 
     // get the next block in memory
@@ -54,20 +58,24 @@ impl Block {
     // note: this is distinct from the next block in the free list
     // behavior is undefined if this is the last block.
     unsafe fn get_next(&self) -> *mut Block {
-        //TODO: deal with last block corner case
+        // check for corner cases
+        if self.this() + self.size == END {
+            panic!("Free block has no next block: {}", self.this());
+        }
+
         (self.this() + self.size) as *mut Block
     }
 
     // Set the footer for this block. This method does not error checking, so
     // be careful!
     unsafe fn set_footer(&mut self, size: usize) {
-        let footer = (self.this() + self.size - core::mem::size_of::<usize>()) as *mut Block
+        let footer = (self.this() + self.size - core::mem::size_of::<usize>()) as *mut usize;
         *footer = size;
     }
 
     #[inline]
     unsafe fn this(&self) -> usize {
-        self as *const Block as usize;
+        self as *const Block as usize
     }
 
     // METHODS FOR ONLY FREE BLOCKS
@@ -80,13 +88,13 @@ impl Block {
             panic!("Attempt to split non-free block 0x{:X}",
                    (self as *const Block) as usize);
         }
-        if round_to_16(size + core::mem::size_of::<usize>) >= self.size {
+        if round_to_16(size + core::mem::size_of::<usize>()) >= self.size {
             panic!("Splitting block that is too small: 0x{:X}, size {}",
                    (self as *const Block) as usize, size);
         }
 
         // get new block addr
-        let new_size = round_to_16(size + core::mem::size_of::<usize>);
+        let new_size = round_to_16(size + core::mem::size_of::<usize>());
         let new_addr = (self.this() + new_size) as *const Block;
 
         // create new block and set magic bits
@@ -121,20 +129,61 @@ impl Block {
        (*next).remove();
     }
 
-    // remove this block from the free list and return it. The block
+    // remove this block from the free list. The block
     // must be free. After this operation, the block's magic word is
-    // set to 0xDEADBEEF. The block must be free.
+    // set to 0xDEADBEEF.
     unsafe fn remove(&mut self) {
-        // TODO
+        if !self.is_free() {
+            panic!("Attempt to remove non-free block from free list: {}", self.this());
+        }
+
+        // Set magic, so that this is definitely not a free block
+        self.magic = 0xDEADBEEF;
+
+        // get prev and next in free list
+        // corner cases:
+        // - if this is the head, prev = NULL
+        // - if this is the tail, next = NULL
+
+        if self.prev != (0 as *mut Block) {
+            (*self.prev).next = self.next;
+        } else {
+            // remove the head of the list
+            free_list = self.next;
+        }
+
+        if self.next != (0 as *mut Block) {
+            // not the tail
+            (*self.next).prev = self.prev;
+        }
     }
 
     // METHODS FOR ONLY USED BLOCKS
 
-    // inserts the given block at the tail of the free list and sets
+    // inserts the given block at the head of the free list and sets
     // the magic bits. The block cannot already be free.
     unsafe fn insert(&mut self) {
-        //TODO
+        if self.is_free() {
+            panic!("Attempt to insert a free block: {}", self.this());
+        }
+
+        // set magic bits
+        self.magic = 0xCAFEFACE;
+
+        // insert at head
+        let next = free_list;
+
+        self.next = free_list;
+
+        if next != (0 as *mut Block) {
+            (*next).prev = self.this() as *mut Block;
+        }
     }
+}
+
+// round up to the nearest multiple of 16
+fn round_to_16(size: usize) -> usize {
+
 }
 
 // Init the heap
