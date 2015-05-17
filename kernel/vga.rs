@@ -25,6 +25,9 @@ pub enum Color {
 pub const ROWS: usize = 25;
 pub const COLS: usize = 80;
 
+// location of vga buffer
+const VGA_BUFFER: *mut VGAChar = (0xb8000 as *mut VGAChar);
+
 // represents a single character on the screen
 #[derive(Copy,Clone)]
 struct VGAChar {
@@ -41,7 +44,7 @@ struct VGABuff {
 
 impl VGABuff {
     fn get_buff() -> VGABuff {
-        VGABuff {buff: (0xb8000 as *mut VGAChar)}
+        VGABuff {buff: VGA_BUFFER}
     }
 
     fn pack_colors(fg: Color, bg: Color) -> u8 {

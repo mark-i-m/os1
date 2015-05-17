@@ -40,7 +40,7 @@ fn draw_window() {
     w0.set_bg_color(Color::LightBlue);
     w0.paint();
 
-    w0.set_cursor((0, 0));
+    w0.set_cursor((1, 1));
     w0.set_bg_color(Color::LightGreen);
     w0.set_fg_color(Color::Red);
     w0.put_str("Hello World!");
