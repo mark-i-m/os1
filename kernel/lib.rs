@@ -1,4 +1,4 @@
-#![feature(no_std,lang_items,core)]
+#![feature(no_std,lang_items,core,alloc)]
 #![no_std]
 
 #![crate_type = "staticlib"]
@@ -7,7 +7,10 @@
 // use libcore
 #[macro_use]
 extern crate core;
+extern crate alloc;
 extern crate rlibc;
+
+use alloc::boxed::{Box};
 
 // kernel module imports
 use window::{Window, Color};
@@ -47,6 +50,10 @@ pub fn kernel_main() {
     printf! ("Going to init heap\n");
     heap::init(KHEAP_START, KHEAP_END);
     printf! ("Heap inited\n");
+
+    printf! ("Testing malloc\n");
+    test_malloc();
+    printf! ("Done!");
 }
 
 // Draw a test window
@@ -60,4 +67,16 @@ fn draw_window() {
     w0.set_bg_color(Color::LightGreen);
     w0.set_fg_color(Color::Red);
     w0.put_str("Hello World!");
+}
+
+fn test_malloc() {
+    let x = Box::new(5 as i32);
+
+    test_malloc2(x);
+}
+
+fn test_malloc2(x: Box<i32>) {
+    if *x != 5 {
+        panic!("AAAH!");
+    }
 }

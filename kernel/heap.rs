@@ -108,7 +108,6 @@ impl Block {
 
         // create new block and set magic bits
         let mut block: Block = core::mem::transmute_copy(&*new_addr);
-        block.magic = 0xCAFEFACE;
         block.size = self.size - new_size;
         block.set_footer(block.size);
 
@@ -194,8 +193,33 @@ impl Block {
 
     // Find a block that fits the bill
     unsafe fn find(size: usize, align: usize) -> Option<*mut Block> {
-        //TODO
-        Option::None
+        let mut found = None;
+
+        // loop through blocks until a good one is found
+        let mut block_addr = START as *mut Block;
+
+        while block_addr != (0 as *mut Block) {
+            let block = &*block_addr;
+
+            if Block::is_match(block, size, align) {
+                found = Some(block_addr);
+                break;
+            }
+
+            if (block_addr as usize) + block.size >= END {
+                break;
+            } else {
+                block_addr = block.get_next();
+            }
+        }
+
+        found
+    }
+
+    fn is_match(block: &Block, size: usize, align: usize) -> bool {
+        // TODO: alignment
+
+        block.size >= size
     }
 }
 
