@@ -21,6 +21,11 @@ static mut END: usize = 0;
 
 static mut free_list: *mut Block = (0 as *mut Block);
 
+// heap stats
+static mut SUCC_MALLOCS: usize = 0;
+static mut FAIL_MALLOCS: usize = 0;
+static mut FREES:        usize = 0;
+
 // memory block
 // the last word of every block is its allocation size
 #[repr(C, packed)]
@@ -72,7 +77,7 @@ impl Block {
 
     // Set the footer for this block. This method does not error checking, so
     // be careful!
-    unsafe fn set_footer(&mut self, size: usize) {
+    unsafe fn set_footer(&self, size: usize) {
         let footer = (self.this() + self.size - core::mem::size_of::<usize>()) as *mut usize;
         *footer = size;
     }
@@ -105,6 +110,7 @@ impl Block {
         let mut block: Block = core::mem::transmute_copy(&*new_addr);
         block.magic = 0xCAFEFACE;
         block.size = self.size - new_size;
+        block.set_footer(block.size);
 
         // adjust this block's metadata
         self.size = new_size;
@@ -213,10 +219,24 @@ pub fn init(start: usize, end: usize) {
             panic!("No heap space");
         }
 
-        printf! ("In heap init\nstart addr: {:x}, end addr: {:x}\n", START, END);
+        printf! ("In heap init\nstart addr: {:x}, end addr: {:x}, {} bytes\n",
+                 START, END, END - START);
     }
 
-    // TODO: create first block and free list
+    // create first block and free list
+    unsafe {
+        let first: &mut Block = &mut*(START as *mut Block);
+
+        first.magic = 0xCAFEFACE;
+        first.size = END - START;
+        first.next = 0 as *mut Block;
+        first.prev = 0 as *mut Block;
+        first.set_footer(first.size);
+
+        free_list = START as *mut Block;
+    }
+
+    print_stats();
 }
 
 /// Return a pointer to `size` bytes of memory aligned to `align`.
@@ -232,7 +252,13 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
     let block_addr = Block::find(size, align);
 
     match block_addr {
-        None => { 0 as *mut u8 }
+        None => {
+            // update stats
+            FAIL_MALLOCS += 1;
+
+            // return failure
+            0 as *mut u8
+        }
         Some(addr) => {
             let block: &mut Block = &mut*addr;
 
@@ -243,6 +269,9 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
 
             // Remove the block from the free list
             block.remove();
+
+            // update stats
+            SUCC_MALLOCS += 1;
 
             // return ptr
             addr as *mut u8
@@ -258,7 +287,7 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
 /// create the allocation referenced by `ptr`. The `old_size` parameter may be
 /// any value in range_inclusive(requested_size, usable_size).
 pub unsafe fn free(ptr: *mut u8, old_size: usize) {
-
+    FREES += 1;
 }
 
 /// Returns the usable size of an allocation created with the specified the
@@ -272,5 +301,50 @@ pub fn usable_size(size: usize, align: usize) -> usize {
 /// These statistics may be inconsistent if other threads use the allocator
 /// during the call.
 pub fn print_stats() {
+    printf!("\nHeap stats\n----------\n");
 
+    // Number of free blocks and amount of free memory
+    let (num_free, size_free, num_used, size_used) = get_block_stats();
+    printf!("{} used blocks; {}B used\n", num_used, size_used);
+    printf!("{} free blocks; {}B free\n", num_free, size_free);
+
+    // Number of mallocs and frees
+    unsafe {
+        printf!("Successfull mallocs: {}; Failed mallocs: {}; Frees: {}\n\n",
+                SUCC_MALLOCS, FAIL_MALLOCS, FREES);
+    }
+}
+
+// Helper methods to compute stats
+fn get_block_stats() -> (usize, usize, usize, usize) {
+    // counters
+    let mut num_used = 0;
+    let mut num_free = 0;
+    let mut size_used = 0;
+    let mut size_free = 0;
+
+    // loop through all blocks
+    unsafe{
+        let mut block_addr = START as *mut Block;
+
+        while block_addr != (0 as *mut Block) {
+            let block = &*block_addr;
+
+            if block.is_free() {
+                num_free += 1;
+                size_free += block.size;
+            } else {
+                num_used += 1;
+                size_used += 1;
+            }
+
+            if (block_addr as usize) + block.size >= END {
+                break;
+            } else {
+                block_addr = block.get_next();
+            }
+        }
+    }
+
+    (num_free, size_free, num_used, size_used)
 }
