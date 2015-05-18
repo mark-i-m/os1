@@ -10,25 +10,21 @@ extern crate core;
 extern crate alloc;
 extern crate rlibc;
 
-use alloc::boxed::{Box};
-
-// kernel module imports
-use window::{Window, Color};
-
-use heap::{init, print_stats};
-
 // kernel module declarations
+// debug must be first, since it defines macros the others need
 #[macro_use]
-mod debug; // debug must be first, since it defines macros the others need
+mod debug;
 mod bare_bones;
 
 mod machine;
 
-mod vga;
-mod window;
-
 mod heap;
 mod rust_alloc;
+
+mod process;
+
+mod vga;
+mod window;
 
 // kernel constans
 pub const KHEAP_START: usize = (1 << 20); // 1M
@@ -40,60 +36,16 @@ pub fn kernel_main() {
     // print new line after "x"
     printf! ("\n");
 
-    // clear the screen
-    Window::clear_screen();
-
-    // draw a test window to let the world know we're alive
-    draw_window();
-
     // initialize the heap
-    printf! ("Going to init heap\n");
     heap::init(KHEAP_START, KHEAP_END);
     printf! ("Heap inited\n");
 
-    printf! ("Testing malloc\n");
-    test_malloc();
-    printf! ("Done!");
-}
+    // initialize processes
+    process::init();
+    printf! ("Processes inited\n");
 
-// Draw a test window
-fn draw_window() {
-    let mut w0 = Window::new(40, 10, (4, 10));
+    // yield to init process
+    process::proc_yield();
 
-    w0.set_bg_color(Color::LightBlue);
-    w0.paint();
-
-    w0.set_cursor((1, 1));
-    w0.set_bg_color(Color::LightGreen);
-    w0.set_fg_color(Color::Red);
-    w0.put_str("Hello World!");
-}
-
-fn test_malloc() {
-    let x = Box::new(5 as i32);
-
-    heap::print_stats();
-
-    test_malloc2(x);
-}
-
-// 16 B
-struct Test {
-    t0: usize,
-    t1: usize,
-    t2: usize,
-    t3: usize,
-}
-
-fn test_malloc2(x: Box<i32>) {
-    if *x != 5 {
-        panic!("AAAH!");
-    }
-
-    let y = Box::new(Test {t0: 0, t1: 1, t2:2, t3:3});
-    if (*y).t0 != 0 || (*y).t1 != 1 || (*y).t2 != 2 || (*y).t3 != 3 {
-        panic!("AAAH!");
-    }
-
-    heap::print_stats();
+    printf! ("This should never happen!\n");
 }
