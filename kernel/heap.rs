@@ -127,7 +127,7 @@ impl Block {
         let next = self.get_next();
 
        // increase the size of this block
-       self.size += (*next).size + core::mem::size_of::<usize>();
+       self.size += (*next).size;
 
        // remove next block from free list
        (*next).remove();
@@ -179,6 +179,8 @@ impl Block {
 
         free_list = self as *mut Block;
         self.next = next;
+
+        self.prev = (0 as *mut Block);
 
         if next != (0 as *mut Block) {
             (*next).prev = self.this() as *mut Block;
@@ -337,13 +339,36 @@ pub unsafe fn free(ptr: *mut u8, old_size: usize) {
     block.size = true_size;
     block.set_footer(block.size); // just in case
 
+    // TODO: lock here
+
     // update stats
     FREES += 1;
 
     // insert into free list
     block.insert();
 
-    // TODO: attempt coalescing
+    // attempt coalescing
+    let prev_free = if ptr as usize != START {
+        (*block.get_prev()).is_free()
+    } else {
+        false
+    };
+
+    let next_free = if ptr as usize + block.size < END {
+        (*block.get_next()).is_free()
+    } else {
+        false
+    };
+
+    if next_free {
+        block.combine();
+    }
+
+    if prev_free {
+        (*block.get_prev()).combine();
+    }
+
+    // TODO: unlock here
 
     print_stats();
 }
