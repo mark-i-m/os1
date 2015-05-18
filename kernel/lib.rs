@@ -79,4 +79,6 @@ fn test_malloc2(x: Box<i32>) {
     if *x != 5 {
         panic!("AAAH!");
     }
+
+    let y = Box::new(6 as usize);
 }

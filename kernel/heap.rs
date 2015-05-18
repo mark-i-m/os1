@@ -104,18 +104,17 @@ impl Block {
 
         // get new block addr
         let new_size = round_to_16(size + core::mem::size_of::<usize>());
-        let new_addr = (self.this() + new_size) as *const Block;
 
         // create new block and set magic bits
-        let mut block: Block = core::mem::transmute_copy(&*new_addr);
-        block.size = self.size - new_size;
-        block.set_footer(block.size);
+        let block = (self.this() + new_size) as *mut Block;
+        (*block).size = self.size - new_size;
+        (*block).set_footer((*block).size);
 
         // adjust this block's metadata
         self.size = new_size;
 
         // insert at tail of free list
-        block.insert();
+        (*block).insert();
     }
 
     // coalesce this block with the next one. The two blocks must be free
@@ -182,7 +181,8 @@ impl Block {
         // insert at head
         let next = free_list;
 
-        self.next = free_list;
+        free_list = self as *mut Block;
+        self.next = next;
 
         if next != (0 as *mut Block) {
             (*next).prev = self.this() as *mut Block;
