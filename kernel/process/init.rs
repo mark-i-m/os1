@@ -10,7 +10,7 @@ impl Process for Init {
         Init { name: name }
     }
 
-    fn run () {
+    fn run (&self) -> usize {
         use super::super::window::{Window, Color};
 
         // clear the screen
@@ -25,5 +25,11 @@ impl Process for Init {
         w0.set_bg_color(Color::LightGreen);
         w0.set_fg_color(Color::Red);
         w0.put_str("Hello World!");
+
+        w0.set_cursor((2,1));
+        w0.put_str("from ");
+        w0.put_str(self.name);
+
+        0
     }
 }
