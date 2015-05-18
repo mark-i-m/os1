@@ -15,7 +15,7 @@ use alloc::boxed::{Box};
 // kernel module imports
 use window::{Window, Color};
 
-use heap::{init};
+use heap::{init, print_stats};
 
 // kernel module declarations
 #[macro_use]
@@ -72,6 +72,8 @@ fn draw_window() {
 fn test_malloc() {
     let x = Box::new(5 as i32);
 
+    heap::print_stats();
+
     test_malloc2(x);
 }
 
@@ -81,4 +83,6 @@ fn test_malloc2(x: Box<i32>) {
     }
 
     let y = Box::new(6 as usize);
+
+    heap::print_stats();
 }
