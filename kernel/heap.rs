@@ -6,8 +6,6 @@
 // Invariants:
 // * All blocks will be a multiple of 16B
 // * All blocks will be 16B-aligned
-//
-// TODO: lock free list
 
 extern crate core;
 
@@ -271,6 +269,8 @@ pub fn init(start: usize, end: usize) {
 pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
     // TODO: alignment
 
+    // TODO: lock here
+
     // get free block
     let block_addr = Block::find(size, align);
 
@@ -283,6 +283,8 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
 
             // update stats
             FAIL_MALLOCS += 1;
+
+            // TODO: unlock here
 
             // return failure
             0 as *mut u8
@@ -300,6 +302,8 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
 
             // update stats
             SUCC_MALLOCS += 1;
+
+            // TODO: unlock here
 
             // return ptr
             addr as *mut u8
@@ -351,6 +355,8 @@ fn get_block_stats() -> (usize, usize, usize) {
     let mut num_free = 0;
     let mut size_free = 0;
 
+    // TODO: lock here
+
     // loop through all blocks
     unsafe{
         let mut block_addr = free_list as *mut Block;
@@ -368,6 +374,8 @@ fn get_block_stats() -> (usize, usize, usize) {
             }
         }
     }
+
+    // TODO: unlock here
 
     (num_free, size_free, unsafe { END - START - size_free })
 }
