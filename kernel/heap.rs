@@ -196,7 +196,7 @@ impl Block {
         let mut found = None;
 
         // loop through blocks until a good one is found
-        let mut block_addr = START as *mut Block;
+        let mut block_addr = free_list;
 
         while block_addr != (0 as *mut Block) {
             let block = &*block_addr;
