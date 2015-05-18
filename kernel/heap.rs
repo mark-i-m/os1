@@ -264,7 +264,7 @@ pub fn init(start: usize, end: usize) {
         free_list = START as *mut Block;
     }
 
-    print_stats();
+    // print_stats();
 }
 
 /// Return a pointer to `size` bytes of memory aligned to `align`.
@@ -276,7 +276,7 @@ pub fn init(start: usize, end: usize) {
 /// size on the platform.
 pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
     // TODO: lock here
-    printf!("malloc {}, {}\n", size, align);
+    //printf!("malloc {}, {}\n", size, align);
 
     // get free block
     let align_rounded = align.next_power_of_two();
@@ -384,7 +384,7 @@ pub unsafe fn free(ptr: *mut u8, old_size: usize) {
 
     // TODO: unlock here
 
-    print_stats();
+    //print_stats();
 }
 
 /// Returns the usable size of an allocation created with the specified the

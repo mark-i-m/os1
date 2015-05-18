@@ -1,12 +1,13 @@
 #[link(name = "asmcode", repr="static")]
 
+#[allow(improper_ctypes)]
 #[allow(dead_code)]
 extern "C" {
     // pub fn switchToUser(pc: usize, esp: usize, eax: usize);
 
     // pub fn vmm_on(cr3: usize);
     // pub fn uint32_t cs32(void *ptr, uint32_t ifval, uint32_t thenval);
-    // pub fn contextSwitch(long *placeToSaveEsp, long nextEsp, long eflags);
+    pub fn contextSwitch(placeToSaveEsp: *const usize, nextEsp: usize, eflags: usize);
     // pub fn int eflags();
 
     // pub fn pit_do_init(divide: u32);

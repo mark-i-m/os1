@@ -15,6 +15,7 @@ extern crate rlibc;
 #[macro_use]
 mod debug;
 mod bare_bones;
+mod data_structures;
 
 mod machine;
 
