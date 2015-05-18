@@ -1,9 +1,12 @@
 .PHONY: all clean
+
 DEPDIR = ../deps
+
 default: all
--include ../common.mak
 
 all: user.img
+
+-include ../common.mak
 
 user: ${BOOTFILES} ${AFILES}
 	${LD} --gc-sections -N -m elf_i386 -e start -Ttext=0x400000 -o user ${BOOTFILES} --start-group ${AFILES} --end-group

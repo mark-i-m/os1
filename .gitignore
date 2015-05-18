@@ -1,9 +1,13 @@
-*.swp
 *.o
+*.rlib
+*.a
+
 *.d
+
 kernel/kernel
+user/user
 *.bin
 *.img
-*.rlib
+
+*.swp
 *.swo
-*.a

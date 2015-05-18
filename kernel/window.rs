@@ -13,6 +13,7 @@ pub struct Window {
 }
 
 impl Window {
+    // TODO: fix this constructor
     pub fn new(w: usize, h: usize, pos: (usize, usize)) -> Window {
         Window {height: h, width: w, pos: pos, cursor: pos, vga: VGA::get_vga()}
     }
