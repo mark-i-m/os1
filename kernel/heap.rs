@@ -319,12 +319,38 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
 /// create the allocation referenced by `ptr`. The `old_size` parameter may be
 /// any value in range_inclusive(requested_size, usable_size).
 pub unsafe fn free(ptr: *mut u8, old_size: usize) {
+
+    // check input
+    if ptr == (0 as *mut u8) {
+        panic!("Attempt to free NULL ptr");
+    }
+
+    let block: &mut Block = &mut*(ptr as *mut Block);
+
+    if block.is_free() {
+        panic!("Double free: {}", ptr as usize);
+    }
+
+    let usize_size = core::mem::size_of::<usize>();
+    let true_size = round_to_16(old_size + usize_size);
+
+    block.size = true_size;
+    block.set_footer(block.size); // just in case
+
+    // update stats
     FREES += 1;
-    //TODO
+
+    // insert into free list
+    block.insert();
+
+    // TODO: attempt coalescing
+
+    print_stats();
 }
 
 /// Returns the usable size of an allocation created with the specified the
 /// `size` and `align`.
+#[allow(unused_variables)] // align has no impact on size in this implementation
 pub fn usable_size(size: usize, align: usize) -> usize {
     let usize_size = core::mem::size_of::<usize>();
     round_to_16(size + usize_size) - usize_size
@@ -366,6 +392,7 @@ fn get_block_stats() -> (usize, usize, usize) {
 
             num_free += 1;
             size_free += block.size;
+            printf!("free {:X}: {} B\n", block_addr as usize, block.size);
 
             if block.next == (0 as *mut Block) {
                 break;
