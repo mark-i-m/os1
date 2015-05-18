@@ -8,7 +8,7 @@ LD = ld
 OBJCOPY = objcopy
 DD = dd
 
-RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g -C opt-level=3 -Z no-landing-pads
+RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g -C opt-level=0 -Z no-landing-pads
 ASFLAGS += -m32
 
 RUSTFILES = $(notdir $(wildcard *.rs) $(wildcard interrupts/*.rs))

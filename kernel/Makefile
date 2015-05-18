@@ -21,6 +21,9 @@ runtext: all
 rungraphic: all
 	qemu-system-x86_64 -enable-kvm --serial mon:stdio -hdc kernel.img
 
+rundebug: clean all
+	qemu-system-x86_64 -s -S -nographic --serial mon:stdio -hdc kernel.img
+
 # kernel clean
 clean::
 	rm -f kernel
