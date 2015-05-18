@@ -8,8 +8,6 @@
 // * All blocks will be 16B-aligned
 //
 // TODO: lock free list
-// TODO: make this more rustic
-// TODO: out of memory error
 
 extern crate core;
 
@@ -272,11 +270,17 @@ pub fn init(start: usize, end: usize) {
 /// size on the platform.
 pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
     // TODO: alignment
+
     // get free block
     let block_addr = Block::find(size, align);
 
     match block_addr {
         None => {
+            // check for out-of-memory; that is, empty free list
+            if free_list == (0 as *mut Block) {
+                panic!("Out of memory!");
+            }
+
             // update stats
             FAIL_MALLOCS += 1;
 
@@ -318,7 +322,6 @@ pub unsafe fn free(ptr: *mut u8, old_size: usize) {
 /// Returns the usable size of an allocation created with the specified the
 /// `size` and `align`.
 pub fn usable_size(size: usize, align: usize) -> usize {
-    // TODO: check correctness
     let usize_size = core::mem::size_of::<usize>();
     round_to_16(size + usize_size) - usize_size
 }
