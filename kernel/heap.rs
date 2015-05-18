@@ -180,7 +180,7 @@ impl Block {
         free_list = self as *mut Block;
         self.next = next;
 
-        self.prev = (0 as *mut Block);
+        self.prev = 0 as *mut Block;
 
         if next != (0 as *mut Block) {
             (*next).prev = self.this() as *mut Block;
@@ -215,15 +215,21 @@ impl Block {
     }
 
     fn is_match(block: &Block, size: usize, align: usize) -> bool {
-        // TODO: alignment
+        let block_usize = block as *const Block as usize;
+        let aligned = round_to_n(block_usize, align);
 
-        block.size >= size
+        block.size - (aligned - block_usize) >= size
     }
 }
 
 // round up to the nearest multiple of 16
 fn round_to_16(size: usize) -> usize {
-    if (size & 0xF) == 0 { size } else { (size & !0xF) + 0x10 }
+    round_to_n(size, 16)
+}
+
+// n must be a power of 2
+fn round_to_n(size: usize, n: usize) -> usize {
+    if size % n == 0 { size } else { size - (size % n) + n }
 }
 
 // Init the heap
@@ -269,12 +275,13 @@ pub fn init(start: usize, end: usize) {
 /// power of 2. The alignment must be no larger than the largest supported page
 /// size on the platform.
 pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
-    // TODO: alignment
-
     // TODO: lock here
+    printf!("malloc {}, {}\n", size, align);
 
     // get free block
-    let block_addr = Block::find(size, align);
+    let align_rounded = align.next_power_of_two();
+    let size_rounded = round_to_16(size + core::mem::size_of::<usize>());
+    let block_addr = Block::find(size_rounded, align_rounded);
 
     match block_addr {
         None => {
@@ -292,10 +299,17 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
             0 as *mut u8
         }
         Some(addr) => {
-            let block: &mut Block = &mut*addr;
+            let mut block: &mut Block = &mut*addr;
+
+            // check if the aligned block is in the middle
+            let addr_rounded = round_to_n(addr as usize, align_rounded);
+            if addr_rounded > addr as usize {
+                block.split(addr_rounded - (addr as usize));
+                block = &mut*block.next;
+            }
 
             // Split the block if it is too big
-            if block.size > round_to_16(size + core::mem::size_of::<usize>()) {
+            if block.size > size_rounded {
                 block.split(size);
             }
 

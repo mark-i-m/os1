@@ -77,13 +77,21 @@ fn test_malloc() {
     test_malloc2(x);
 }
 
+// 16 B
+struct Test {
+    t0: usize,
+    t1: usize,
+    t2: usize,
+    t3: usize,
+}
+
 fn test_malloc2(x: Box<i32>) {
     if *x != 5 {
         panic!("AAAH!");
     }
 
-    let y = Box::new(6 as usize);
-    if *y != 6 {
+    let y = Box::new(Test {t0: 0, t1: 1, t2:2, t3:3});
+    if (*y).t0 != 0 || (*y).t1 != 1 || (*y).t2 != 2 || (*y).t3 != 3 {
         panic!("AAAH!");
     }
 
