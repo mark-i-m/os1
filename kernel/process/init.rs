@@ -1,13 +1,28 @@
-use super::{Process};
+use super::{Process, State, STACK_SIZE, StackPtr, next_id};
+use core::marker::Sync;
+use alloc::boxed;
+use alloc::boxed::{Box, into_raw};
 
 // The init process
 pub struct Init {
     name: &'static str,
+    id: usize,
+    state: State,
+    stack: StackPtr,
+    kesp: StackPtr,
 }
 
 impl Process for Init {
     fn new (name: &'static str) -> Init {
-        Init { name: name }
+        let stack = StackPtr::get_stack();
+        stack.smash();
+        Init {
+            id: next_id(),
+            name: name,
+            state: State::READY,
+            stack: stack,
+            kesp: stack.get_kesp(),
+        }
     }
 
     fn run (&self) -> usize {

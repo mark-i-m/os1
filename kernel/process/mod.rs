@@ -9,6 +9,9 @@ pub use self::init::{Init};
 
 pub mod init;
 
+// constants
+const STACK_SIZE: usize = 2048;
+
 // The currently running process
 // access through process::current() and process::set_current()
 use self::Static::*;
@@ -30,6 +33,38 @@ pub trait Process : Sync {
     fn new(name: &'static str) -> Self
         where Self : Sized;
     fn run(&self) -> usize;
+}
+
+pub enum State {
+    READY,
+    RUNNING,
+    BLOCKED,
+    TERMINATED,
+}
+
+struct StackPtr {
+    ptr: *const usize,
+}
+
+unsafe impl Sync for StackPtr { }
+
+impl StackPtr {
+    fn get_stack() -> StackPtr {
+        // Allocate a stack
+        let stack = Box::new([0; STACK_SIZE]);
+
+        // set the pointer
+        StackPtr {ptr: unsafe {boxed::into_raw(stack) as *const usize} }
+    }
+
+    fn smash(&self) {
+        // Smash the stack
+    }
+
+    fn get_kesp(&self) -> StackPtr {
+        // Create a new struct that contains the starting
+        // kesp value for this stack
+    }
 }
 
 // This function initializes the process infrastructure
@@ -70,7 +105,7 @@ pub fn current() -> Box<Process> {
 // set the current process from a Box
 #[allow(dead_code)]
 pub fn set_current(process: Box<Process>) {
-    
+
     // TODO: lock here
 
     unsafe {
@@ -103,4 +138,9 @@ pub fn make_ready(process: Box<Process>) {
     }
 
     // TODO: unlock here
+}
+
+// Atomically get the next id
+pub fn next_id() -> usize {
+    0//TODO
 }
