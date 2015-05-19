@@ -49,4 +49,8 @@ impl Process for Init {
 
         0
     }
+
+    fn set_state(&mut self, s: State) {
+        self.state = s;
+    }
 }

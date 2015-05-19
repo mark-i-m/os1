@@ -41,6 +41,14 @@ pub trait Process : Sync {
     fn new(name: &'static str) -> Self
         where Self : Sized;
     fn run(&self) -> usize;
+    fn entry(&self) {
+        //checkKilled();
+        let code = self.run();
+        //exit(code);
+        printf!("process exited with code {}\n", code);
+        // TODO
+    }
+    fn set_state(&mut self, s: State);
 }
 
 // Possible states of process
@@ -157,6 +165,7 @@ pub fn make_ready(process: Box<Process>) {
     unsafe {
         match ready_queue {
             There(q) => {
+                //TODO: get this right: (*process).set_state(State::READY);
                 let mut rq: Box<Queue<Box<Process>>> = Box::from_raw(q);
                 (*rq).push(process);
             }
