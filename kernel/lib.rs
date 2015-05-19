@@ -48,5 +48,5 @@ pub fn kernel_main() {
     // yield to init process
     process::proc_yield();
 
-    printf! ("This should never happen!\n");
+    panic! ("This should never happen!\n");
 }
