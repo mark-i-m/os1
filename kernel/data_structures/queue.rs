@@ -1,29 +1,26 @@
 #![allow(dead_code)]
 
-use alloc::boxed::{Box};
-use core::option::Option::{self, Some, None};
+use super::{LinkedList};
+use core::option::{Option};
 
 pub struct Queue<T> {
     size: usize,
-    data: Option<Box<QueueNode<T>>>,
-}
-
-struct QueueNode<T> {
-    data: Box<T>,
-    next: Option<Box<QueueNode<T>>>,
+    data: LinkedList<T>,
 }
 
 impl <T> Queue<T> {
     pub fn new() -> Queue<T> {
-        Queue {size: 0, data: None}
+        Queue {size: 0, data: LinkedList::new()}
     }
 
     pub fn push(&mut self, val: T) {
-        //TODO
+        self.size += 1;
+        self.data.push_back(val);
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        None // TODO
+        self.size -= 1;
+        self.data.pop_front()
     }
 
     pub fn is_empty(&self) -> bool {

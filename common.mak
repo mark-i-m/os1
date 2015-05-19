@@ -12,7 +12,8 @@ RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g -C opt-level=0
 ASFLAGS += -m32
 
 vpath %.rs process
-RUSTFILES = $(notdir $(wildcard *.rs) $(wildcard process/*.rs))
+vpath %.rs data_structures
+RUSTFILES = $(notdir $(wildcard *.rs) $(wildcard process/*.rs) $(wildcard data_structures/*.rs))
 SFILES = $(notdir $(wildcard *.S) $(wildcard *.s))
 
 OFILES = $(subst .s,.o,$(subst .S,.o,$(SFILES)))
