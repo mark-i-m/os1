@@ -8,12 +8,11 @@ use super::data_structures::{Queue};
 use super::concurrency::{Atomic32};
 
 pub use self::init::{Init};
+use self::Static::*;
 
 pub mod init;
 
 // enum for global states
-use self::Static::*;
-
 #[allow(dead_code)]
 enum Static<T> {
     There(T),
@@ -29,9 +28,11 @@ const STACK_SIZE: usize = 2048;
 static mut current_proc: Static<*mut Process> = Null;
 
 // Ready q
+// add to the queue with make_ready()
 static mut ready_queue: Static<*mut Queue<Box<Process>>> = Null;
 
 // Next process id
+// use NEXT_ID.get_then_add()
 static NEXT_ID: Atomic32 = Atomic32 {i: 0};
 
 // This is the API that all processes must implement
