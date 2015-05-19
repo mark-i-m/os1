@@ -13,7 +13,8 @@ ASFLAGS += -m32
 
 vpath %.rs process
 vpath %.rs data_structures
-RUSTFILES = $(notdir $(wildcard *.rs) $(wildcard process/*.rs) $(wildcard data_structures/*.rs))
+vpath %.rs concurrency
+RUSTFILES = $(notdir $(wildcard *.rs) $(wildcard process/*.rs) $(wildcard data_structures/*.rs) $(wildcard concurrency/*.rs))
 SFILES = $(notdir $(wildcard *.S) $(wildcard *.s))
 
 OFILES = $(subst .s,.o,$(subst .S,.o,$(SFILES)))

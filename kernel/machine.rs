@@ -8,7 +8,7 @@ extern "C" {
     // pub fn vmm_on(cr3: usize);
     // pub fn uint32_t cs32(void *ptr, uint32_t ifval, uint32_t thenval);
     pub fn contextSwitch(placeToSaveEsp: *const usize, nextEsp: usize, eflags: usize);
-    // pub fn int eflags();
+    pub fn eflags() -> usize;
 
     // pub fn pit_do_init(divide: u32);
 

@@ -16,6 +16,7 @@ extern crate rlibc;
 mod debug;
 mod bare_bones;
 mod data_structures;
+mod concurrency;
 
 mod machine;
 

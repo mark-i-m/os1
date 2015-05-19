@@ -125,20 +125,20 @@ activateNext:
 
         ret
 
-# 	# uint32_t fetchAndAdd32(uint32_t* ptr, uint32_t v)
-# 	.global fetchAndAdd32
-# fetchAndAdd32:
-# 	mov 4(%esp),%ecx		# ptr
-# 	mov 8(%esp),%eax		# ptr
-# 	lock xaddl %eax,(%ecx)
-# 	ret
-#
-#         # eflags
-#         .global eflags
-# eflags:
-# 	pushf
-# 	pop %eax
-# 	ret
+	# uint32_t fetchAndAdd32(uint32_t* ptr, uint32_t v)
+	.global fetchAndAdd32
+fetchAndAdd32:
+	mov 4(%esp),%ecx		# ptr
+	mov 8(%esp),%eax		# v
+	lock xaddl %eax,(%ecx)
+	ret
+
+    # eflags
+    .global eflags
+eflags:
+	pushf
+	pop %eax
+	ret
 
 	# outb(int port, int val)
 	.global outb
