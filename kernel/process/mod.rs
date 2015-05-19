@@ -5,6 +5,7 @@ use core::marker::{Sized, Sync};
 use alloc::boxed;
 use alloc::boxed::{into_raw, Box};
 use super::data_structures::{Queue};
+use super::concurrency::{Atomic32};
 
 pub use self::init::{Init};
 
@@ -29,6 +30,9 @@ static mut current_proc: Static<*mut Process> = Null;
 
 // Ready q
 static mut ready_queue: Static<*mut Queue<Box<Process>>> = Null;
+
+// Next process id
+static NEXT_ID: Atomic32 = Atomic32 {i: 0};
 
 // This is the API that all processes must implement
 // note: if methods does not take &self, then Process is not object-safe
@@ -89,11 +93,6 @@ impl StackPtr {
 fn start_proc() {
     // get current process
     (*current()).run();
-}
-
-// Atomically get the next pid
-pub fn next_id() -> usize {
-    0//TODO
 }
 
 // This function initializes the process infrastructure

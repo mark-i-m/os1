@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use super::{Process, State, STACK_SIZE, StackPtr, next_id};
+use super::{Process, State, STACK_SIZE, StackPtr, NEXT_ID};
 use core::marker::Sync;
 use alloc::boxed;
 use alloc::boxed::{Box, into_raw};
@@ -19,7 +19,7 @@ impl Process for Init {
         let stack = StackPtr::get_stack();
         stack.smash();
         Init {
-            id: next_id(),
+            id: NEXT_ID.get_then_add(),
             name: name,
             state: State::READY,
             stack: stack,
