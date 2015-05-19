@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use super::{Process, State, STACK_SIZE, StackPtr, next_id};
 use core::marker::Sync;
 use alloc::boxed;

@@ -1,5 +1,6 @@
 // Implementing cooperative processes before turning on preemption
 
+#![allow(unused_imports, raw_pointer_derive)]
 use core::marker::{Sized, Sync};
 use alloc::boxed;
 use alloc::boxed::{into_raw, Box};
@@ -9,11 +10,7 @@ pub use self::init::{Init};
 
 pub mod init;
 
-// constants
-const STACK_SIZE: usize = 2048;
-
-// The currently running process
-// access through process::current() and process::set_current()
+// enum for global states
 use self::Static::*;
 
 #[allow(dead_code)]
@@ -22,12 +19,18 @@ enum Static<T> {
     Null,
 }
 
+// constants
+const STACK_SIZE: usize = 2048;
+
+// The currently running process
+// access through process::current() and process::set_current()
 #[allow(dead_code)]
 static mut current_proc: Static<*mut Process> = Null;
+
+// Ready q
 static mut ready_queue: Static<*mut Queue<Box<Process>>> = Null;
 
 // This is the API that all processes must implement
-//
 // note: if methods does not take &self, then Process is not object-safe
 pub trait Process : Sync {
     fn new(name: &'static str) -> Self
@@ -35,36 +38,62 @@ pub trait Process : Sync {
     fn run(&self) -> usize;
 }
 
-pub enum State {
+// Possible states of process
+#[allow(dead_code)]
+enum State {
     READY,
     RUNNING,
     BLOCKED,
     TERMINATED,
 }
 
+// A wrapper around stack pointers for use in initializing the stack
+#[derive(Copy,Clone)]
 struct StackPtr {
-    ptr: *const usize,
+    ptr: *mut usize,
 }
 
 unsafe impl Sync for StackPtr { }
 
 impl StackPtr {
     fn get_stack() -> StackPtr {
+        // TODO: fudge
         // Allocate a stack
         let stack = Box::new([0; STACK_SIZE]);
 
         // set the pointer
-        StackPtr {ptr: unsafe {boxed::into_raw(stack) as *const usize} }
+        StackPtr {ptr: unsafe {boxed::into_raw(stack) as *mut usize} }
     }
 
     fn smash(&self) {
+        // Get entry point of process
+        let entry = start_proc as usize;
+
         // Smash the stack
+        unsafe {
+            for idx in (STACK_SIZE - 6)..STACK_SIZE {
+                *self.ptr.offset(idx as isize) = 0;
+            }
+            *self.ptr.offset(-2) = entry;
+        }
     }
 
     fn get_kesp(&self) -> StackPtr {
         // Create a new struct that contains the starting
         // kesp value for this stack
+        StackPtr {ptr : (self.ptr as usize - 6) as *mut usize}
     }
+}
+
+// The entry point of all processes
+fn start_proc() {
+    // get current process
+    (*current()).run();
+}
+
+// Atomically get the next pid
+pub fn next_id() -> usize {
+    0//TODO
 }
 
 // This function initializes the process infrastructure
@@ -117,7 +146,7 @@ pub fn set_current(process: Box<Process>) {
 
 // Yield to the next process waiting
 pub fn proc_yield() {
-
+    //TODO
 }
 
 // Add the process to the Ready queue
@@ -138,9 +167,4 @@ pub fn make_ready(process: Box<Process>) {
     }
 
     // TODO: unlock here
-}
-
-// Atomically get the next id
-pub fn next_id() -> usize {
-    0//TODO
 }
