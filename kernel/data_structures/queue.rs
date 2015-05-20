@@ -4,22 +4,19 @@ use super::{LinkedList};
 use core::option::{Option};
 
 pub struct Queue<T> {
-    size: usize,
     data: LinkedList<T>,
 }
 
 impl <T> Queue<T> {
     pub fn new() -> Queue<T> {
-        Queue {size: 0, data: LinkedList::new()}
+        Queue {data: LinkedList::new()}
     }
 
     pub fn push(&mut self, val: T) {
-        self.size += 1;
         self.data.push_back(val);
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        self.size -= 1;
         self.data.pop_front()
     }
 
@@ -32,6 +29,6 @@ impl <T> Queue<T> {
     }
 
     pub fn size(&self) -> usize {
-        self.size
+        self.data.len()
     }
 }

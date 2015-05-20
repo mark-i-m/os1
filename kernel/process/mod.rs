@@ -98,6 +98,7 @@ impl Process {
 
     pub fn dispatch(&mut self, prev: Option<&Box<Process>>) {
         //TODO
+        (self.run)(self);
     }
 }
 
@@ -112,6 +113,7 @@ pub fn init() {
     // Add the init process to the ready q
     ready_queue::make_ready(init);
 
+    printf!("size {}", (*ready_queue::ready_q()).size());
 }
 
 // The entry point of all processes
@@ -143,7 +145,9 @@ pub fn proc_yield(mut q: Option<Box<Queue<Box<Process>>>>) {
     // TODO: lock here
 
     let mut me = current::current();
-    let mut me_barrow = None; 
+    let mut rq0 = ready_queue::ready_q(); //totally breaking rustc and ownership
+    let mut rq1 = ready_queue::ready_q();
+    let mut me_barrow = None;
 
     match me {
         Some(mut me_ptr) => {
@@ -164,15 +168,15 @@ pub fn proc_yield(mut q: Option<Box<Queue<Box<Process>>>>) {
                     ready_queue::make_ready(me_ptr);
                 }
             }
-            me_barrow = ready_queue::barrow_current();
+
+            me_barrow = (*rq0).peek_tail();
         }
         _ => {}
     }
 
     let mut next: Box<Process>;
-    let mut rq = ready_queue::ready_q();
 
-    if ((*rq).is_empty()) {
+    if ((*rq1).is_empty()) {
         panic!("Nothing to do!");
         //if (!idleProcess) {
         //    idleProcess = new IdleProcess();
@@ -180,9 +184,9 @@ pub fn proc_yield(mut q: Option<Box<Queue<Box<Process>>>>) {
         //}
         //next = idleProcess;
     } else {
-        match rq.pop() {
+        match rq1.pop() {
             Some(n) => { next = n; }
-            None    => { panic!("ready q is pseudo-empty"); }
+            None    => { panic!("ready q is empty"); }
         }
     }
 

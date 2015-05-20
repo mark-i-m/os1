@@ -27,10 +27,6 @@ pub fn ready_q() -> Box<Queue<Box<Process>>> {
     }
 }
 
-pub fn barrow_current() -> Option<&Box<Process>> {
-    (*ready_q()).peek_tail()
-}
-
 // Add the process to the Ready queue
 pub fn make_ready(process: Box<Process>) {
 
