@@ -1,59 +1,24 @@
-// Implementing cooperative processes before turning on preemption
-
-#![allow(unused_imports, raw_pointer_derive)]
-use core::marker::{Sized, Sync};
 use alloc::boxed;
-use alloc::boxed::{into_raw, Box};
-use super::data_structures::{Queue};
-use super::concurrency::{Atomic32};
+use alloc::boxed::Box;
 
-pub use self::init::{Init};
-use self::Static::*;
+use core::option::Option::{self, Some, None};
 
-pub mod init;
+use super::concurrency::Atomic32;
+use super::data_structures::Queue;
 
-// enum for global states
-#[allow(dead_code)]
-enum Static<T> {
-    There(T),
-    Null,
-}
+mod init;
+mod current;
+mod ready_queue;
 
 // constants
 const STACK_SIZE: usize = 2048;
 
-// The currently running process
-// access through process::current() and process::set_current()
-#[allow(dead_code)]
-static mut current_proc: Static<*mut Process> = Null;
-
-// Ready q
-// add to the queue with make_ready()
-static mut ready_queue: Static<*mut Queue<Box<Process>>> = Null;
-
-// Next process id
-// use NEXT_ID.get_then_add()
+// next pid
 static NEXT_ID: Atomic32 = Atomic32 {i: 0};
 
-// This is the API that all processes must implement
-// note: if methods does not take &self, then Process is not object-safe
-pub trait Process : Sync {
-    fn new(name: &'static str) -> Self
-        where Self : Sized;
-    fn run(&self) -> usize;
-    fn entry(&self) {
-        //checkKilled();
-        let code = self.run();
-        //exit(code);
-        printf!("process exited with code {}\n", code);
-        // TODO
-    }
-    fn set_state(&mut self, s: State);
-}
-
-// Possible states of process
-#[allow(dead_code)]
+// Process state
 enum State {
+    INIT,
     READY,
     RUNNING,
     BLOCKED,
@@ -65,8 +30,6 @@ enum State {
 struct StackPtr {
     ptr: *mut usize,
 }
-
-unsafe impl Sync for StackPtr { }
 
 impl StackPtr {
     fn get_stack() -> StackPtr {
@@ -98,82 +61,49 @@ impl StackPtr {
     }
 }
 
+// Process struct
+pub struct Process {
+    name: &'static str,
+    pid: usize,
+    run: fn(&Process) -> usize,
+    state: State,
+    stack: StackPtr,
+    kesp: StackPtr,
+}
+
+impl Process {
+    pub fn new(name: &'static str, run: fn(&Process) -> usize) -> Process {
+        let stack = StackPtr::get_stack();
+        stack.smash();
+
+        Process {
+            name: name,
+            pid: NEXT_ID.get_then_add(),
+            run: run,
+            state: State::INIT,
+            stack: stack,
+            kesp: stack.get_kesp(),
+        }
+    }
+}
+
+pub fn init() {
+
+    // Create the init process
+    let mut init = Box::new(Process::new("init", self::init::run));
+
+    // Create the ready q
+
+    // Add the init process to the ready q
+
+}
+
 // The entry point of all processes
 fn start_proc() {
     // get current process
-    (*current()).run();
+    (*current::current()).run();
 }
 
-// This function initializes the process infrastructure
-pub fn init() {
-    printf!("In process init\n");
+pub fn proc_yield(q: Option<Box<Queue<Box<Process>>>>) {//TODO: change to arbitrary list
 
-    // create the ready queue
-    unsafe {
-        ready_queue = There(boxed::into_raw(Box::new(Queue::new())));
-    }
-
-    // create Init process, but do not start it
-    let init: Box<Process> = Box::new(Init::new("Init"));
-
-    // add to ready queue
-    make_ready(init);
-
-    printf!("Created init process\n");
-}
-
-// get the current process as a Box
-#[allow(dead_code)]
-pub fn current() -> Box<Process> {
-    // TODO: lock here
-    unsafe {
-        match current_proc {
-            There(p) => {
-                Box::from_raw(p)
-            }
-            Null   => {
-                panic!("No current process");
-            }
-        }
-    }
-    // TODO: lock here
-}
-
-// set the current process from a Box
-#[allow(dead_code)]
-pub fn set_current(process: Box<Process>) {
-
-    // TODO: lock here
-
-    unsafe {
-        current_proc = There(boxed::into_raw(process));
-    }
-
-    // TODO: unlock here
-}
-
-// Yield to the next process waiting
-pub fn proc_yield() {
-    //TODO
-}
-
-// Add the process to the Ready queue
-pub fn make_ready(process: Box<Process>) {
-
-    // TODO: lock here
-
-    unsafe {
-        match ready_queue {
-            There(q) => {
-                //TODO: get this right: (*process).set_state(State::READY);
-                let mut rq: Box<Queue<Box<Process>>> = Box::from_raw(q);
-                (*rq).push(process);
-            }
-            Null => {
-                panic!("Unitialized ready queue");
-            }
-        }
-    }
-
-    // TODO: unlock here
 }
