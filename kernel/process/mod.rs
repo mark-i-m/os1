@@ -1,3 +1,13 @@
+// This is an implementation of simple cooperative processes
+//
+// Invariants:
+// 1) Every process is owned by a box
+// 2) Every process box is owned by
+//      a) A queue
+//      OR
+//      b) The current process pointer
+// 3) All queues are owned by boxes
+
 use alloc::boxed;
 use alloc::boxed::Box;
 
@@ -124,11 +134,14 @@ fn start_proc() {
 //
 // The next process from the ready q is dispatched
 // If the q is empty, then the current process continues running
-pub fn proc_yield(q: Option<Box<Queue<Box<Process>>>>) {
+//
+// Ownership:
+// - Move ownership of current process to the queue
+pub fn proc_yield(mut q: Option<Box<Queue<Box<Process>>>>) {
 
     // TODO: lock here
 
-    let me = current::current();
+    let mut me = current::current();
     match me {
         Some(me_ptr) => {
             match q {
@@ -138,14 +151,15 @@ pub fn proc_yield(q: Option<Box<Queue<Box<Process>>>>) {
                     //    Debug::printf("process %s#%d %X ", me_ptr->name, me_ptr->id, me_ptr);
                     //    Debug::panic("blocking while iDepth = %d",me_ptr->iDepth);
                     //}
+                    current::set_current(None);
                     (*me_ptr).state = State::BLOCKED;
-                    (*q_ptr).push(*me_ptr);
+                    (*q_ptr).push(me_ptr);
 
                     // Debug::printf("blocking process %s#%d %X\n", me->name, me->id, me);
                 }
                 None => {
                     /* no queue is specified, put me on the ready queue */
-                    ready_queue::make_ready(*me_ptr);
+                    ready_queue::make_ready(me_ptr);
                 }
             }
         }
