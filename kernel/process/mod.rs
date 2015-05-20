@@ -96,7 +96,7 @@ impl Process {
         }
     }
 
-    pub fn dispatch(&mut self, prev: Option<Box<Process>>) {
+    pub fn dispatch(&mut self, prev: Option<&Box<Process>>) {
         //TODO
     }
 }
@@ -137,17 +137,18 @@ fn start_proc() {
 //
 // Ownership:
 // - Move ownership of current process to the queue
+// - Lend the current process to the next process to save context
 pub fn proc_yield(mut q: Option<Box<Queue<Box<Process>>>>) {
 
     // TODO: lock here
 
     let mut me = current::current();
-    current::set_current(None);
+    let mut me_barrow = None; 
 
     match me {
-        Some(me_ptr) => {
+        Some(mut me_ptr) => {
             match q {
-                Some(q_ptr) => {
+                Some(mut q_ptr) => {
                     /* a queue is specified, I'm blocking on that queue */
                     //if (me_ptr->iDepth != 0) {
                     //    Debug::printf("process %s#%d %X ", me_ptr->name, me_ptr->id, me_ptr);
@@ -163,12 +164,13 @@ pub fn proc_yield(mut q: Option<Box<Queue<Box<Process>>>>) {
                     ready_queue::make_ready(me_ptr);
                 }
             }
+            me_barrow = ready_queue::barrow_current();
         }
         _ => {}
     }
 
-    let next: Box<Process>;
-    let rq = ready_queue::ready_q();
+    let mut next: Box<Process>;
+    let mut rq = ready_queue::ready_q();
 
     if ((*rq).is_empty()) {
         panic!("Nothing to do!");
@@ -184,7 +186,7 @@ pub fn proc_yield(mut q: Option<Box<Queue<Box<Process>>>>) {
         }
     }
 
-    (*next).dispatch(me);
+    (*next).dispatch(me_barrow);
 
     //TODO: unlock here
 }

@@ -23,6 +23,10 @@ impl <T> Queue<T> {
         self.data.pop_front()
     }
 
+    pub fn peek_tail<'a>(&'a self) -> Option<&'a T> {
+        self.data.back()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.size() == 0
     }
