@@ -86,7 +86,7 @@ impl Process {
         }
     }
 
-    pub fn dispatch(prev: Option<Box<Process>>) {
+    pub fn dispatch(&mut self, prev: Option<Box<Process>>) {
         //TODO
     }
 }
@@ -105,19 +105,71 @@ pub fn init() {
 }
 
 // The entry point of all processes
+#[allow(private_no_mangle_fns)]
+#[no_mangle]
 fn start_proc() {
     // get current process
-    let c_op = current::current();
-    match c_op {
-        Some(c_box) => {
-            ((*c_box).run)(&*c_box);
-        }
-        None => {
-            panic!("Start proc without current process");
-        }
+    match current::current() {
+        Some(c_box) => { ((*c_box).run)(&*c_box); }
+        None => { panic!("No current process to start"); }
     }
 }
 
+// Yield to the next process waiting
+//
+// The current process yields onto the q
+// If q is null, yield to ready q
+// If current proc is null, then it is not added to the q
+// The process state is set accordingly
+//
+// The next process from the ready q is dispatched
+// If the q is empty, then the current process continues running
 pub fn proc_yield(q: Option<Box<Queue<Box<Process>>>>) {
 
+    // TODO: lock here
+
+    let me = current::current();
+    match me {
+        Some(me_ptr) => {
+            match q {
+                Some(q_ptr) => {
+                    /* a queue is specified, I'm blocking on that queue */
+                    //if (me_ptr->iDepth != 0) {
+                    //    Debug::printf("process %s#%d %X ", me_ptr->name, me_ptr->id, me_ptr);
+                    //    Debug::panic("blocking while iDepth = %d",me_ptr->iDepth);
+                    //}
+                    (*me_ptr).state = State::BLOCKED;
+                    (*q_ptr).push(*me_ptr);
+
+                    // Debug::printf("blocking process %s#%d %X\n", me->name, me->id, me);
+                }
+                None => {
+                    /* no queue is specified, put me on the ready queue */
+                    ready_queue::make_ready(*me_ptr);
+                }
+            }
+        }
+        _ => {}
+    }
+
+    let next: Box<Process>;
+    let rq = ready_queue::ready_q();
+
+    if ((*rq).is_empty()) {
+        panic!("Nothing to do!");
+        //if (!idleProcess) {
+        //    idleProcess = new IdleProcess();
+        //    idleProcess->start();
+        //}
+        //next = idleProcess;
+    } else {
+        match rq.pop() {
+            Some(n) => { next = n; }
+            None    => { panic!("ready q is pseudo-empty"); }
+        }
+    }
+
+    (*next).dispatch(me);
+
+    //TODO: unlock here
 }
