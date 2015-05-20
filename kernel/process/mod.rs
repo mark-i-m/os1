@@ -85,6 +85,10 @@ impl Process {
             kesp: stack.get_kesp(),
         }
     }
+
+    pub fn dispatch(prev: Option<Box<Process>>) {
+        //TODO
+    }
 }
 
 pub fn init() {
@@ -93,17 +97,27 @@ pub fn init() {
     let mut init = Box::new(Process::new("init", self::init::run));
 
     // Create the ready q
+    ready_queue::init();
 
     // Add the init process to the ready q
+    ready_queue::make_ready(init);
 
 }
 
 // The entry point of all processes
 fn start_proc() {
     // get current process
-    (*current::current()).run();
+    let c_op = current::current();
+    match c_op {
+        Some(c_box) => {
+            ((*c_box).run)(&*c_box);
+        }
+        None => {
+            panic!("Start proc without current process");
+        }
+    }
 }
 
-pub fn proc_yield(q: Option<Box<Queue<Box<Process>>>>) {//TODO: change to arbitrary list
+pub fn proc_yield(q: Option<Box<Queue<Box<Process>>>>) {
 
 }
