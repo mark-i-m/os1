@@ -142,6 +142,8 @@ pub fn proc_yield(mut q: Option<Box<Queue<Box<Process>>>>) {
     // TODO: lock here
 
     let mut me = current::current();
+    current::set_current(None);
+
     match me {
         Some(me_ptr) => {
             match q {
@@ -151,7 +153,6 @@ pub fn proc_yield(mut q: Option<Box<Queue<Box<Process>>>>) {
                     //    Debug::printf("process %s#%d %X ", me_ptr->name, me_ptr->id, me_ptr);
                     //    Debug::panic("blocking while iDepth = %d",me_ptr->iDepth);
                     //}
-                    current::set_current(None);
                     (*me_ptr).state = State::BLOCKED;
                     (*q_ptr).push(me_ptr);
 
