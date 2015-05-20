@@ -16,13 +16,13 @@ kernel: ${BOOTFILES} ${AFILES}
 
 # kernel run
 runtext: all
-	qemu-system-x86_64 -enable-kvm -nographic --serial mon:stdio -hdc kernel.img
+	qemu-system-x86_64 -enable-kvm -nographic --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk
 
 rungraphic: all
-	qemu-system-x86_64 -enable-kvm --serial mon:stdio -hdc kernel.img
+	qemu-system-x86_64 -enable-kvm --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk
 
 rundebug: clean all
-	qemu-system-x86_64 -s -S -nographic --serial mon:stdio -hdc kernel.img
+	qemu-system-x86_64 -s -S -nographic --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk
 
 # kernel clean
 clean::
