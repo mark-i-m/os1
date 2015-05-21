@@ -15,6 +15,8 @@ extern crate rlibc;
 #[macro_use]
 mod debug;
 mod bare_bones;
+
+#[macro_use]
 mod data_structures;
 mod concurrency;
 

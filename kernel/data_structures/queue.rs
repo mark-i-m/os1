@@ -3,6 +3,7 @@
 use super::{LinkedList};
 use core::option::{Option};
 
+#[derive(Clone)]
 pub struct Queue<T> {
     data: LinkedList<T>,
 }

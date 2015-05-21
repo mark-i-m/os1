@@ -278,7 +278,7 @@ pub fn init(start: usize, end: usize) {
 /// size on the platform.
 pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
     // TODO: lock here
-    //printf!("malloc {}, {} -> ", size, align);
+    printf!("malloc {}, {} -> ", size, align);
 
     // get free block
     let align_rounded = align.next_power_of_two();
@@ -323,7 +323,7 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
 
             // TODO: unlock here
 
-            //printf!("0x{:X}\n", addr as usize);
+            printf!("0x{:X}\n", addr as usize);
 
             // return ptr
             addr as *mut u8
@@ -340,7 +340,7 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
 /// any value in range_inclusive(requested_size, usable_size).
 pub unsafe fn free(ptr: *mut u8, old_size: usize) {
 
-    //printf!("free {:X}, {}\n", ptr as usize, old_size);
+    printf!("free 0x{:X}, {}\n", ptr as usize, old_size);
 
     // check input
     if ptr == (0 as *mut u8) {

@@ -6,12 +6,14 @@
 //      a) A queue
 //      OR
 //      b) The current process pointer
-// 3) All queues are owned by boxes
 
 use alloc::boxed;
 use alloc::boxed::Box;
 
+use core::marker::{Sync, Send};
 use core::option::Option::{self, Some, None};
+use core::clone::Clone;
+use core::fmt::{Debug, Formatter, Result};
 
 use super::concurrency::Atomic32;
 use super::data_structures::Queue;
@@ -27,6 +29,7 @@ const STACK_SIZE: usize = 2048;
 static NEXT_ID: Atomic32 = Atomic32 {i: 0};
 
 // Process state
+#[derive(Clone, Copy)]
 enum State {
     INIT,
     READY,
@@ -36,10 +39,14 @@ enum State {
 }
 
 // A wrapper around stack pointers for use in initializing the stack
+#[allow(raw_pointer_derive)]
 #[derive(Copy,Clone)]
 struct StackPtr {
     ptr: *mut usize,
 }
+
+unsafe impl Send for StackPtr {}
+unsafe impl Sync for StackPtr {}
 
 impl StackPtr {
     fn get_stack() -> StackPtr {
@@ -102,18 +109,42 @@ impl Process {
     }
 }
 
+impl Clone for Process {
+    fn clone(&self) -> Process {
+        Process {
+            name: self.name.clone(),
+            pid: self.pid.clone(),
+            run: self.run,
+            state: self.state.clone(),
+            stack: self.stack.clone(),
+            kesp: self.kesp.clone(),
+        }
+    }
+}
+
+impl Debug for Process {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        write!(f, "Process #{}: {}", self.pid, self.name)
+    }
+}
+
 pub fn init() {
 
-    // Create the init process
-    let mut init = Box::new(Process::new("init", self::init::run));
-
-    // Create the ready q
+    // Init ready q and current proc
+    current::init();
     ready_queue::init();
+    printf!("created ready_q\n");
+
+    // Create the init process
+    let init = Box::new(Process::new("init", self::init::run));
+    printf!("created init\n");
 
     // Add the init process to the ready q
     ready_queue::make_ready(init);
+    printf!("queued init\n");
 
-    printf!("size {}", (*ready_queue::ready_q()).size());
+    let rq = ready_queue::ready_q();
+    printf!("size {}\n", rq.size());
 }
 
 // The entry point of all processes
@@ -140,57 +171,53 @@ fn start_proc() {
 // Ownership:
 // - Move ownership of current process to the queue
 // - Lend the current process to the next process to save context
-pub fn proc_yield(mut q: Option<Box<Queue<Box<Process>>>>) {
+pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
 
+    printf!("yield\n");
     // TODO: lock here
 
-    let mut me = current::current();
-    let mut rq0 = ready_queue::ready_q(); //totally breaking rustc and ownership
-    let mut rq1 = ready_queue::ready_q();
-    let mut me_barrow = None;
+    let mut me = current::current_mut(); // barrow the current proc
+    let mut me: Option<&mut Box<Process>>  = None;
 
     match me {
-        Some(mut me_ptr) => {
+        Some(ref mut me_ptr) => {
+            printf!("Yuck\n");
             match q {
-                Some(mut q_ptr) => {
+                Some(q_ptr) => {
                     /* a queue is specified, I'm blocking on that queue */
                     //if (me_ptr->iDepth != 0) {
                     //    Debug::printf("process %s#%d %X ", me_ptr->name, me_ptr->id, me_ptr);
                     //    Debug::panic("blocking while iDepth = %d",me_ptr->iDepth);
                     //}
                     (*me_ptr).state = State::BLOCKED;
-                    (*q_ptr).push(me_ptr);
+                    (*q_ptr).push(match current::current() {
+                        Some(cp) => cp,
+                        None => panic!("Somebody has poisoned the waterhole!"),
+                    });
 
                     // Debug::printf("blocking process %s#%d %X\n", me->name, me->id, me);
                 }
                 None => {
                     /* no queue is specified, put me on the ready queue */
-                    ready_queue::make_ready(me_ptr);
+                    ready_queue::make_ready(match current::current() {
+                        Some(cp) => cp,
+                        None => panic!("Somebody has poisoned the waterhole!"),
+                    });
                 }
             }
-
-            me_barrow = (*rq0).peek_tail();
         }
-        _ => {}
-    }
-
-    let mut next: Box<Process>;
-
-    if ((*rq1).is_empty()) {
-        panic!("Nothing to do!");
-        //if (!idleProcess) {
-        //    idleProcess = new IdleProcess();
-        //    idleProcess->start();
-        //}
-        //next = idleProcess;
-    } else {
-        match rq1.pop() {
-            Some(n) => { next = n; }
-            None    => { panic!("ready q is empty"); }
+        _ => {
+            printf!("Hi\n");
         }
     }
 
-    (*next).dispatch(me_barrow);
+    (*match (*ready_queue::ready_q()).pop() {
+        Some(n) => { n }
+        None => { panic!("Nothing to do!") }
+    }).dispatch(match me {
+        Some(cp) => Some(&*cp),
+        None => None,
+    });
 
     //TODO: unlock here
 }
