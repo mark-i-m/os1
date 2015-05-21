@@ -14,9 +14,12 @@ use core::marker::{Sync, Send};
 use core::option::Option::{self, Some, None};
 use core::clone::Clone;
 use core::fmt::{Debug, Formatter, Result};
+use core::cmp::PartialEq;
 
 use super::concurrency::Atomic32;
 use super::data_structures::Queue;
+
+use super::machine::{contextSwitch};
 
 mod init;
 mod current;
@@ -102,11 +105,6 @@ impl Process {
             kesp: stack.get_kesp(),
         }
     }
-
-    pub fn dispatch(&mut self, prev: Option<&Box<Process>>) {
-        //TODO
-        (self.run)(self);
-    }
 }
 
 impl Clone for Process {
@@ -125,6 +123,13 @@ impl Clone for Process {
 impl Debug for Process {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(f, "Process #{}: {}", self.pid, self.name)
+    }
+}
+
+impl PartialEq for Process {
+    fn eq(&self, other: &Process) -> bool {
+        // TODO: make this more comprehensive?
+        self.pid == other.pid
     }
 }
 
@@ -177,11 +182,10 @@ pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
     // TODO: lock here
 
     let mut me = current::current_mut(); // barrow the current proc
-    let mut me: Option<&mut Box<Process>>  = None;
+    let mut me_rebarrowed = None;
 
     match me {
         Some(ref mut me_ptr) => {
-            printf!("Yuck\n");
             match q {
                 Some(q_ptr) => {
                     /* a queue is specified, I'm blocking on that queue */
@@ -190,10 +194,11 @@ pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
                     //    Debug::panic("blocking while iDepth = %d",me_ptr->iDepth);
                     //}
                     (*me_ptr).state = State::BLOCKED;
-                    (*q_ptr).push(match current::current() {
+                    q_ptr.push(match current::current() {
                         Some(cp) => cp,
                         None => panic!("Somebody has poisoned the waterhole!"),
                     });
+                    me_rebarrowed = q_ptr.peek_tail();
 
                     // Debug::printf("blocking process %s#%d %X\n", me->name, me->id, me);
                 }
@@ -203,21 +208,48 @@ pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
                         Some(cp) => cp,
                         None => panic!("Somebody has poisoned the waterhole!"),
                     });
+                    me_rebarrowed = ready_queue::ready_q().peek_tail();
                 }
             }
         }
-        _ => {
-            printf!("Hi\n");
-        }
+        _ => { }
     }
 
-    (*match (*ready_queue::ready_q()).pop() {
+    // next process to run
+    let mut next = match (*ready_queue::ready_q()).pop() {
         Some(n) => { n }
-        None => { panic!("Nothing to do!") }
-    }).dispatch(match me {
-        Some(cp) => Some(&*cp),
-        None => None,
-    });
+        None => { panic!("Nothing to do!") /* TODO: idle process */ }
+    };
+
+    (*next).state = State::RUNNING;
+
+    // if this is the same process, do nothing
+    match me_rebarrowed {
+        Some(me_r) => {
+            if *me_r == next {return;}
+        }
+        None => {}
+    }
+
+    // prepare to context switch
+    let current_kesp = match me_rebarrowed {
+        Some(me_r) => me_r.kesp.ptr,
+        None => 0 as *mut usize,
+    };
+    let next_kesp = next.kesp.ptr as usize; // get this value before moving next
+
+    //TODO : don't forget to change this when preemption is turned on
+    let eflags = 0; // if disableCount == 0 {(1<<9)} else {0}; // should we enable interupts?
+
+    // set the current proc
+    current::set_current(Some(next));
+
+    // then start running the process
+    unsafe {
+        contextSwitch(current_kesp, next_kesp, eflags);
+    }
+
+    // TODO: check killed
 
     //TODO: unlock here
 }
