@@ -57,6 +57,17 @@ start:
 	movb 0x7000,%dl		# drive index
 	int $0x13		# read the sectors
 
+    jnc cont # if there is an error print 'e' and hang 
+
+	movb $'e',%al
+	movb $1,%ah
+	mov $0,%dx
+	int $0x14
+    
+error:
+    jmp error
+
+cont:
 	# load the gdt
 	lgdt gdtDesc
 
