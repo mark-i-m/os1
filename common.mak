@@ -8,8 +8,9 @@ LD = ld
 OBJCOPY = objcopy
 DD = dd
 
-RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g -C opt-level=0 -Z no-landing-pads
-ASFLAGS += -m32
+# DO NOT USE -O0. If kernel.img is > 64K, the BIOS will not load it
+RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g -C opt-level=1 -Z no-landing-pads
+ASFLAGS += -m32 -g -O1
 
 vpath %.rs process
 vpath %.rs data_structures
