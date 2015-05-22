@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 use super::Process;
 use super::ready_queue;
 

@@ -158,11 +158,11 @@ pub fn init() {
 #[no_mangle]
 fn start_proc() {
     // get current process
-    match current::current() {
-        Some(c_box) => { ((*c_box).run)(&*c_box); }
-        None => { panic!("No current process to start"); }
-    }
-    panic!("Yay");
+    let code = match current::current() {
+        Some(c_box) => { ((*c_box).run)(&*c_box) }
+        None => { panic!("No current process to start") }
+    };
+    exit(code);
 }
 
 // Yield to the next process waiting
@@ -184,6 +184,8 @@ pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
 
     let mut me = current::current_mut(); // barrow the current proc
     let mut me_rebarrowed = None;
+
+    printf!("{:?} yielding\n", me);
 
     match me {
         Some(ref mut me_ptr) => {
@@ -253,4 +255,23 @@ pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
     // TODO: check killed
 
     //TODO: unlock here
+}
+
+// Called by the current process to exit
+pub fn exit(code: usize) {
+    match current::current_mut() {
+        Some(current) => {
+            if current.pid == 0 {
+                panic!("{:?} is exiting!\n", current);
+            } else {
+                current.state = State::TERMINATED;
+                printf!("{:?} exiting with code {}\n", current, code);
+            }
+        }
+        None => panic!("Exiting with no current process!\n")
+    }
+
+    // set current to None, so we will never run this again
+    current::set_current(None);
+    proc_yield(None);
 }
