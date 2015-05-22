@@ -138,18 +138,12 @@ pub fn init() {
     // Init ready q and current proc
     current::init();
     ready_queue::init();
-    printf!("created ready_q\n");
 
     // Create the init process
     let init = Box::new(Process::new("init", self::init::run));
-    printf!("created init\n");
 
     // Add the init process to the ready q
     ready_queue::make_ready(init);
-    printf!("queued init\n");
-
-    let rq = ready_queue::ready_q();
-    printf!("size {}\n", rq.size());
 }
 
 // The entry point of all processes
@@ -178,7 +172,6 @@ fn start_proc() {
 // - Lend the current process to the next process to save context
 pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
 
-    printf!("yield\n");
     // TODO: lock here
 
     let mut me = current::current_mut(); // barrow the current proc

@@ -22,6 +22,4 @@ pub fn run(this: &Process) -> usize {
     w0.put_str(this.name);
 
     panic!("Yay!");
-
-    0
 }

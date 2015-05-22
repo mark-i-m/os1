@@ -31,7 +31,7 @@ pub fn make_ready(process: Box<Process>) {
     // TODO: lock here
 
     //TODO: get this right: (*process).set_state(State::READY);
-    printf!("make ready {:?}\n", process);
+    printf!("{:?} ready\n", process);
     ready_q().push(process);
 
     // TODO: unlock here
