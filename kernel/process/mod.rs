@@ -70,14 +70,14 @@ impl StackPtr {
             for idx in (STACK_SIZE - 6)..STACK_SIZE {
                 *self.ptr.offset(idx as isize) = 0;
             }
-            *self.ptr.offset(-2) = entry;
+            *self.ptr.offset(STACK_SIZE as isize - 2) = entry;
         }
     }
 
     fn get_kesp(&self) -> StackPtr {
         // Create a new struct that contains the starting
         // kesp value for this stack
-        StackPtr {ptr : (self.ptr as usize - 6) as *mut usize}
+        StackPtr {ptr : unsafe { self.ptr.offset(STACK_SIZE as isize - 6) } as *mut usize}
     }
 }
 
@@ -216,7 +216,7 @@ pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
     }
 
     // next process to run
-    let mut next = match (*ready_queue::ready_q()).pop() {
+    let mut next = match ready_queue::ready_q().pop() {
         Some(n) => { n }
         None => { panic!("Nothing to do!") /* TODO: idle process */ }
     };
