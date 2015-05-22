@@ -6,6 +6,11 @@
 //      a) A queue
 //      OR
 //      b) The current process pointer
+//
+// TODO: check killed
+// TODO: exit
+// TODO: kill
+// TODO: test yielding to other q's
 
 use alloc::boxed;
 use alloc::boxed::Box;
@@ -21,9 +26,11 @@ use super::data_structures::Queue;
 
 use super::machine::{contextSwitch};
 
-mod init;
 mod current;
 mod ready_queue;
+
+mod init;
+mod user;
 
 // constants
 const STACK_SIZE: usize = 2048;
@@ -155,6 +162,7 @@ fn start_proc() {
         Some(c_box) => { ((*c_box).run)(&*c_box); }
         None => { panic!("No current process to start"); }
     }
+    panic!("Yay");
 }
 
 // Yield to the next process waiting
