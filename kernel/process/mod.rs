@@ -26,8 +26,12 @@ use super::data_structures::Queue;
 
 use super::machine::{contextSwitch};
 
+use self::context::{KContext};
+
 mod current;
 mod ready_queue;
+
+mod context;
 
 mod init;
 mod user;
@@ -54,8 +58,8 @@ pub struct Process {
     pid: usize,
     run: fn(&Process) -> usize,
     state: State,
-    stack: usize,
-    kesp: usize,
+    stack: usize, // pointer to stack, but *mut usize is not Send/Sync for some reason
+    kcontext: KContext,
 }
 
 impl Process {
