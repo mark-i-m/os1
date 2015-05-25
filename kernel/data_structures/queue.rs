@@ -14,10 +14,12 @@ impl <T> Queue<T> {
     }
 
     pub fn push(&mut self, val: T) {
+        printf!("push\n");
         self.data.push_back(val);
     }
 
     pub fn pop(&mut self) -> Option<T> {
+        printf!("pop\n");
         self.data.pop_front()
     }
 

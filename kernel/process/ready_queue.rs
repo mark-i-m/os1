@@ -2,6 +2,8 @@
 //use core::fmt::Display;
 //use core::clone::Clone;
 
+use core::marker::{Sync, Send};
+
 use alloc::boxed::Box;
 
 use super::super::data_structures::{Queue, LazyGlobal};

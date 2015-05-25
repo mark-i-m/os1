@@ -48,74 +48,60 @@ enum State {
     TERMINATED,
 }
 
-// A wrapper around stack pointers for use in initializing the stack
-#[allow(raw_pointer_derive)]
-#[derive(Copy,Clone)]
-struct StackPtr {
-    ptr: *mut usize,
-}
-
-unsafe impl Send for StackPtr {}
-unsafe impl Sync for StackPtr {}
-
-impl StackPtr {
-    fn get_stack() -> StackPtr {
-        // TODO: fudge
-        // Allocate a stack
-        let stack = Box::new([0; STACK_SIZE]);
-
-        // set the pointer
-        StackPtr {ptr: unsafe {boxed::into_raw(stack) as *mut usize} }
-    }
-
-    fn smash(&self) {
-        // Get entry point of process
-        let entry = start_proc as usize;
-
-        // Smash the stack
-        unsafe {
-            for idx in (STACK_SIZE - 6)..STACK_SIZE {
-                *self.ptr.offset(idx as isize) = 0;
-            }
-            *self.ptr.offset(STACK_SIZE as isize - 2) = entry;
-        }
-    }
-
-    fn get_kesp(&self) -> StackPtr {
-        // Create a new struct that contains the starting
-        // kesp value for this stack
-        StackPtr {ptr : unsafe { self.ptr.offset(STACK_SIZE as isize - 6) } as *mut usize}
-    }
-}
-
 // Process struct
 pub struct Process {
     name: &'static str,
     pid: usize,
     run: fn(&Process) -> usize,
     state: State,
-    stack: StackPtr,
-    kesp: StackPtr,
+    stack: usize,
+    kesp: usize,
 }
 
 impl Process {
     pub fn new(name: &'static str, run: fn(&Process) -> usize) -> Process {
-        let stack = StackPtr::get_stack();
-        stack.smash();
 
-        Process {
+        let mut p = Process {
             name: name,
             pid: NEXT_ID.get_then_add(),
             run: run,
             state: State::INIT,
-            stack: stack,
-            kesp: stack.get_kesp(),
+            stack: 0,
+            kesp: 0,
+        };
+
+        p.get_stack();
+
+        p
+    }
+
+    fn get_stack(&mut self) {
+        // TODO: fudge
+        // Allocate a stack
+        let stack = Box::new([0; STACK_SIZE]);
+
+        let stack_ptr = unsafe {boxed::into_raw(stack)} as *mut usize;
+
+        // set the pointer
+        self.stack = stack_ptr as usize;
+
+        printf!("stack for {:?} is at 0x{:x}\n", self, self.stack);
+
+        // smash the stack
+        unsafe {
+            for idx in (STACK_SIZE - 6)..STACK_SIZE {
+                *stack_ptr.offset(idx as isize) = 0;
+            }
+            *stack_ptr.offset(STACK_SIZE as isize - 2) = start_proc as usize;
         }
+
+        self.kesp = unsafe { stack_ptr.offset(STACK_SIZE as isize - 6) } as usize;
     }
 }
 
 impl Clone for Process {
     fn clone(&self) -> Process {
+        printf!("clone process 0x{:X}\n", self as *const Process as usize);
         Process {
             name: self.name.clone(),
             pid: self.pid.clone(),
@@ -207,6 +193,7 @@ pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
                 }
                 None => {
                     /* no queue is specified, put me on the ready queue */
+                    (*me_ptr).state = State::READY;
                     ready_queue::make_ready(match current::current() {
                         Some(cp) => cp,
                         None => panic!("Somebody has poisoned the waterhole!"),
@@ -218,39 +205,42 @@ pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
         _ => { }
     }
 
-    // next process to run
-    let mut next = match ready_queue::ready_q().pop() {
+    // set the current proc
+    current::set_current(ready_queue::ready_q().pop());
+
+    // rebarrow next process to run
+    let mut next = match current::current_mut() { 
         Some(n) => { n }
         None => { panic!("Nothing to do!") /* TODO: idle process */ }
     };
 
-    (*next).state = State::RUNNING;
+    //(*next).state = State::RUNNING;
 
-    // if this is the same process, do nothing
-    match me_rebarrowed {
-        Some(me_r) => {
-            if *me_r == next {return;}
-        }
-        None => {}
-    }
+    //// if this is the same process, do nothing
+    //match me_rebarrowed {
+    //    Some(ref me_r) => {
+    //        if **me_r == *next {return;}
+    //    }
+    //    None => {}
+    //}
 
-    // prepare to context switch
-    let current_kesp = match me_rebarrowed {
-        Some(me_r) => me_r.kesp.ptr,
-        None => 0 as *mut usize,
-    };
-    let next_kesp = next.kesp.ptr as usize; // get this value before moving next
+    //// prepare to context switch
+    //let current_kesp = match me_rebarrowed {
+    //    Some(ref me_r) => (&(me_r.kesp as usize)) as *const usize,
+    //    None => 0 as *const usize,
+    //};
+    //let next_kesp = next.kesp as usize; // get this value before moving next
 
-    //TODO : don't forget to change this when preemption is turned on
-    let eflags = 0; // if disableCount == 0 {(1<<9)} else {0}; // should we enable interupts?
+    ////TODO : don't forget to change this when preemption is turned on
+    //let eflags = 0; // if disableCount == 0 {(1<<9)} else {0}; // should we enable interupts?
 
-    // set the current proc
-    current::set_current(Some(next));
+    //printf!("looking for next_kesp as {:X}\n", next as *mut Box<Process> as usize);
+    //printf!("context switch to {}, c={:x}, n={:x}, e={:x}\n", next.name, current_kesp as usize, next_kesp as usize, eflags as usize);
 
-    // then start running the process
-    unsafe {
-        contextSwitch(current_kesp, next_kesp, eflags);
-    }
+    //// then start running the process
+    //unsafe {
+    //    contextSwitch(current_kesp, next_kesp, eflags);
+    //}
 
     // TODO: check killed
 
