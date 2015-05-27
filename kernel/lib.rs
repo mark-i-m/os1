@@ -30,6 +30,9 @@ mod process;
 mod vga;
 mod window;
 
+// exported functions -- to use in asm functions
+pub use self::process::context::save_context;
+
 // kernel constans
 pub const KHEAP_START: usize = (1 << 20); // 1M
 pub const KHEAP_END: usize = (1 << 26); // 64M

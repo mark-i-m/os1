@@ -94,36 +94,54 @@
 #                                #   - if it failed, %eax will be loaded with
 #                                #     the oldval
 
-    # contextSwitch(long* currentESP, long nextESP, long eflags)
+    # contextSwitch(next_context: KContext, eflags: usize)
+    .extern save_context
     .global contextSwitch
 contextSwitch:
-    mov 4(%esp),%eax     // *currentESP
-    mov 8(%esp),%ecx     // nextESP
-    mov 12(%esp),%edx    // eflags
 
-    cmp $0,%eax
-    jz activateNext
+    // push all regs
+    pusha
 
-    push %ebx
-    push %esi
-    push %edi
-    push %ebp
+    // EDI          <= (new) ESP
+    // ESI
+    // EBP
+    // (orig.) ESP
+    // EBX
+    // EDX
+    // ECX
+    // EAX
+    //              <= (orig.) ESP
 
-    mov %esp,(%eax)
+    leal 7(%esp), %eax      // Pointer to EAX on stack
+    push %eax
 
-activateNext:
-        mov %ecx,%esp
+    call save_context       // Save to context struct
 
-        pop %ebp
-        pop %edi
-        pop %esi
-        pop %ebx
+    // pop the stuff we pushed
+    pop %eax
+    popa
+
+    // get args
+    leal 4(%esp), %eax      // ptr to next_context
+    mov 12(%esp), %ecx      // eflags
+
+    // restore the next context
+    mov  (%eax), %edi
+    mov 1(%eax), %esi
+    mov 2(%eax), %ebp
+    mov 3(%eax), %esp       // ok to change esp here, since we are using eax as ptr
+    mov 4(%eax), %ebx
+    mov 5(%eax), %edx
 
 	// get the new flags, mostly used for interrupt flag
-	push %edx
-	popf
+    push %ecx
+    popf
 
-        ret
+    // restore ecx and eax here, since we used them
+    mov 6(%eax), %ecx
+    mov 7(%eax), %eax
+
+    ret
 
 	# uint32_t fetchAndAdd32(uint32_t* ptr, uint32_t v)
 	.global fetchAndAdd32

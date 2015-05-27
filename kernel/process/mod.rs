@@ -31,7 +31,7 @@ use self::context::{KContext};
 mod current;
 mod ready_queue;
 
-mod context;
+pub mod context;
 
 mod init;
 mod user;
@@ -71,7 +71,7 @@ impl Process {
             run: run,
             state: State::INIT,
             stack: 0,
-            kesp: 0,
+            kcontext: KContext::new(),
         };
 
         p.get_stack();
@@ -99,7 +99,7 @@ impl Process {
             *stack_ptr.offset(STACK_SIZE as isize - 2) = start_proc as usize;
         }
 
-        self.kesp = unsafe { stack_ptr.offset(STACK_SIZE as isize - 6) } as usize;
+        self.kcontext.esp = unsafe { stack_ptr.offset(STACK_SIZE as isize - 6) } as usize;
     }
 }
 
@@ -112,7 +112,7 @@ impl Clone for Process {
             run: self.run,
             state: self.state.clone(),
             stack: self.stack.clone(),
-            kesp: self.kesp.clone(),
+            kcontext: self.kcontext.clone(),
         }
     }
 }
@@ -131,7 +131,6 @@ impl PartialEq for Process {
 }
 
 pub fn init() {
-
     // Init ready q and current proc
     current::init();
     ready_queue::init();
@@ -147,7 +146,9 @@ pub fn init() {
 #[allow(private_no_mangle_fns)]
 #[no_mangle]
 fn start_proc() {
-    // get current process
+    // TODO check killed
+
+    // run current process
     let code = match current::current() {
         Some(c_box) => { ((*c_box).run)(&*c_box) }
         None => { panic!("No current process to start") }
@@ -155,98 +156,37 @@ fn start_proc() {
     exit(code);
 }
 
+// Restore the context of the next process on the ready q
+// and switch to that process.
+//
+// This function should not be called in any process's code.
+// It is called by the kernel to
+// - yield
+// - exit
+// - handle syscalls
+// - handle signals
+pub fn switch_to_next() {
+    // get next process from ready q TODO
+
+    // set current process TODO
+
+    // context switch TODO
+
+}
+
 // Yield to the next process waiting
 //
-// The current process yields onto the q
-// If q is null, yield to ready q
-// If current proc is null, then it is not added to the q
-// The process state is set accordingly
-//
-// The next process from the ready q is dispatched
-// If the q is empty, then the current process continues running
-//
-// Ownership:
-// - Move ownership of current process to the queue
-// - Lend the current process to the next process to save context
+// This function is called by the current process to
+// yield to the next process on the ready q.
 pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
 
     // TODO: lock here
 
-    let mut me = current::current_mut(); // barrow the current proc
-    let mut me_rebarrowed = None;
+    // save current process context if there is one
+    // TODO
 
-    printf!("{:?} yielding\n", me);
-
-    match me {
-        Some(ref mut me_ptr) => {
-            match q {
-                Some(q_ptr) => {
-                    /* a queue is specified, I'm blocking on that queue */
-                    //if (me_ptr->iDepth != 0) {
-                    //    Debug::printf("process %s#%d %X ", me_ptr->name, me_ptr->id, me_ptr);
-                    //    Debug::panic("blocking while iDepth = %d",me_ptr->iDepth);
-                    //}
-                    (*me_ptr).state = State::BLOCKED;
-                    q_ptr.push(match current::current() {
-                        Some(cp) => cp,
-                        None => panic!("Somebody has poisoned the waterhole!"),
-                    });
-                    me_rebarrowed = q_ptr.peek_tail();
-
-                    // Debug::printf("blocking process %s#%d %X\n", me->name, me->id, me);
-                }
-                None => {
-                    /* no queue is specified, put me on the ready queue */
-                    (*me_ptr).state = State::READY;
-                    ready_queue::make_ready(match current::current() {
-                        Some(cp) => cp,
-                        None => panic!("Somebody has poisoned the waterhole!"),
-                    });
-                    me_rebarrowed = ready_queue::ready_q().peek_tail();
-                }
-            }
-        }
-        _ => { }
-    }
-
-    // set the current proc
-    current::set_current(ready_queue::ready_q().pop());
-
-    // rebarrow next process to run
-    let mut next = match current::current_mut() { 
-        Some(n) => { n }
-        None => { panic!("Nothing to do!") /* TODO: idle process */ }
-    };
-
-    //(*next).state = State::RUNNING;
-
-    //// if this is the same process, do nothing
-    //match me_rebarrowed {
-    //    Some(ref me_r) => {
-    //        if **me_r == *next {return;}
-    //    }
-    //    None => {}
-    //}
-
-    //// prepare to context switch
-    //let current_kesp = match me_rebarrowed {
-    //    Some(ref me_r) => (&(me_r.kesp as usize)) as *const usize,
-    //    None => 0 as *const usize,
-    //};
-    //let next_kesp = next.kesp as usize; // get this value before moving next
-
-    ////TODO : don't forget to change this when preemption is turned on
-    //let eflags = 0; // if disableCount == 0 {(1<<9)} else {0}; // should we enable interupts?
-
-    //printf!("looking for next_kesp as {:X}\n", next as *mut Box<Process> as usize);
-    //printf!("context switch to {}, c={:x}, n={:x}, e={:x}\n", next.name, current_kesp as usize, next_kesp as usize, eflags as usize);
-
-    //// then start running the process
-    //unsafe {
-    //    contextSwitch(current_kesp, next_kesp, eflags);
-    //}
-
-    // TODO: check killed
+    // switch to next process
+    switch_to_next();
 
     //TODO: unlock here
 }
@@ -267,5 +207,7 @@ pub fn exit(code: usize) {
 
     // set current to None, so we will never run this again
     current::set_current(None);
-    proc_yield(None);
+
+    // switch to next ready process
+    switch_to_next();
 }
