@@ -28,6 +28,8 @@ use super::machine::{save_kcontext, context_switch};
 
 use self::context::{KContext};
 
+pub use super::machine::proc_yield;
+
 mod current;
 mod ready_queue;
 
@@ -192,12 +194,13 @@ pub fn switch_to_next() {
 //
 // This function is called by the current process to
 // yield to the next process on the ready q.
-pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
+#[no_mangle]
+pub fn _proc_yield(q: Option<&mut Queue<Box<Process>>>) {
 
     // TODO: lock here
 
     // save current process context if there is one
-    unsafe { save_kcontext(); }
+    //unsafe { save_kcontext(); }
 
     // move current process to the ready q if there is one
     match current::current() {

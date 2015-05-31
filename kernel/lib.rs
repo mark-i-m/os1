@@ -32,6 +32,7 @@ mod window;
 
 // exported functions -- to use in asm functions
 pub use self::process::context::store_kcontext;
+pub use self::process::_proc_yield;
 
 // kernel constans
 pub const KHEAP_START: usize = (1 << 20); // 1M
@@ -54,7 +55,7 @@ pub fn kernel_main() {
     printf! ("Processes inited\n");
 
     // yield to init process
-    process::proc_yield(None);
+    unsafe{process::proc_yield(&None);}
 
     panic! ("This should never happen!\n");
 }

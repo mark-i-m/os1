@@ -94,6 +94,35 @@
 #                                #   - if it failed, %eax will be loaded with
 #                                #     the oldval
 
+    # pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>);
+    .extern _proc_yield
+    .global proc_yield
+proc_yield:
+    // push all regs
+    pusha
+
+    // EDI          <= (new) ESP
+    // ESI
+    // EBP
+    // (orig.) ESP
+    // EBX
+    // EDX
+    // ECX
+    // EAX
+    //              <= (orig.) ESP
+
+    push %esp
+
+    call store_kcontext       // Save to context struct
+
+    // pop the stuff we pushed
+    pop %esp
+    popa
+
+    call _proc_yield
+
+    ret 
+
     # pub fn save_kcontext()
     .extern store_kcontext
     .global save_kcontext

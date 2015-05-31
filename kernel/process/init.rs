@@ -14,7 +14,7 @@ pub fn run(this: &Process) -> usize {
     //let p0 = Box::new(Process::new("p0", super::user::run));
     //ready_queue::make_ready(p0);
 
-    super::proc_yield(None);
+    unsafe{super::proc_yield(&None);}
 
     panic!("Yay!");
 }
