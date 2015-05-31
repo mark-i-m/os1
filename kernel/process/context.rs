@@ -23,7 +23,7 @@ pub struct KContext {
 impl KContext {
     pub fn new() -> KContext {
         KContext {
-            eax: 0,
+            eax: 0, //These values will never be used, but they are useful for debugging
             ecx: 1,
             edx: 2,
             ebx: 3,

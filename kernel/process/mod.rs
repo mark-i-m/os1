@@ -93,13 +93,13 @@ impl Process {
 
         // smash the stack
         unsafe {
-            for idx in (STACK_SIZE - 6)..STACK_SIZE {
-                *stack_ptr.offset(idx as isize) = 0;
-            }
+            //for idx in (STACK_SIZE - 6)..STACK_SIZE {
+            //    *stack_ptr.offset(idx as isize) = 0;
+            //}
             *stack_ptr.offset(STACK_SIZE as isize - 2) = start_proc as usize;
         }
 
-        self.kcontext.esp = unsafe { stack_ptr.offset(STACK_SIZE as isize - 6) } as usize;
+        self.kcontext.esp = unsafe { stack_ptr.offset(STACK_SIZE as isize - 2) } as usize;
     }
 }
 
