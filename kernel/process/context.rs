@@ -10,14 +10,14 @@ use super::current;
 
 #[derive(Clone, Copy)]
 pub struct KContext {
-    pub eax: usize,
-    pub ecx: usize,
-    pub edx: usize,
-    pub ebx: usize,
-    pub esp: usize,
-    pub ebp: usize,
-    pub esi: usize,
     pub edi: usize,
+    pub esi: usize,
+    pub ebp: usize,
+    pub esp: usize,
+    pub ebx: usize,
+    pub edx: usize,
+    pub ecx: usize,
+    pub eax: usize,
 }
 
 impl KContext {

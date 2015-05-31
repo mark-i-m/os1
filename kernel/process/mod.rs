@@ -199,6 +199,15 @@ pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
     // save current process context if there is one
     unsafe { save_kcontext(); }
 
+    // move current process to the ready q if there is one
+    match current::current() {
+        Some(c) => {
+            ready_queue::make_ready(c);
+            current::set_current(None);
+        }
+        None => { }
+    }
+
     // switch to next process
     switch_to_next();
 

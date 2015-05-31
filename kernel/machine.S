@@ -111,13 +111,12 @@ save_kcontext:
     // EAX
     //              <= (orig.) ESP
 
-    leal 7(%esp), %eax      // Pointer to EAX on stack
-    push %eax
+    push %esp
 
     call store_kcontext       // Save to context struct
 
     // pop the stuff we pushed
-    pop %eax
+    pop %esp
     popa
 
     ret
@@ -131,20 +130,20 @@ context_switch:
     mov 12(%esp), %ecx      // eflags
 
     // restore the next context
-    mov 28(%eax), %edi
-    mov 24(%eax), %esi
-    mov 20(%eax), %ebp
-    mov 16(%eax), %esp       // ok to change esp here, since we are using eax as ptr
-    mov 12(%eax), %ebx
-    mov  8(%eax), %edx
+    mov   (%eax), %edi
+    mov  4(%eax), %esi
+    mov  8(%eax), %ebp
+    mov 12(%eax), %esp       // ok to change esp here, since we are using eax as ptr
+    mov 16(%eax), %ebx
+    mov 20(%eax), %edx
 
 	// get the new flags, mostly used for interrupt flag
     push %ecx
     popf
 
     // restore ecx and eax here, since we used them
-    mov  4(%eax), %ecx
-    mov   (%eax), %eax
+    mov 24(%eax), %ecx
+    mov 28(%eax), %eax
 
     ret
 
