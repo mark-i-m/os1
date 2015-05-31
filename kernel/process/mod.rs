@@ -195,13 +195,12 @@ pub fn switch_to_next() {
 //
 // This function is called by the current process to
 // yield to the next process on the ready q.
+//
+// Do not call this process directly! Call it through process::proc_yield()
 #[no_mangle]
 pub fn _proc_yield(q: Option<&mut Queue<Box<Process>>>) {
 
     // TODO: lock here
-
-    // save current process context if there is one
-    //unsafe { save_kcontext(); }
 
     // move current process to the ready q if there is one
     match current::current() {
