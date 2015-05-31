@@ -8,6 +8,7 @@ use core::option::Option::{self, Some, None};
 
 use super::current;
 
+#[repr(C, packed)]
 #[derive(Clone, Copy)]
 pub struct KContext {
     pub edi: usize,

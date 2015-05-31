@@ -55,6 +55,7 @@ enum State {
 }
 
 // Process struct
+#[repr(C, packed)] // need this for box to work
 pub struct Process {
     name: &'static str,
     pid: usize,
