@@ -24,20 +24,20 @@ impl KContext {
     pub fn new() -> KContext {
         KContext {
             eax: 0,
-            ecx: 0,
-            edx: 0,
-            ebx: 0,
-            esp: 0,
-            ebp: 0,
-            esi: 0,
-            edi: 0,
+            ecx: 1,
+            edx: 2,
+            ebx: 3,
+            esp: 4,
+            ebp: 5,
+            esi: 6,
+            edi: 7,
         }
     }
 }
 
 // save the KContext of the current process to its process struct
 #[no_mangle]
-pub fn save_context (context_ptr: *mut KContext) {
+pub fn store_kcontext (context_ptr: *mut KContext) {
 
     if context_ptr == (0 as *mut KContext) {
         panic!("null context ptr!");

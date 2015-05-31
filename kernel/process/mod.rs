@@ -24,7 +24,7 @@ use core::cmp::PartialEq;
 use super::concurrency::Atomic32;
 use super::data_structures::Queue;
 
-use super::machine::{contextSwitch};
+use super::machine::{save_kcontext, context_switch};
 
 use self::context::{KContext};
 
@@ -166,12 +166,26 @@ fn start_proc() {
 // - handle syscalls
 // - handle signals
 pub fn switch_to_next() {
-    // get next process from ready q TODO
+    // get next process from ready q
+    let next = ready_queue::ready_q().pop();
 
-    // set current process TODO
+    // set current process and context switch to it
+    match next {
+        Some(p) => {
+            current::set_current(Some(p));
+        }
+        None => {
+            // TODO: idle process
+            panic!("Empty ready q");
+        }
+    }
 
-    // context switch TODO
-
+    // context switch
+    // TODO: eflags
+    match current::current() {
+        Some(p) => { unsafe{ context_switch(p.kcontext, 0); } }
+        None => { panic!("No current to switch to!"); }
+    }
 }
 
 // Yield to the next process waiting
@@ -183,7 +197,7 @@ pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
     // TODO: lock here
 
     // save current process context if there is one
-    // TODO
+    unsafe { save_kcontext(); }
 
     // switch to next process
     switch_to_next();

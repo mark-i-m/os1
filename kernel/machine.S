@@ -94,11 +94,10 @@
 #                                #   - if it failed, %eax will be loaded with
 #                                #     the oldval
 
-    # contextSwitch(next_context: KContext, eflags: usize)
-    .extern save_context
-    .global contextSwitch
-contextSwitch:
-
+    # pub fn save_kcontext()
+    .extern store_kcontext
+    .global save_kcontext
+save_kcontext:
     // push all regs
     pusha
 
@@ -115,31 +114,37 @@ contextSwitch:
     leal 7(%esp), %eax      // Pointer to EAX on stack
     push %eax
 
-    call save_context       // Save to context struct
+    call store_kcontext       // Save to context struct
 
     // pop the stuff we pushed
     pop %eax
     popa
+
+    ret
+
+    # context_switch(next_context: KContext, eflags: usize)
+    .global context_switch
+context_switch:
 
     // get args
     leal 4(%esp), %eax      // ptr to next_context
     mov 12(%esp), %ecx      // eflags
 
     // restore the next context
-    mov  (%eax), %edi
-    mov 1(%eax), %esi
-    mov 2(%eax), %ebp
-    mov 3(%eax), %esp       // ok to change esp here, since we are using eax as ptr
-    mov 4(%eax), %ebx
-    mov 5(%eax), %edx
+    mov 28(%eax), %edi
+    mov 24(%eax), %esi
+    mov 20(%eax), %ebp
+    mov 16(%eax), %esp       // ok to change esp here, since we are using eax as ptr
+    mov 12(%eax), %ebx
+    mov  8(%eax), %edx
 
 	// get the new flags, mostly used for interrupt flag
     push %ecx
     popf
 
     // restore ecx and eax here, since we used them
-    mov 6(%eax), %ecx
-    mov 7(%eax), %eax
+    mov  4(%eax), %ecx
+    mov   (%eax), %eax
 
     ret
 
