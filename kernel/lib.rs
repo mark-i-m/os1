@@ -55,7 +55,7 @@ pub fn kernel_main() {
     printf! ("Processes inited\n");
 
     // yield to init process
-    unsafe{process::proc_yield(&None);}
+    unsafe{process::proc_yield(None);}
 
     panic! ("This should never happen!\n");
 }
