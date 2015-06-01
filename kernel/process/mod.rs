@@ -66,7 +66,7 @@ pub struct Process {
 }
 
 impl Process {
-    pub fn new(name: &'static str, run: fn(&Process) -> usize) -> Process {
+    pub fn new(name: &'static str, run: fn(&Process) -> usize) -> Box<Process> {
 
         let mut p = Process {
             name: name,
@@ -79,7 +79,7 @@ impl Process {
 
         p.get_stack();
 
-        p
+        Box::new(p)
     }
 
     fn get_stack(&mut self) {
@@ -139,7 +139,7 @@ pub fn init() {
     ready_queue::init();
 
     // Create the init process
-    let init = Box::new(Process::new("init", self::init::run));
+    let init = Process::new("init", self::init::run);
 
     // Add the init process to the ready q
     ready_queue::make_ready(init);
