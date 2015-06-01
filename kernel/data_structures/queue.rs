@@ -3,6 +3,9 @@
 use super::{LinkedList};
 use core::option::{Option};
 
+// debugging?
+const DEBUG: bool = false;
+
 #[derive(Clone)]
 pub struct Queue<T> {
     data: LinkedList<T>,
@@ -14,12 +17,12 @@ impl <T> Queue<T> {
     }
 
     pub fn push(&mut self, val: T) {
-        printf!("push\n");
+        if DEBUG {printf!("push\n");}
         self.data.push_back(val);
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        printf!("pop\n");
+        if DEBUG {printf!("pop\n");}
         self.data.pop_front()
     }
 

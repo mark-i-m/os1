@@ -10,14 +10,18 @@ use core::option::Option::None;
 // The init process routine
 pub fn run(this: &Process) -> usize {
     printf!("init about to yield\n");
-    //let p0 = Box::new(Process::new("p0", super::user::run));
-    //ready_queue::make_ready(p0);
 
     unsafe{super::proc_yield(None);}
 
-    let x = 3;
+    printf!("back from yield!\n");
 
-    printf!("{}", x);
+    //let p0 = Box::new(Process::new("p0", super::user::run));
 
-    panic!("Yay!");
+    //printf!("Created p0\n");
+
+    //ready_queue::make_ready(p0);
+
+    //unsafe{super::proc_yield(None);}
+
+    0xDEADBEEF
 }

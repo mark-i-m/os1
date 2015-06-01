@@ -108,7 +108,7 @@ impl Process {
 
 impl Clone for Process {
     fn clone(&self) -> Process {
-        printf!("clone process 0x{:X}\n", self as *const Process as usize);
+        // printf!("clone process 0x{:X}\n", self as *const Process as usize);
         Process {
             name: self.name.clone(),
             pid: self.pid.clone(),

@@ -156,7 +156,7 @@ context_switch:
 
     // get args
     leal 4(%esp), %eax      // ptr to next_context
-    mov 12(%esp), %ecx      // eflags
+    mov 36(%esp), %ecx      // eflags
 
     // restore the next context
     mov   (%eax), %edi
