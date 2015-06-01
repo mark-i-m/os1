@@ -3,7 +3,7 @@
 use super::Process;
 use super::ready_queue;
 
-use alloc::boxed::Box;
+//use alloc::boxed::Box;
 
 use core::option::Option::None;
 
@@ -15,11 +15,15 @@ pub fn run(this: &Process) -> usize {
 
     printf!("back from yield!\n");
 
-    let p0 = Process::new("p0", super::user::run);
+    unsafe{super::proc_yield(None);}
 
-    panic!("Created p0\n");
+    printf!("back from yield!\n");
 
-    ready_queue::make_ready(p0);
+    unsafe{super::proc_yield(None);}
+
+    printf!("back from yield!\n");
+
+    ready_queue::make_ready(Process::new("p0", super::user::run));
 
     unsafe{super::proc_yield(None);}
 

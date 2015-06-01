@@ -1,6 +1,6 @@
 #[link(name = "asmcode", repr="static")]
 
-use core::option::Option::{self, Some, None};
+use core::option::Option;
 use super::data_structures::Queue;
 use alloc::boxed::Box;
 use super::process::Process;

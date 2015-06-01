@@ -12,7 +12,7 @@ extern crate core;
 use core::mem::{size_of};
 use core::option::Option::{self, Some, None};
 
-const DEBUG: bool = false;
+const DEBUG: bool = true;
 
 static mut START: usize = 0;
 static mut END: usize = 0;
@@ -49,7 +49,7 @@ impl Block {
     unsafe fn get_prev(&self) -> *mut Block {
         // check for corner cases
         if self.this() == START {
-            panic!("Free block has no previous block: {}", self.this());
+            panic!("Free block has no previous block: {:x}", self.this());
         }
 
         // get the addr of previous block's size
@@ -67,7 +67,7 @@ impl Block {
     unsafe fn get_next(&self) -> *mut Block {
         // check for corner cases
         if self.this() + self.size == END {
-            panic!("Free block has no next block: {}", self.this());
+            panic!("Free block has no next block: {:x}", self.this());
         }
 
         (self.this() + self.size) as *mut Block
@@ -142,7 +142,7 @@ impl Block {
     // set to 0xDEADBEEF.
     unsafe fn remove(&mut self) {
         if !self.is_free() {
-            panic!("Attempt to remove non-free block from free list: {}", self.this());
+            panic!("Attempt to remove non-free block from free list: {:x}", self.this());
         }
 
         // Set magic, so that this is definitely not a free block
@@ -172,7 +172,7 @@ impl Block {
     // the magic bits. The block cannot already be free.
     unsafe fn insert(&mut self) {
         if self.is_free() {
-            panic!("Attempt to insert a free block: {}", self.this());
+            panic!("Attempt to insert a free block: {:X}", self.this());
         }
 
         // set magic bits

@@ -15,7 +15,7 @@
 use alloc::boxed;
 use alloc::boxed::Box;
 
-use core::marker::{Sync, Send};
+//use core::marker::{Sync, Send};
 use core::option::Option::{self, Some, None};
 use core::clone::Clone;
 use core::fmt::{Debug, Formatter, Result};
@@ -24,11 +24,10 @@ use core::cmp::PartialEq;
 use super::concurrency::Atomic32;
 use super::data_structures::Queue;
 
-use super::machine::{save_kcontext, context_switch};
+use super::machine::{context_switch};
+pub use super::machine::proc_yield;
 
 use self::context::{KContext};
-
-pub use super::machine::proc_yield;
 
 mod current;
 mod ready_queue;
@@ -45,6 +44,7 @@ const STACK_SIZE: usize = 2048;
 static NEXT_ID: Atomic32 = Atomic32 {i: 0};
 
 // Process state
+#[repr(C)]
 #[derive(Clone, Copy)]
 enum State {
     INIT,
@@ -55,7 +55,7 @@ enum State {
 }
 
 // Process struct
-#[repr(C, packed)] // need this for box to work
+#[repr(packed)] // need this for box to work
 pub struct Process {
     name: &'static str,
     pid: usize,
@@ -92,17 +92,15 @@ impl Process {
         // set the pointer
         self.stack = stack_ptr as usize;
 
-        printf!("stack for {:?} is at 0x{:x}\n", self, self.stack);
-
         // smash the stack
         unsafe {
-            //for idx in (STACK_SIZE - 6)..STACK_SIZE {
-            //    *stack_ptr.offset(idx as isize) = 0;
-            //}
+            // put RA on stack to return to start_proc
             *stack_ptr.offset(STACK_SIZE as isize - 2) = start_proc as usize;
         }
 
         self.kcontext.esp = unsafe { stack_ptr.offset(STACK_SIZE as isize - 2) } as usize;
+
+        printf!("stack for {:?} is at 0x{:x}\n", self, self.stack);
     }
 }
 

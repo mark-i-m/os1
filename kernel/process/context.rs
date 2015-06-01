@@ -4,11 +4,11 @@
 // switch in to kernel mode. The kernel context is saved
 // to the process struct when we context switch.
 
-use core::option::Option::{self, Some, None};
+use core::option::Option::{Some, None};
 
 use super::current;
 
-#[repr(C, packed)]
+#[repr(packed)]
 #[derive(Clone, Copy)]
 pub struct KContext {
     pub edi: usize,
