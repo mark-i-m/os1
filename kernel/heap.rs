@@ -88,7 +88,7 @@ impl Block {
     // METHODS FOR ONLY FREE BLOCKS
 
     // split the block into two blocks. The first block will be of the
-    // given size. The block must be free
+    // given usable size. The block must be free
     unsafe fn split(&mut self, size: usize) {
         // check that the math works out
         if !self.is_free() {
@@ -100,10 +100,10 @@ impl Block {
                    (self as *const Block) as usize, size);
         }
 
-        // get new block addr
+        // get new size of original block
         let new_size = round_to_16(size + core::mem::size_of::<usize>());
 
-        // create new block and set magic bits
+        // create new block
         let block = (self.this() + new_size) as *mut Block;
         (*block).size = self.size - new_size;
         (*block).set_footer((*block).size);
@@ -135,6 +135,9 @@ impl Block {
 
        // remove next block from free list
        (*next).remove();
+
+       // adjust metadata
+       self.set_footer(self.size);
     }
 
     // remove this block from the free list. The block
@@ -195,33 +198,33 @@ impl Block {
 
     // Find a block that fits the bill
     unsafe fn find(size: usize, align: usize) -> Option<*mut Block> {
-        let mut found = None;
-
         // loop through blocks until a good one is found
         let mut block_addr = free_list;
 
         while block_addr != (0 as *mut Block) {
             let block = &*block_addr;
 
-            if Block::is_match(block, size, align) {
-                found = Some(block_addr);
-                break;
+            // sanity check
+            if block_addr as usize >= END {
+                panic!("Free block beyond END!");
             }
 
-            if (block_addr as usize) + block.size >= END {
-                break;
-            } else {
-                block_addr = block.get_next();
+            // return the first matching block
+            if Block::is_match(block, size, align) {
+                return Some(block_addr);
             }
+
+            block_addr = block.next;
         }
 
-        found
+        None
     }
 
     fn is_match(block: &Block, size: usize, align: usize) -> bool {
         let block_usize = block as *const Block as usize;
         let aligned = round_to_n(block_usize, align);
 
+        // total size - leftovers >= new_block and its metadata
         block.size - (aligned - block_usize) >= size
     }
 }
@@ -251,12 +254,10 @@ pub fn init(start: usize, end: usize) {
             panic!("No heap space");
         }
 
-        printf! ("In heap init\nstart addr: {:x}, end addr: {:x}, {} bytes\n",
+        printf! ("heap start addr: {:x}, end addr: {:x}, {} bytes\n",
                  START, END, END - START);
-    }
 
-    // create first block and free list
-    unsafe {
+        // create first block and free list
         let first: &mut Block = &mut*(START as *mut Block);
 
         first.magic = 0xCAFEFACE;
@@ -280,7 +281,9 @@ pub fn init(start: usize, end: usize) {
 /// size on the platform.
 pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
     // TODO: lock here
+
     if DEBUG {printf!("malloc {}, {} -> ", size, align);}
+
     // get free block
     let align_rounded = align.next_power_of_two();
     let size_rounded = round_to_16(size + core::mem::size_of::<usize>());
@@ -307,8 +310,8 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
             // check if the aligned block is in the middle
             let addr_rounded = round_to_n(addr as usize, align_rounded);
             if addr_rounded > addr as usize {
-                block.split(addr_rounded - (addr as usize));
-                block = &mut*block.next;
+                block.split(addr_rounded - (addr as usize) - core::mem::size_of::<usize>());
+                block = &mut*block.get_next();
             }
 
             // Split the block if it is too big
@@ -324,10 +327,10 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
 
             // TODO: unlock here
 
-            if DEBUG {printf!("0x{:X}\n", addr as usize);}
+            if DEBUG {printf!("0x{:X}\n", block.this());}
 
             // return ptr
-            addr as *mut u8
+            block.this() as *mut u8
         }
     }
 }
