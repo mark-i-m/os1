@@ -1,6 +1,6 @@
-use vga::{VGA};
+use super::vga::{VGA};
 
-pub use vga::Color;
+pub use super::vga::Color;
 
 // Defines the abstration of a window
 #[derive(Copy, Clone)]

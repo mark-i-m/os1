@@ -4,10 +4,9 @@ use super::ready_queue;
 
 use core::option::Option::None;
 
-use super::super::window::{Window, Color};
+use super::super::vga::window::{Window, Color};
 
 pub fn run(this: &Process) -> usize {
-
     // clear the screen
     Window::clear_screen();
 

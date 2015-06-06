@@ -18,17 +18,10 @@ mod bare_bones;
 
 #[macro_use]
 mod data_structures;
-mod concurrency;
-
 mod machine;
-
-mod heap;
-mod rust_alloc;
-
+mod memory;
 mod process;
-
 mod vga;
-mod window;
 
 // exported functions -- to use in asm functions
 pub use self::process::context::store_kcontext;
@@ -50,7 +43,7 @@ pub fn kernel_main() {
     // TODO: idt
 
     // initialize the heap
-    heap::init(KHEAP_START, KHEAP_END);
+    memory::init(KHEAP_START, KHEAP_END);
     printf! ("Heap inited\n");
 
     // initialize processes

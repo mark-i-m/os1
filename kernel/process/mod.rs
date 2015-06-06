@@ -20,8 +20,8 @@ use core::clone::Clone;
 use core::fmt::{Debug, Formatter, Result};
 use core::cmp::PartialEq;
 
-use super::concurrency::Atomic32;
 use super::data_structures::Queue;
+use super::data_structures::concurrency::Atomic32;
 
 use super::machine::{context_switch};
 pub use super::machine::proc_yield;

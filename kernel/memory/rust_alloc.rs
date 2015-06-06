@@ -3,7 +3,7 @@
 
 #![allow(private_no_mangle_fns)] // If something goes wrong, try removing and see compiler says
 
-use heap::{malloc, free, usable_size, print_stats};
+use super::heap::{malloc, free, usable_size, print_stats};
 
 // This file contains the outside interface with the kernels memory allocator.
 // rustc will look for these functions.

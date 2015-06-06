@@ -1,10 +1,10 @@
-.PHONY: clean
-
+# Choose tools
 RUSTC = rustc
 CC = gcc
 
 AR = ar
 LD = ld
+
 OBJCOPY = objcopy
 DD = dd
 
@@ -12,10 +12,8 @@ DD = dd
 RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g -C opt-level=1 -Z no-landing-pads
 ASFLAGS += -m32 -g -O1
 
-vpath %.rs process
-vpath %.rs data_structures
-vpath %.rs concurrency
-RUSTFILES = $(notdir $(wildcard *.rs) $(wildcard process/*.rs) $(wildcard data_structures/*.rs) $(wildcard concurrency/*.rs))
+vpath %.rs %.s %.S $(sort $(dir $(wildcard ./*/*)))
+RUSTFILES = $(notdir $(wildcard **/*.rs))
 SFILES = $(notdir $(wildcard *.S) $(wildcard *.s))
 
 OFILES = $(subst .s,.o,$(subst .S,.o,$(SFILES)))
@@ -23,6 +21,9 @@ AFILES = libasmcode.a librustcode.a
 
 BOOTFILES = $(sort $(filter boot%,${OFILES}))
 NON_BOOTFILES = $(filter-out boot%,${OFILES})
+
+# Make rules
+.PHONY: clean
 
 %.o: %.S
 	${CC} ${ASFLAGS} -c -o $@ $<
