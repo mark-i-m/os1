@@ -78,21 +78,6 @@
 # 	movw %dx,%ds            # no more memory refs until iret
 #
 #         iret
-#
-#
-#
-# 	# oldval = cs32(uint32_t* ptr, uint32_t ifval, uint32_t thenval)
-# 	.global cs32
-# cs32:
-# 	mov 4(%esp),%ecx       # ptr
-# 	mov 8(%esp),%eax       # ifval
-# 	mov 12(%esp),%edx      # thenval
-#         lock cmpxchgl %edx,(%ecx)
-# 	ret                    # looks strange but always returns the oldval
-#                                #   - if it worked, %eax had the ifval which
-#                                #     is equals to the oldval
-#                                #   - if it failed, %eax will be loaded with
-#                                #     the oldval
 
     # pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>);
     .extern _proc_yield
