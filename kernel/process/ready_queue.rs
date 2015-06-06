@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 
 use super::super::data_structures::{Queue, LazyGlobal};
 
-use super::Process;
+use super::{Process, State};
 
 // ready q
 static READY_QUEUE: LazyGlobal<Queue<Box<Process>>> = lazy_global!();
@@ -28,12 +28,12 @@ pub fn ready_q<'a>() -> &'a mut Queue<Box<Process>> {
 }
 
 // Add the process to the Ready queue
-pub fn make_ready(process: Box<Process>) {
+pub fn make_ready(mut process: Box<Process>) {
 
     // TODO: lock here
 
-    //TODO: get this right: (*process).set_state(State::READY);
     printf!("{:?} ready\n", process);
+    (*process).set_state(State::READY);
     ready_q().push(process);
 
     // TODO: unlock here

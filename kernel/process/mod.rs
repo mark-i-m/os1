@@ -101,6 +101,10 @@ impl Process {
 
         printf!("stack for {:?} is at 0x{:x}\n", self, self.stack);
     }
+
+    fn set_state(&mut self, s: State) {
+        self.state = s;
+    }
 }
 
 impl Clone for Process {
