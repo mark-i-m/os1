@@ -46,6 +46,9 @@ pub fn kernel_main() {
     // print new line after "x"
     printf! ("\n");
 
+    // TODO: tss
+    // TODO: idt
+
     // initialize the heap
     heap::init(KHEAP_START, KHEAP_END);
     printf! ("Heap inited\n");
@@ -53,6 +56,9 @@ pub fn kernel_main() {
     // initialize processes
     process::init();
     printf! ("Processes inited\n");
+
+    // TODO: pic
+    // TODO: pit
 
     // yield to init process
     unsafe{process::proc_yield(None);}
