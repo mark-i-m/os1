@@ -12,7 +12,7 @@ extern crate core;
 use core::mem::{size_of};
 use core::option::Option::{self, Some, None};
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 
 static mut START: usize = 0;
 static mut END: usize = 0;

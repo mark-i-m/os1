@@ -12,20 +12,16 @@ pub fn run(this: &Process) -> usize {
     printf!("init about to yield\n");
 
     unsafe{super::proc_yield(None);}
-
-    printf!("back from yield!\n");
-
     unsafe{super::proc_yield(None);}
-
-    printf!("back from yield!\n");
-
     unsafe{super::proc_yield(None);}
-
-    printf!("back from yield!\n");
 
     ready_queue::make_ready(Process::new("p0", super::user::run));
     unsafe{super::proc_yield(None);}
 
+    unsafe{super::proc_yield(None);}
+    unsafe{super::proc_yield(None);}
+    unsafe{super::proc_yield(None);}
+    unsafe{super::proc_yield(None);}
     unsafe{super::proc_yield(None);}
 
     0xDEADBEEF

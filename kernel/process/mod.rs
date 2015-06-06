@@ -150,7 +150,10 @@ fn start_proc() {
 
     // run current process
     let code = match current::current() {
-        Some(c_box) => { ((*c_box).run)(&*c_box) }
+        Some(c_box) => {
+            printf!("Starting {:?}\n", *c_box);
+            ((*c_box).run)(&*c_box)
+        }
         None => { panic!("No current process to start") }
     };
     exit(code);
