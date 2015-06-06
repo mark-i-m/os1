@@ -24,6 +24,7 @@ pub fn run(this: &Process) -> usize {
     printf!("back from yield!\n");
 
     ready_queue::make_ready(Process::new("p0", super::user::run));
+    unsafe{super::proc_yield(None);}
 
     unsafe{super::proc_yield(None);}
 

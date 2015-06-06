@@ -1,6 +1,8 @@
 // Will eventually be a user process, but there is a long way to go
 use super::Process;
 
+use core::option::Option::None;
+
 pub fn run(this: &Process) -> usize {
     use super::super::window::{Window, Color};
 
@@ -11,6 +13,8 @@ pub fn run(this: &Process) -> usize {
 
     w0.set_bg_color(Color::LightBlue);
     w0.paint();
+
+    unsafe{super::proc_yield(None);}
 
     w0.set_cursor((1, 1));
     w0.set_bg_color(Color::LightGreen);

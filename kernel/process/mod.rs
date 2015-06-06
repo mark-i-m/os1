@@ -8,7 +8,6 @@
 //      b) The current process pointer
 //
 // TODO: check killed
-// TODO: exit
 // TODO: kill
 // TODO: test yielding to other q's
 
