@@ -207,6 +207,7 @@ pub fn _proc_yield(q: Option<&mut Queue<Box<Process>>>) {
     // TODO: lock here
 
     // move current process to the ready q if there is one
+    // TODO: yielding onto q
     match current::current() {
         Some(c) => {
             ready_queue::make_ready(c);

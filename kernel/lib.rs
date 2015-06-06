@@ -22,6 +22,7 @@ mod machine;
 mod memory;
 mod process;
 mod vga;
+mod interrupts;
 
 // exported functions -- to use in asm functions
 pub use self::process::context::store_kcontext;
@@ -50,8 +51,7 @@ pub fn kernel_main() {
     process::init();
     printf! ("Processes inited\n");
 
-    // TODO: pic
-    // TODO: pit
+    interrupts::init();
 
     // yield to init process
     unsafe{process::proc_yield(None);}
