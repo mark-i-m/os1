@@ -1,5 +1,7 @@
 // The programmable interrupt controller
 
+use core::option::Option::None;
+
 use super::super::machine::*;
 
 use super::idt::add_interrupt_handler;
@@ -52,21 +54,31 @@ pub fn init() {
     }
 }
 
+// End of interrupt: send the next irq, but interrupts still disabled
+fn pic_eoi(irq: u8) {
+    unsafe {
+        if irq >= 8 {
+            /* let PIC2 know */
+            outb(C2,0x20);
+        }
+        /* we always let PIC1 know because PIC2 is routed though PIC1 */
+        outb(C1,0x20);
+    }
+}
+
 // This is the code for the interrupt handler
 #[no_mangle]
 pub fn pic_irq(irq: usize) {
 //TODO
 //
-    // Process::startIrq();
-    // switch (irq) {
-    // case 0: Pit::handler(); break;
-    // case 1: /*Keyboard::handler();*/ break;
-    // case 4: /*com1 */ break;
-    // case 15: /* ide */ break;
-    // default: Debug::printf("interrupt %d\n",irq);
-    // }
-    // pic_eoi(irq); /* the PIC can deliver the next interrupt,
-    //                  but interrupts are still disabled */
+    //Process::startIrq();
+    match irq {
+    0 => super::pit::handler(),
+    1 => { } // /*Keyboard::handler();*/
+    _ => { printf!("interrupt {}\n",irq); }
+    }
+    pic_eoi(irq as u8); /* the PIC can deliver the next interrupt,
+                     but interrupts are still disabled */
 
     // // save user context
     // if (Process::current && registers->eip >= 0x80000000){
@@ -74,6 +86,7 @@ pub fn pic_irq(irq: usize) {
     //     *(Process::current->context->registers) = *registers;
     // }
 
-    // Process::yield();
+    // TODO: only do this for pit interrupts
+    super::super::process::proc_yield(None);
     // Process::endIrq();
 }

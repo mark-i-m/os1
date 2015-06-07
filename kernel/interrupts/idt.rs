@@ -62,7 +62,7 @@ pub fn add_interrupt_handler(irq: u8, handler: unsafe extern "C" fn()) {
     unsafe {
         idt[idx] = IDTDescr::new();
         idt[idx].set_offset(handler as u32);
-        idt[idx].set_selector(kernelCodeSeg); // TODO: where does this come from?
+        idt[idx].set_selector(kernelCodeSeg);
         idt[idx].set_type_attr(true, 0, false, 0xE);
     }
 }

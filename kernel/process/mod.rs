@@ -7,6 +7,7 @@
 //      OR
 //      b) The current process pointer
 //
+// TODO: safe wrapper around proc_yield
 // TODO: check killed
 // TODO: kill
 // TODO: test yielding to other q's
@@ -24,7 +25,6 @@ use super::data_structures::Queue;
 use super::data_structures::concurrency::Atomic32;
 
 use super::machine::{context_switch};
-pub use super::machine::proc_yield;
 
 use self::context::{KContext};
 
@@ -193,6 +193,11 @@ pub fn switch_to_next() {
         Some(p) => { unsafe{ context_switch(p.kcontext, 0); } }
         None => { panic!("No current to switch to!"); }
     }
+}
+
+// safe wrapper around machine::proc_yield
+pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
+    unsafe {super::machine::proc_yield(q)}
 }
 
 // Yield to the next process waiting

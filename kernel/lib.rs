@@ -55,7 +55,7 @@ pub fn kernel_main() {
     interrupts::init(1000); // pit hz
 
     // yield to init process
-    unsafe{process::proc_yield(None);}
+    process::proc_yield(None);
 
     panic! ("This should never happen!\n");
 }

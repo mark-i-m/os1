@@ -15,7 +15,7 @@ pub fn run(this: &Process) -> usize {
     w0.set_bg_color(Color::LightBlue);
     w0.paint();
 
-    unsafe{super::proc_yield(None);}
+    super::proc_yield(None);
 
     w0.set_cursor((1, 1));
     w0.set_bg_color(Color::LightGreen);
@@ -27,7 +27,7 @@ pub fn run(this: &Process) -> usize {
     w0.put_str(this.name);
 
     ready_queue::make_ready(Process::new("p1", self::run2));
-    unsafe{super::proc_yield(None);}
+    super::proc_yield(None);
 
     0
 }
