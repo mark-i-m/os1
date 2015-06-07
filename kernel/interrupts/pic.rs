@@ -56,4 +56,24 @@ pub fn init() {
 #[no_mangle]
 pub fn pic_irq(irq: usize) {
 //TODO
+//
+    // Process::startIrq();
+    // switch (irq) {
+    // case 0: Pit::handler(); break;
+    // case 1: /*Keyboard::handler();*/ break;
+    // case 4: /*com1 */ break;
+    // case 15: /* ide */ break;
+    // default: Debug::printf("interrupt %d\n",irq);
+    // }
+    // pic_eoi(irq); /* the PIC can deliver the next interrupt,
+    //                  but interrupts are still disabled */
+
+    // // save user context
+    // if (Process::current && registers->eip >= 0x80000000){
+    //     //Debug::printf("registers = %X\n", registers);
+    //     *(Process::current->context->registers) = *registers;
+    // }
+
+    // Process::yield();
+    // Process::endIrq();
 }

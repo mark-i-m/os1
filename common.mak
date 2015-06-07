@@ -12,7 +12,7 @@ DD = dd
 RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g -C opt-level=1 -Z no-landing-pads
 ASFLAGS += -m32 -g -O1
 
-vpath %.rs %.s %.S $(sort $(dir $(wildcard ./*/*)))
+vpath %.rs %.s %.S $(sort $(dir $(wildcard ./**/*)))
 RUSTFILES = $(notdir $(wildcard **/*.rs))
 SFILES = $(notdir $(wildcard *.S) $(wildcard *.s))
 
