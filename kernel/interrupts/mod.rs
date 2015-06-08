@@ -1,6 +1,9 @@
 // This module contains everything needed for interrupts
 
+pub use self::process::{on, off};
+
 mod idt;
+mod process;
 
 pub mod pit;
 pub mod pic;

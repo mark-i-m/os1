@@ -254,9 +254,6 @@ pub fn init(start: usize, end: usize) {
             panic!("No heap space");
         }
 
-        printf! ("heap start addr: {:x}, end addr: {:x}, {} bytes\n",
-                 START, END, END - START);
-
         // create first block and free list
         let first: &mut Block = &mut*(START as *mut Block);
 
@@ -267,6 +264,9 @@ pub fn init(start: usize, end: usize) {
         first.set_footer(first.size);
 
         free_list = START as *mut Block;
+
+        printf! ("Heap inited: start 0x{:x}, end 0x{:x}, {} bytes\n",
+                 START, END, END - START);
     }
 
     // print_stats();

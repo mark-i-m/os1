@@ -36,26 +36,20 @@ pub const KHEAP_END: usize = (1 << 26); // 64M
 // This is the entry point to the kernel. It is the first rust code that runs.
 #[no_mangle]
 pub fn kernel_main() {
-    use core::option::Option::None;
-
     // print new line after "x"
     printf! ("\n");
 
     // TODO: tss
     // TODO: idt
 
-    // initialize the heap
+    // initialize stuff
     memory::init(KHEAP_START, KHEAP_END);
-    printf! ("Heap inited\n");
-
-    // initialize processes
-    process::init();
-    printf! ("Processes inited\n");
-
-    interrupts::init(1000); // pit hz
+    process::init(); // this creates Process #0: init
+    interrupts::init(1000 /* hz */);
 
     // yield to init process
-    process::proc_yield(None);
+    process::proc_yield(core::option::Option::None);
 
+    // yield should never return to here
     panic! ("This should never happen!\n");
 }

@@ -7,7 +7,6 @@
 //      OR
 //      b) The current process pointer
 //
-// TODO: safe wrapper around proc_yield
 // TODO: check killed
 // TODO: kill
 // TODO: test yielding to other q's
@@ -28,10 +27,10 @@ use super::machine::{context_switch};
 
 use self::context::{KContext};
 
-mod current;
-mod ready_queue;
-
 pub mod context;
+pub mod current;
+
+mod ready_queue;
 
 mod init;
 mod user;
@@ -54,14 +53,27 @@ enum State {
 }
 
 // Process struct
-#[repr(packed)] // need this for box to work
+#[repr(packed)]
 pub struct Process {
     name: &'static str,
     pid: usize,
+
+    // This is the code of the process
     run: fn(&Process) -> usize,
+
     state: State,
-    stack: usize, // pointer to stack, but *mut usize is not Send/Sync for some reason
+
+    // The kheap-allocated stack
+    // - this is a pointer to the stack, but *mut usize is not Send/Sync for sone reason
+    // - this pointer is to the bottom of the stack, not the head
+    stack: usize,
+
+    // The saved kernel context for context switching
     kcontext: KContext,
+
+    // Number of calls to interrupts::on() while this process was running
+    // Interrupts are on if disable_cnt == 0
+    pub disable_cnt: usize,
 }
 
 impl Process {
@@ -74,6 +86,7 @@ impl Process {
             state: State::INIT,
             stack: 0,
             kcontext: KContext::new(),
+            disable_cnt: 0,
         };
 
         p.get_stack();
@@ -117,6 +130,7 @@ impl Clone for Process {
             state: self.state.clone(),
             stack: self.stack.clone(),
             kcontext: self.kcontext.clone(),
+            disable_cnt: self.disable_cnt.clone(),
         }
     }
 }
@@ -144,6 +158,8 @@ pub fn init() {
 
     // Add the init process to the ready q
     ready_queue::make_ready(init);
+
+    printf!("Processes inited\n");
 }
 
 // The entry point of all processes
@@ -235,7 +251,7 @@ pub fn exit(code: usize) {
                 panic!("{:?} is exiting!\n", current);
             } else {
                 current.state = State::TERMINATED;
-                printf!("{:?} exiting with code {}\n", current, code);
+                printf!("{:?} exiting with code 0x{:X}\n", current, code);
             }
         }
         None => panic!("Exiting with no current process!\n")

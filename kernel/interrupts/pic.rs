@@ -24,7 +24,7 @@ pub fn init() {
         outb(D2,FIRST_IDT+8);  /* IDT index for IRQ8 */
 
         /* ICW3 */
-        outb(D1, 1 << 2);     /* tells master that the save is at IRQ2 */
+        outb(D1, 1 << 2);     /* tells master that the slave is at IRQ2 */
         outb(D2, 2);          /* tells salve that it's connected at IRQ2 */
 
         /* ICW4 */
@@ -52,6 +52,8 @@ pub fn init() {
         add_interrupt_handler(FIRST_IDT + 14, irq14);
         add_interrupt_handler(FIRST_IDT + 15, irq15);
     }
+
+    printf!("PIC inited\n");
 }
 
 // End of interrupt: send the next irq, but interrupts still disabled
@@ -69,17 +71,21 @@ fn pic_eoi(irq: u8) {
 // This is the code for the interrupt handler
 #[no_mangle]
 pub fn pic_irq(irq: usize) {
-//TODO
-//
-    //Process::startIrq();
-    match irq {
-    0 => super::pit::handler(),
-    1 => { } // /*Keyboard::handler();*/
-    _ => { printf!("interrupt {}\n",irq); }
-    }
-    pic_eoi(irq as u8); /* the PIC can deliver the next interrupt,
-                     but interrupts are still disabled */
+    // bookkeeping
+    super::process::start_irq();
 
+    // execute handler
+    match irq {
+        0   => super::pit::handler(),
+        1   => { } // keyboard
+        13  => { } // Processor, FPU
+        _   => printf!("interrupt {}\n",irq),
+    }
+
+    // the PIC can deliver the next interrupt, but interrupts are still disabled
+    pic_eoi(irq as u8);
+
+    // TODO: this stuff is for signal handling
     // // save user context
     // if (Process::current && registers->eip >= 0x80000000){
     //     //Debug::printf("registers = %X\n", registers);
@@ -88,5 +94,7 @@ pub fn pic_irq(irq: usize) {
 
     // TODO: only do this for pit interrupts
     super::super::process::proc_yield(None);
-    // Process::endIrq();
+
+    // bookkeeping
+    super::process::end_irq();
 }

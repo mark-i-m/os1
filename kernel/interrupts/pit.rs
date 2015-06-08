@@ -11,15 +11,13 @@ static mut jiffies: usize = 0;
 pub fn init(pit_hz: usize) {
      let d = FREQ / pit_hz;
 
-     printf!("PIT init freq={} hz, divide={}\n", pit_hz, d);
-
      if (d & 0xffff) != d {
          panic!("PIT init d={} doesn't fit in 16 bits", d);
      }
 
      unsafe {
          hz = FREQ / d;
-         printf!("PIT init requested: {} hz, actual: {} hz\n", pit_hz, hz);
+         printf!("PIT inited: requested {} hz, actual {} hz\n", pit_hz, hz);
          pit_do_init(d);
      }
 }
