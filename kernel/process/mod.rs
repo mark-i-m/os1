@@ -23,6 +23,8 @@ use core::cmp::PartialEq;
 use super::data_structures::Queue;
 use super::data_structures::concurrency::Atomic32;
 
+use super::interrupts::{on, off};
+
 use super::machine::{context_switch};
 
 use self::context::{KContext};
@@ -189,6 +191,9 @@ fn start_proc() {
 // - handle syscalls
 // - handle signals
 pub fn switch_to_next() {
+    // disable interrupts
+    off();
+
     // get next process from ready q
     let next = ready_queue::ready_q().pop();
 
@@ -212,11 +217,20 @@ pub fn switch_to_next() {
         } }
         None => { panic!("No current to switch to!"); }
     }
+
+    // enable interrupts
+    on();
 }
 
 // safe wrapper around machine::proc_yield
 pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
+    // disable interrupts
+    off();
+
     unsafe {super::machine::proc_yield(q)}
+
+    // enable interrupts
+    on();
 }
 
 // Yield to the next process waiting
@@ -225,11 +239,10 @@ pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
 // yield to the next process on the ready q.
 //
 // Do not call this process directly! Call it through process::proc_yield()
+//
+// Interrupts should already be disabled here
 #[no_mangle]
 pub fn _proc_yield(q: Option<&mut Queue<Box<Process>>>) {
-
-    // TODO: lock here
-
     // move current process to the ready q if there is one
     // TODO: yielding onto q
     match current::current() {
@@ -242,8 +255,6 @@ pub fn _proc_yield(q: Option<&mut Queue<Box<Process>>>) {
 
     // switch to next process
     switch_to_next();
-
-    //TODO: unlock here
 }
 
 // Called by the current process to exit

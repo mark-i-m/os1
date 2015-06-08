@@ -85,13 +85,6 @@ pub fn pic_irq(irq: usize) {
     // the PIC can deliver the next interrupt, but interrupts are still disabled
     pic_eoi(irq as u8);
 
-    // TODO: this stuff is for signal handling
-    // // save user context
-    // if (Process::current && registers->eip >= 0x80000000){
-    //     //Debug::printf("registers = %X\n", registers);
-    //     *(Process::current->context->registers) = *registers;
-    // }
-
     // TODO: only do this for pit interrupts
     super::super::process::proc_yield(None);
 

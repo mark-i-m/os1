@@ -12,6 +12,8 @@ extern crate core;
 use core::mem::{size_of};
 use core::option::Option::{self, Some, None};
 
+use super::super::interrupts::{on, off};
+
 const DEBUG: bool = false;
 
 static mut START: usize = 0;
@@ -280,7 +282,8 @@ pub fn init(start: usize, end: usize) {
 /// power of 2. The alignment must be no larger than the largest supported page
 /// size on the platform.
 pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
-    // TODO: lock here
+    // disable interrutps
+    off();
 
     if DEBUG {printf!("malloc {}, {} -> ", size, align);}
 
@@ -299,7 +302,8 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
             // update stats
             FAIL_MALLOCS += 1;
 
-            // TODO: unlock here
+            // enable interrupts
+            on();
 
             // return failure
             0 as *mut u8
@@ -325,7 +329,8 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
             // update stats
             SUCC_MALLOCS += 1;
 
-            // TODO: unlock here
+            // enable interrutps
+            on();
 
             if DEBUG {printf!("0x{:X}\n", block.this());}
 
@@ -363,7 +368,8 @@ pub unsafe fn free(ptr: *mut u8, old_size: usize) {
     block.size = true_size;
     block.set_footer(block.size); // just in case
 
-    // TODO: lock here
+    // disable interrupts
+    off();
 
     // update stats
     FREES += 1;
@@ -392,7 +398,8 @@ pub unsafe fn free(ptr: *mut u8, old_size: usize) {
         (*block.get_prev()).combine();
     }
 
-    // TODO: unlock here
+    // enable interrupts
+    on();
 
     //print_stats();
 }
@@ -430,7 +437,8 @@ fn get_block_stats() -> (usize, usize, usize) {
     let mut num_free = 0;
     let mut size_free = 0;
 
-    // TODO: lock here
+    // disable interrupts
+    off();
 
     // loop through all blocks
     unsafe{
@@ -451,7 +459,8 @@ fn get_block_stats() -> (usize, usize, usize) {
         }
     }
 
-    // TODO: unlock here
+    // enable interrupts
+    on();
 
     (num_free, size_free, unsafe { END - START - size_free })
 }

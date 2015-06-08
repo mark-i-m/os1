@@ -5,5 +5,4 @@ mod heap;
 
 pub fn init(start: usize, end: usize) {
     heap::init(start, end);
-    // TODO: init virt. mem here also...
 }
