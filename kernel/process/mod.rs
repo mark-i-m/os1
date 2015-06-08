@@ -206,7 +206,10 @@ pub fn switch_to_next() {
     // context switch
     // TODO: eflags
     match current::current() {
-        Some(p) => { unsafe{ context_switch(p.kcontext, 0); } }
+        Some(p) => { unsafe{
+            context_switch(p.kcontext,
+                           if p.disable_cnt == 0 { 1 << 9 } else { 0 });
+        } }
         None => { panic!("No current to switch to!"); }
     }
 }
