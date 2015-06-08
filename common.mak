@@ -12,8 +12,12 @@ DD = dd
 RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g -C opt-level=1 -Z no-landing-pads
 ASFLAGS += -m32 -g -O1
 
-vpath %.rs %.s %.S $(sort $(dir $(wildcard ./*) $(wildcard ./**/*)))
-RUSTFILES = $(notdir $(wildcard **/*.rs))
+vpath %.rs process
+vpath %.rs vga
+vpath %.rs data_structures
+vpath %.rs memory
+vpath %.rs interrupts
+RUSTFILES = $(notdir $(wildcard *.rs) $(wildcard process/*.rs) $(wildcard vga/*.rs) $(wildcard data_structures/*.rs) $(wildcard memory/*.rs) $(wildcard interrupts/*.rs))
 SFILES = $(notdir $(wildcard *.S) $(wildcard *.s))
 
 OFILES = $(subst .s,.o,$(subst .S,.o,$(SFILES)))
