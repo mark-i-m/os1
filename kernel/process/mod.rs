@@ -192,7 +192,7 @@ fn start_proc() {
 // - handle signals
 pub fn switch_to_next() {
     // disable interrupts
-    off();
+    //off();
 
     // get next process from ready q
     let next = ready_queue::ready_q().pop();
@@ -219,18 +219,18 @@ pub fn switch_to_next() {
     }
 
     // enable interrupts
-    on();
+    //on();
 }
 
 // safe wrapper around machine::proc_yield
 pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
     // disable interrupts
-    off();
+    //off();
 
     unsafe {super::machine::proc_yield(q)}
 
     // enable interrupts
-    on();
+    //on();
 }
 
 // Yield to the next process waiting

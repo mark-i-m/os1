@@ -8,25 +8,18 @@ use core::str::StrExt;
 
 use machine::{inb, outb};
 
-use super::interrupts::{on, off};
 
 const PORT: u16 = 0x3F8;
 pub struct Debug;
 
 impl Debug {
     pub fn write_bytes(&self, bytes: &[u8]) {
-        // disable interrupts
-        off();
-
         for b in bytes {
             unsafe {
                 while inb(PORT + 5) & 0x20 == 0 { }
                 outb(PORT, *b);
             }
         }
-
-        // enable interrupts
-        on();
     }
 }
 
@@ -48,7 +41,12 @@ pub fn puts(string: &str) {
 #[macro_export]
 macro_rules! printf {
     ($($arg:tt)*) => ({
+        // disable interrupts
         use ::core::fmt::Write;
+        use ::interrupts::{on, off};
+        //off();
         let _ = write!($crate::debug::Debug, $($arg)*);
+        // enable interrupts
+        //on();
     })
 }

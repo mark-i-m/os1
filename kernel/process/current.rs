@@ -23,14 +23,14 @@ pub fn init() {
 // Must use a Box because size of Process is unknown at compile time
 pub fn current() -> Option<Box<Process>> {
     // disable interrupts
-    off();
+    //off();
 
     let ret = unsafe {
         (*CURRENT_PROCESS.get()).clone()
     };
 
     // enable interrupts
-    on();
+    //on();
 
     ret
 }
@@ -38,7 +38,7 @@ pub fn current() -> Option<Box<Process>> {
 // use for updating the current process
 pub fn current_mut<'a>() -> Option<&'a mut Box<Process>> {
     // disable interrupts
-    off();
+    //off();
 
     let ret = unsafe {
         match *CURRENT_PROCESS.get_mut() {
@@ -48,7 +48,7 @@ pub fn current_mut<'a>() -> Option<&'a mut Box<Process>> {
     };
 
     // enable interrupts
-    on();
+    //on();
 
     ret
 }
@@ -56,12 +56,12 @@ pub fn current_mut<'a>() -> Option<&'a mut Box<Process>> {
 // set the current process from a Box
 pub fn set_current(process: Option<Box<Process>>) {
     // disable interrupts
-    off();
+    //off();
 
     unsafe {
         *CURRENT_PROCESS.get_mut() = process;
     }
 
     // enable interrupts
-    on();
+    //on();
 }

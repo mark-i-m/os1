@@ -47,6 +47,7 @@ pub fn kernel_main() {
 
     // initialize stuff
     memory::init(KHEAP_START, KHEAP_END);
+
     process::init(); // this creates Process #0: init
     interrupts::init(1000 /* hz */);
 
