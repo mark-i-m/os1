@@ -22,27 +22,33 @@ pub fn init() {
 // Get the current process
 // Must use a Box because size of Process is unknown at compile time
 pub fn current() -> Option<Box<Process>> {
+    // DO NOT USE on/off here b/c there will be circular reference.
+    // We can simply use cli/sti here since the disable cound should
+    // not change in the middle of the function.
+
+    use super::super::machine::{cli, sti};
     // disable interrupts
-    //off();
-    
-    // TODO: fix circular reference... use cli/sti?
+    unsafe { cli(); }
 
     let ret = unsafe {
         (*CURRENT_PROCESS.get()).clone()
     };
 
     // enable interrupts
-    //on();
+    unsafe { sti(); }
 
     ret
 }
 
 // use for updating the current process
 pub fn current_mut<'a>() -> Option<&'a mut Box<Process>> {
+    // DO NOT USE on/off here b/c there will be circular reference.
+    // We can simply use cli/sti here since the disable cound should
+    // not change in the middle of the function.
+
+    use super::super::machine::{cli, sti};
     // disable interrupts
-    //off();
-    
-    // TODO: fix circular reference... use cli/sti?
+    unsafe { cli(); }
 
     let ret = unsafe {
         match *CURRENT_PROCESS.get_mut() {
@@ -52,7 +58,7 @@ pub fn current_mut<'a>() -> Option<&'a mut Box<Process>> {
     };
 
     // enable interrupts
-    //on();
+    unsafe { sti(); }
 
     ret
 }
