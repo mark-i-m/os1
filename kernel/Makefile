@@ -4,6 +4,8 @@
 
 DEPDIR = ../deps
 
+QEMUEXTRA =
+
 default: all
 
 all: kernel.img
@@ -17,13 +19,13 @@ kernel: ${BOOTFILES} ${AFILES}
 # DO NOT ENABLE KVM!!! For some reason it causes weird crashes...
 # kernel run
 runtext: all
-	qemu-system-x86_64 -nographic --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk
+	qemu-system-x86_64 -nographic --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk $(QEMUEXTRA)
 
 rungraphic: all
-	qemu-system-x86_64 --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk
+	qemu-system-x86_64 --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk $(QEMUEXTRA)
 
 rundebug: clean all
-	qemu-system-x86_64 -s -S -nographic --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk
+	qemu-system-x86_64 -s -S -nographic --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk $(QEMUEXTRA)
 
 # kernel clean
 clean::
