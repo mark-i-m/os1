@@ -24,6 +24,8 @@ pub fn init() {
 pub fn current() -> Option<Box<Process>> {
     // disable interrupts
     //off();
+    
+    // TODO: fix circular reference... use cli/sti?
 
     let ret = unsafe {
         (*CURRENT_PROCESS.get()).clone()
@@ -39,6 +41,8 @@ pub fn current() -> Option<Box<Process>> {
 pub fn current_mut<'a>() -> Option<&'a mut Box<Process>> {
     // disable interrupts
     //off();
+    
+    // TODO: fix circular reference... use cli/sti?
 
     let ret = unsafe {
         match *CURRENT_PROCESS.get_mut() {
@@ -56,12 +60,12 @@ pub fn current_mut<'a>() -> Option<&'a mut Box<Process>> {
 // set the current process from a Box
 pub fn set_current(process: Option<Box<Process>>) {
     // disable interrupts
-    //off();
+    off();
 
     unsafe {
         *CURRENT_PROCESS.get_mut() = process;
     }
 
     // enable interrupts
-    //on();
+    on();
 }

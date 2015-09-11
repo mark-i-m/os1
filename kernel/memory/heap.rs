@@ -283,7 +283,7 @@ pub fn init(start: usize, end: usize) {
 /// size on the platform.
 pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
     // disable interrutps
-    //off();
+    off();
 
     if DEBUG {printf!("malloc {}, {} -> ", size, align);}
 
@@ -303,7 +303,7 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
             FAIL_MALLOCS += 1;
 
             // enable interrupts
-            //on();
+            on();
 
             // return failure
             0 as *mut u8
@@ -330,7 +330,7 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
             SUCC_MALLOCS += 1;
 
             // enable interrutps
-            //on();
+            on();
 
             if DEBUG {printf!("0x{:X}\n", block.this());}
 
@@ -369,7 +369,7 @@ pub unsafe fn free(ptr: *mut u8, old_size: usize) {
     block.set_footer(block.size); // just in case
 
     // disable interrupts
-    //off();
+    off();
 
     // update stats
     FREES += 1;
@@ -399,7 +399,7 @@ pub unsafe fn free(ptr: *mut u8, old_size: usize) {
     }
 
     // enable interrupts
-    //on();
+    on();
 
     //print_stats();
 }
@@ -438,7 +438,7 @@ fn get_block_stats() -> (usize, usize, usize) {
     let mut size_free = 0;
 
     // disable interrupts
-    //off();
+    off();
 
     // loop through all blocks
     unsafe{
@@ -460,7 +460,7 @@ fn get_block_stats() -> (usize, usize, usize) {
     }
 
     // enable interrupts
-    //on();
+    on();
 
     (num_free, size_free, unsafe { END - START - size_free })
 }

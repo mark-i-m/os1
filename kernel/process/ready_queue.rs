@@ -32,12 +32,12 @@ pub fn ready_q<'a>() -> &'a mut Queue<Box<Process>> {
 // Add the process to the Ready queue
 pub fn make_ready(mut process: Box<Process>) {
     // disable interrupts
-    //off();
+    off();
 
     printf!("{:?} ready\n", process);
     (*process).set_state(State::READY);
     ready_q().push(process);
 
     // enable interrupts
-    //on();
+    on();
 }
