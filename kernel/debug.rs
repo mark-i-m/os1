@@ -44,9 +44,18 @@ macro_rules! printf {
         // disable interrupts
         use ::core::fmt::Write;
         use ::interrupts::{on, off};
-        //off();
+        off();
         let _ = write!($crate::debug::Debug, $($arg)*);
         // enable interrupts
-        //on();
+        on();
+    })
+}
+
+// Version of printf for use BEFORE processes are inited
+#[macro_export]
+macro_rules! bootlog {
+    ($($arg:tt)*) => ({
+        use ::core::fmt::Write;
+        let _ = write!($crate::debug::Debug, $($arg)*);
     })
 }

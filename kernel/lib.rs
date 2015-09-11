@@ -40,7 +40,7 @@ pub fn kernel_main() {
     unsafe { machine::cli(); }
 
     // print new line after "x"
-    printf! ("\n");
+    bootlog! ("\n");
 
     // TODO: tss
     // TODO: idt
@@ -49,6 +49,10 @@ pub fn kernel_main() {
     memory::init(KHEAP_START, KHEAP_END);
 
     process::init(); // this creates Process #0: init
+
+    //// DO NOT USE interrupts::on()/off() BEFORE HERE ////
+    //// DO NOT USE printf!() BEFORE HERE; USE bootlog!() ////
+
     interrupts::init(1000 /* hz */);
 
     // yield to init process

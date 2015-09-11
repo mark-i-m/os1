@@ -7,10 +7,10 @@ use super::super::process::current;
 use super::super::machine::{cli, sti};
 
 // Turn interrupts on
-// There must be a current process to enable interrupts
 pub fn on() {
     let me = current::current_mut();
 
+    // Meaningless to enable interrupts w/o current proc
     match me {
         Some(p) => {
             if p.disable_cnt == 0 {
@@ -22,7 +22,7 @@ pub fn on() {
                 unsafe { sti(); }
             }
         }
-        None => panic!("Enable interrupts with no current process!"),
+        None => { },
     }
 }
 

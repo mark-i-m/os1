@@ -267,8 +267,8 @@ pub fn init(start: usize, end: usize) {
 
         free_list = START as *mut Block;
 
-        printf! ("Heap inited: start 0x{:x}, end 0x{:x}, {} bytes\n",
-                 START, END, END - START);
+        bootlog! ("Heap inited: start 0x{:x}, end 0x{:x}, {} bytes\n",
+                  START, END, END - START);
     }
 
     // print_stats();

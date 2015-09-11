@@ -152,7 +152,7 @@ impl PartialEq for Process {
 
 pub fn init() {
     // Init ready q and current proc
-    current::init();
+    current::init(); // THIS MUST BE FIRST
     ready_queue::init();
 
     // Create the init process
