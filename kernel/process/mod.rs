@@ -55,7 +55,7 @@ enum State {
 }
 
 // Process struct
-#[repr(packed)]
+#[repr(C,packed)]
 pub struct Process {
     name: &'static str,
     pid: usize,
@@ -158,9 +158,6 @@ pub fn init() {
     // Create the init process
     let mut init = Process::new("init", self::init::run);
 
-    // Interrupts are already disabled
-    init.disable_cnt += 1;
-
     // Add the init process to the ready q
     ready_queue::make_ready(init);
 
@@ -212,7 +209,6 @@ pub fn switch_to_next() {
     }
 
     // context switch
-    // TODO: eflags
     match current::current() {
         Some(p) => { unsafe{
             context_switch(p.kcontext,

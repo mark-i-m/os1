@@ -43,7 +43,6 @@ pub fn kernel_main() {
     bootlog! ("\n");
 
     // TODO: tss
-    // TODO: idt
 
     // initialize stuff
     memory::init(KHEAP_START, KHEAP_END);
