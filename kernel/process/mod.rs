@@ -156,7 +156,10 @@ pub fn init() {
     ready_queue::init();
 
     // Create the init process
-    let init = Process::new("init", self::init::run);
+    let mut init = Process::new("init", self::init::run);
+
+    // Interrupts are already disabled
+    init.disable_cnt += 1;
 
     // Add the init process to the ready q
     ready_queue::make_ready(init);

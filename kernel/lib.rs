@@ -50,13 +50,15 @@ pub fn kernel_main() {
 
     process::init(); // this creates Process #0: init
 
-    //// DO NOT USE interrupts::on()/off() BEFORE HERE ////
-    //// DO NOT USE printf!() BEFORE HERE; USE bootlog!() ////
+    /////////////////////////////////////////////////////
+    // DO NOT USE interrupts::on()/off() BEFORE HERE   //
+    // DO NOT USE printf!() BEFORE HERE; USE bootlog!()//
+    /////////////////////////////////////////////////////
 
     interrupts::init(1000 /* hz */);
 
     // yield to init process
-    printf!("Everything inited! Here we go!");
+    printf!("Everything inited! Here we go!\n");
     process::proc_yield(core::option::Option::None);
 
     // yield should never return to here
