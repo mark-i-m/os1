@@ -23,10 +23,14 @@ pub fn init() {
 // Must use a Box because size of Process is unknown at compile time
 pub fn current() -> Option<Box<Process>> {
     // DO NOT USE on/off here b/c there will be circular reference.
-    // We can simply use cli/sti here since the disable cound should
-    // not change in the middle of the function.
+    // Need to use cli/sti here, but be careful to leave interrupt
+    // flag as we found it.
 
-    use super::super::machine::{cli, sti};
+    use super::super::machine::{cli, sti, eflags};
+
+    // Are interrupts already disabled?
+    let int_en = unsafe { (eflags() & (1 << 9)) != 0 };
+
     // disable interrupts
     unsafe { cli(); }
 
@@ -35,7 +39,9 @@ pub fn current() -> Option<Box<Process>> {
     };
 
     // enable interrupts
-    unsafe { sti(); }
+    if int_en {
+        unsafe { sti(); }
+    }
 
     ret
 }
@@ -43,10 +49,14 @@ pub fn current() -> Option<Box<Process>> {
 // use for updating the current process
 pub fn current_mut<'a>() -> Option<&'a mut Box<Process>> {
     // DO NOT USE on/off here b/c there will be circular reference.
-    // We can simply use cli/sti here since the disable cound should
-    // not change in the middle of the function.
+    // Need to use cli/sti here, but be careful to leave interrupt
+    // flag as we found it.
 
-    use super::super::machine::{cli, sti};
+    use super::super::machine::{cli, sti, eflags};
+
+    // Are interrupts already disabled?
+    let int_en = unsafe { (eflags() & (1 << 9)) != 0 };
+
     // disable interrupts
     unsafe { cli(); }
 
@@ -58,7 +68,9 @@ pub fn current_mut<'a>() -> Option<&'a mut Box<Process>> {
     };
 
     // enable interrupts
-    unsafe { sti(); }
+    if int_en {
+        unsafe { sti(); }
+    }
 
     ret
 }
