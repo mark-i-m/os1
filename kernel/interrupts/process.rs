@@ -18,7 +18,7 @@ pub fn on() {
             }
 
             p.disable_cnt -= 1;
-            if p.disable_cnt == 1 {
+            if p.disable_cnt == 0 {
                 unsafe { sti(); }
             }
         }
