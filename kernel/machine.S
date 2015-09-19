@@ -79,6 +79,23 @@
 #
 #         iret
 
+    # pub fn load_gdt(size: u16, offset: &u32)
+#     .global load_gdt
+# load_gdt:
+#     subl $8, %esp
+# 
+#     movl 12(%esp), %eax #size
+#     movl 16(%esp), %ecx #offset
+# 
+#     movl %eax, (%esp)
+#     movl %ecx, 4(%esp)
+# 
+#     lgdt %esp
+# 
+#     addl $8, %esp
+#     ret
+
+
     # pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>);
     .extern _proc_yield
     .global proc_yield

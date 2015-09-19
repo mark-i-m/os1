@@ -99,7 +99,7 @@ impl Process {
     fn get_stack(&mut self) {
         // TODO: fudge
         // Allocate a stack
-        let stack = Box::new([0; STACK_SIZE]);
+        let stack: Box<[usize; STACK_SIZE]> = box [0; STACK_SIZE];
 
         let stack_ptr = unsafe {boxed::into_raw(stack)} as *mut usize;
 

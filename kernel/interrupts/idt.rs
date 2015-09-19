@@ -2,15 +2,8 @@
 
 extern "C" {
     static kernelCodeSeg: u16;
+    static mut idt: [IDTDescr; 256];
 }
-
-static mut idt: [IDTDescr; 256] = [IDTDescr {
-                                        offset_1: 0,
-                                        offset_2: 0,
-                                        zero:     0,
-                                        type_attr:0,
-                                        selector: 0,
-                                    }; 256];
 
 #[derive(Copy, Clone)]
 #[repr(C, packed)]

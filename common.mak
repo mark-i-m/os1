@@ -8,9 +8,9 @@ LD = ld
 OBJCOPY = objcopy
 DD = dd
 
-# DO NOT USE -O0. If kernel.img is > 64K, the BIOS will not load it
-RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g -C opt-level=1 -Z no-landing-pads
-ASFLAGS += -m32 -g -O1
+# If kernel.img is > 64K, the BIOS will not load it, so if it is crashing, use -O1, not -O0
+RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g -C opt-level=0 -Z no-landing-pads
+ASFLAGS += -m32 -g -O0
 
 vpath %.rs process
 vpath %.rs vga
