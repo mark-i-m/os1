@@ -12,8 +12,8 @@ pub extern fn rust_begin_unwind(args: fmt::Arguments,
                                 file: &'static str, line: u32) -> ! {
     use core::fmt::Write;
     unsafe { cli(); } // we should no be interrupting any more
-    printf!("\nPanic at {}:{}: ", file, line);
+    bootlog!("\nPanic at {}:{}: ", file, line);
     let _ = Debug.write_fmt(args);
-    printf!("\n");
+    bootlog!("\n");
     loop {};
 }

@@ -83,15 +83,15 @@
 #     .global load_gdt
 # load_gdt:
 #     subl $8, %esp
-# 
+#
 #     movl 12(%esp), %eax #size
 #     movl 16(%esp), %ecx #offset
-# 
+#
 #     movl %eax, (%esp)
 #     movl %ecx, 4(%esp)
-# 
+#
 #     lgdt %esp
-# 
+#
 #     addl $8, %esp
 #     ret
 
@@ -170,11 +170,13 @@ context_switch:
 
 	// get the new flags, mostly used for interrupt flag
     push %ecx
-    popf
 
     // restore ecx and eax here, since we used them
     mov 24(%eax), %ecx
     mov 28(%eax), %eax
+
+    // restore interrupts
+    popf
 
     ret
 

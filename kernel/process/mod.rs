@@ -126,13 +126,13 @@ impl Clone for Process {
     fn clone(&self) -> Process {
         // printf!("clone process 0x{:X}\n", self as *const Process as usize);
         Process {
-            name: self.name.clone(),
-            pid: self.pid.clone(),
+            name: self.name,
+            pid: self.pid,
             run: self.run,
-            state: self.state.clone(),
-            stack: self.stack.clone(),
-            kcontext: self.kcontext.clone(),
-            disable_cnt: self.disable_cnt.clone(),
+            state: self.state,
+            stack: self.stack,
+            kcontext: self.kcontext,
+            disable_cnt: self.disable_cnt,
         }
     }
 }
@@ -210,10 +210,10 @@ pub fn switch_to_next() {
 
     // context switch
     match current::current() {
-        Some(p) => { unsafe{
+        Some(p) => unsafe{
             context_switch(p.kcontext,
                            if p.disable_cnt == 0 { 1 << 9 } else { 0 });
-        } }
+        },
         None => { panic!("No current to switch to!"); }
     }
 

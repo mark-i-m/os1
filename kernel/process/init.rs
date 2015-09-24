@@ -9,20 +9,11 @@ use core::option::Option::None;
 
 // The init process routine
 pub fn run(this: &Process) -> usize {
-    printf!("init about to yield\n");
-
-    super::proc_yield(None);
-    super::proc_yield(None);
-    super::proc_yield(None);
-
+    // start another process
     ready_queue::make_ready(Process::new("p0", super::user::run));
-    super::proc_yield(None);
 
-    super::proc_yield(None);
-    super::proc_yield(None);
-    super::proc_yield(None);
-    super::proc_yield(None);
-    super::proc_yield(None);
+    // TODO: join instead of loop forever
+    loop{}
 
     0xDEADBEEF
 }

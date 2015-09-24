@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 // This file contains the memory allocator used by the rust_alloc module
 //
+// ***INTERRUPTS MUST BE OFF BEFORE RUNNING ANYTHING IN THIS FILE!!!!
+//
 // The implementation in this file is a simple first-fit allocator.
 //
 // Invariants:
@@ -11,8 +13,6 @@ extern crate core;
 
 use core::mem::{size_of};
 use core::option::Option::{self, Some, None};
-
-use super::super::interrupts::{on, off};
 
 const DEBUG: bool = false;
 
@@ -282,10 +282,7 @@ pub fn init(start: usize, end: usize) {
 /// power of 2. The alignment must be no larger than the largest supported page
 /// size on the platform.
 pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
-    // disable interrutps
-    off();
-
-    if DEBUG {printf!("malloc {}, {} -> ", size, align);}
+    if DEBUG {bootlog!("malloc {}, {} -> ", size, align);}
 
     // get free block
     let align_rounded = align.next_power_of_two();
@@ -301,9 +298,6 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
 
             // update stats
             FAIL_MALLOCS += 1;
-
-            // enable interrupts
-            on();
 
             // return failure
             0 as *mut u8
@@ -329,10 +323,7 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
             // update stats
             SUCC_MALLOCS += 1;
 
-            // enable interrutps
-            on();
-
-            if DEBUG {printf!("0x{:X}\n", block.this());}
+            if DEBUG {bootlog!("0x{:X}\n", block.this());}
 
             // return ptr
             block.this() as *mut u8
@@ -349,7 +340,7 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
 /// any value in range_inclusive(requested_size, usable_size).
 pub unsafe fn free(ptr: *mut u8, old_size: usize) {
 
-    if DEBUG {printf!("free 0x{:X}, {}\n", ptr as usize, old_size);}
+    if DEBUG {bootlog!("free 0x{:X}, {}\n", ptr as usize, old_size);}
 
     // check input
     if ptr == (0 as *mut u8) {
@@ -367,9 +358,6 @@ pub unsafe fn free(ptr: *mut u8, old_size: usize) {
 
     block.size = true_size;
     block.set_footer(block.size); // just in case
-
-    // disable interrupts
-    off();
 
     // update stats
     FREES += 1;
@@ -398,9 +386,6 @@ pub unsafe fn free(ptr: *mut u8, old_size: usize) {
         (*block.get_prev()).combine();
     }
 
-    // enable interrupts
-    on();
-
     //print_stats();
 }
 
@@ -417,16 +402,16 @@ pub fn usable_size(size: usize, align: usize) -> usize {
 /// These statistics may be inconsistent if other threads use the allocator
 /// during the call.
 pub fn print_stats() {
-    printf!("\nHeap stats\n----------\n");
+    bootlog!("\nHeap stats\n----------\n");
 
     // Number of free blocks and amount of free memory
     let (num_free, size_free, size_used) = get_block_stats();
-    printf!("{} free blocks; {} bytes free, {} bytes used\n",
+    bootlog!("{} free blocks; {} bytes free, {} bytes used\n",
             num_free, size_free, size_used);
 
     // Number of mallocs and frees
     unsafe {
-        printf!("Successfull mallocs: {}; Failed mallocs: {}; Frees: {}\n\n",
+        bootlog!("Successfull mallocs: {}; Failed mallocs: {}; Frees: {}\n\n",
                 SUCC_MALLOCS, FAIL_MALLOCS, FREES);
     }
 }
@@ -437,9 +422,6 @@ fn get_block_stats() -> (usize, usize, usize) {
     let mut num_free = 0;
     let mut size_free = 0;
 
-    // disable interrupts
-    off();
-
     // loop through all blocks
     unsafe{
         let mut block_addr = free_list as *mut Block;
@@ -449,7 +431,7 @@ fn get_block_stats() -> (usize, usize, usize) {
 
             num_free += 1;
             size_free += block.size;
-            printf!("free {:X}: {} B\n", block_addr as usize, block.size);
+            bootlog!("free {:X}: {} B\n", block_addr as usize, block.size);
 
             if block.next == (0 as *mut Block) {
                 break;
@@ -458,9 +440,6 @@ fn get_block_stats() -> (usize, usize, usize) {
             }
         }
     }
-
-    // enable interrupts
-    on();
 
     (num_free, size_free, unsafe { END - START - size_free })
 }

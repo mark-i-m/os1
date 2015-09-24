@@ -12,7 +12,7 @@ pub fn on() {
 
     // Meaningless to enable interrupts w/o current proc
     match me {
-        Some(p) => {
+        Some(mut p) => {
             if p.disable_cnt == 0 {
                 panic!("Interrupts are already on!");
             }
@@ -32,7 +32,7 @@ pub fn off() {
 
     let me = current::current_mut();
     match me {
-        Some(p) => p.disable_cnt += 1,
+        Some(mut p) => p.disable_cnt += 1,
         None => { }
     }
 }
