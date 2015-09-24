@@ -93,7 +93,7 @@ impl Process {
 
         p.get_stack();
 
-        Box::new(p)
+        box p
     }
 
     fn get_stack(&mut self) {
@@ -156,7 +156,7 @@ pub fn init() {
     ready_queue::init();
 
     // Create the init process
-    let mut init = Process::new("init", self::init::run);
+    let init = Process::new("init", self::init::run);
 
     // Add the init process to the ready q
     ready_queue::make_ready(init);
@@ -246,7 +246,7 @@ pub fn _proc_yield(q: Option<&mut Queue<Box<Process>>>) {
     // TODO: yielding onto q
     match current::current() {
         Some(c) => {
-            ready_queue::make_ready(c);
+            ready_queue::make_ready((*c).clone());
             current::set_current(None);
         }
         None => { }

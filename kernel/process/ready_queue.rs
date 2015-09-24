@@ -34,7 +34,7 @@ pub fn make_ready(mut process: Box<Process>) {
     // disable interrupts
     off();
 
-    printf!("{:?} ready\n", process);
+    bootlog!("Readying {:?}\n", process);
     (*process).set_state(State::READY);
     ready_q().push(process);
 

@@ -14,7 +14,7 @@ extern crate core;
 use core::mem::{size_of};
 use core::option::Option::{self, Some, None};
 
-const DEBUG: bool = false;
+const DEBUG: bool = true;
 
 static mut START: usize = 0;
 static mut END: usize = 0;
@@ -385,8 +385,6 @@ pub unsafe fn free(ptr: *mut u8, old_size: usize) {
     if prev_free {
         (*block.get_prev()).combine();
     }
-
-    //print_stats();
 }
 
 /// Returns the usable size of an allocation created with the specified the

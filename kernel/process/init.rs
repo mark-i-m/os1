@@ -3,10 +3,6 @@
 use super::Process;
 use super::ready_queue;
 
-//use alloc::boxed::Box;
-
-use core::option::Option::None;
-
 // The init process routine
 pub fn run(this: &Process) -> usize {
     // start another process

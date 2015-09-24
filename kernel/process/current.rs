@@ -1,6 +1,5 @@
 use alloc::boxed::Box;
 
-use core::clone::Clone;
 use core::option::Option::{self, Some, None};
 
 use super::super::machine::{cli, sti, eflags};
@@ -26,8 +25,7 @@ pub fn init() {
 }
 
 // Get the current process
-// Must use a Box because size of Process is unknown at compile time
-pub fn current() -> Option<Box<Process>> {
+pub fn current<'a>() -> Option<&'a Box<Process>> {
     unsafe {
         // Are interrupts already disabled?
         let int_en = (eflags() & (1 << 9)) != 0;
@@ -35,7 +33,10 @@ pub fn current() -> Option<Box<Process>> {
         // disable interrupts
         cli();
 
-        let ret = (*CURRENT_PROCESS.get()).clone();
+        let ret = match *CURRENT_PROCESS.get() {
+            Some(ref cp) => Some(cp),
+            None => None,
+        };
 
         // enable interrupts
         if int_en {
