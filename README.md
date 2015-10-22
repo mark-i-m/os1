@@ -10,6 +10,13 @@ I had originally intended not to have any library code in my kernel at all, but 
 * Preemptive multitasking
 * VGA buffer management
 
+###TODO
+* Reaper
+* Concurrency Control
+* Virtual Memory
+* User mode/system calls
+* File system
+
 ###Requirements
 
 * ```qemu```
