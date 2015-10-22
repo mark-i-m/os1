@@ -4,6 +4,7 @@
 #![allow(private_no_mangle_fns)] // If something goes wrong, try removing and see compiler says
 
 use super::heap::{malloc, free, usable_size, print_stats};
+use super::super::interrupts::{on, off};
 
 // This file contains the outside interface with the kernels memory allocator.
 // rustc will look for these functions.
@@ -19,7 +20,10 @@ use super::heap::{malloc, free, usable_size, print_stats};
 /// size on the platform.
 #[no_mangle]
 pub unsafe extern fn rust_allocate(size: usize, align: usize) -> *mut u8 {
-    malloc(size, align)
+    off();
+    let ret = malloc(size, align);
+    on();
+    ret
 }
 
 /// Deallocates the memory referenced by `ptr`.
@@ -31,7 +35,10 @@ pub unsafe extern fn rust_allocate(size: usize, align: usize) -> *mut u8 {
 /// any value in range_inclusive(requested_size, usable_size).
 #[no_mangle]
 pub unsafe extern fn rust_deallocate(ptr: *mut u8, old_size: usize, align: usize) {
-    free(ptr, old_size)
+    off();
+    let ret = free(ptr, old_size);
+    on();
+    ret
 }
 
 /// Resize the allocation referenced by `ptr` to `size` bytes.
@@ -50,11 +57,14 @@ pub unsafe extern fn rust_deallocate(ptr: *mut u8, old_size: usize, align: usize
 /// any value in range_inclusive(requested_size, usable_size).
 #[no_mangle]
 pub unsafe extern fn rust_reallocate(ptr: *mut u8, old_size: usize, size: usize, align: usize) -> *mut u8 {
+    off();
     let _try_alloc = malloc(size, align);
-    match _try_alloc as usize {
+    let ret = match _try_alloc as usize {
         0 => {_try_alloc}
         _ => {free(ptr, old_size); _try_alloc}
-    }
+    };
+    on();
+    ret
 }
 
 /// Resize the allocation referenced by `ptr` to `size` bytes.
@@ -71,15 +81,20 @@ pub unsafe extern fn rust_reallocate(ptr: *mut u8, old_size: usize, size: usize,
 /// any value in range_inclusive(requested_size, usable_size).
 #[no_mangle]
 pub unsafe extern fn rust_reallocate_inplace(ptr: *mut u8, old_size: usize, size: usize, align: usize) -> usize {
-    // Unsupported; always return failure
-    usable_size(old_size, align)
+    off();
+    let ret = usable_size(old_size, align);
+    on();
+    ret
 }
 
 /// Returns the usable size of an allocation created with the specified the
 /// `size` and `align`.
 #[no_mangle]
 pub unsafe extern fn rust_usable_size(size: usize, align: usize) -> usize {
-    usable_size(size, align)
+    off();
+    let ret = usable_size(size, align);
+    on();
+    ret
 }
 
 /// Prints implementation-defined allocator statistics.
@@ -88,5 +103,7 @@ pub unsafe extern fn rust_usable_size(size: usize, align: usize) -> usize {
 /// during the call.
 #[no_mangle]
 pub unsafe extern fn rust_stats_print() {
+    off();
     print_stats();
+    on();
 }

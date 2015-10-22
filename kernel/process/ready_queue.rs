@@ -1,40 +1,46 @@
-//Uncomment to debug
-//use core::fmt::Display;
-//use core::clone::Clone;
+// This file contains functions for push/pop to the ready queue
 
-//use core::marker::{Sync, Send};
+use super::super::interrupts::{on, off};
+use super::{Process, State};
+use super::super::data_structures::{ProcessQueue};
 
-use alloc::boxed::Box;
-
-use super::super::data_structures::{Queue, LazyGlobal};
-
-use super::Process;
-
-// ready q
-static READY_QUEUE: LazyGlobal<Queue<Box<Process>>> = lazy_global!();
+// points to the next process to run
+pub static mut READY_QUEUE: ProcessQueue = ProcessQueue {
+    head: 0 as *mut Process,
+    tail: 0 as *mut Process
+};
+//pub static mut READY_QUEUE: ProcessQueue = ProcessQueue::new();
 
 // init the ready q
 pub fn init() {
-    unsafe {
-        READY_QUEUE.init(Queue::new());
-    }
-}
-
-// get the ready q
-pub fn ready_q<'a>() -> &'a mut Queue<Box<Process>> {
-    unsafe {
-        READY_QUEUE.get_mut()
-    }
 }
 
 // Add the process to the Ready queue
-pub fn make_ready(process: Box<Process>) {
+pub fn make_ready(process: *mut Process) {
+    // disable interrupts
+    off();
 
-    // TODO: lock here
+    unsafe {
+        bootlog!("Readying {:?}\n", *process);
+        READY_QUEUE.push_tail(process);
+    }
 
-    //TODO: get this right: (*process).set_state(State::READY);
-    printf!("{:?} ready\n", process);
-    ready_q().push(process);
+    // enable interrupts
+    on();
+}
 
-    // TODO: unlock here
+// Deque and return the next ready process
+// NOTE: returns null if there are no ready processes
+pub fn get_next() -> *mut Process {
+    unsafe {
+        // disable interrupts
+        off();
+
+        let ret = READY_QUEUE.pop_head();
+
+        // enable interrupts
+        on();
+
+        ret
+    }
 }

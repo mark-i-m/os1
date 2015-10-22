@@ -1,12 +1,13 @@
 // Allow the user to print to qemu serial console
 //
 // Barrowed from krzysz00/rust-kernel/kernel/console.rs
-// TODO: lock before writing; I haven't written a lock yet
 
-use machine;
 use core::fmt::{Write,Error};
 use core::result::Result;
 use core::str::StrExt;
+
+use machine::{inb, outb};
+
 
 const PORT: u16 = 0x3F8;
 pub struct Debug;
@@ -15,8 +16,8 @@ impl Debug {
     pub fn write_bytes(&self, bytes: &[u8]) {
         for b in bytes {
             unsafe {
-                while machine::inb(PORT + 5) & 0x20 == 0 {};
-                machine::outb(PORT, *b);
+                while inb(PORT + 5) & 0x20 == 0 { }
+                outb(PORT, *b);
             }
         }
     }
@@ -39,6 +40,20 @@ pub fn puts(string: &str) {
 // Print to console
 #[macro_export]
 macro_rules! printf {
+    ($($arg:tt)*) => ({
+        // disable interrupts
+        use ::core::fmt::Write;
+        use ::interrupts::{on, off};
+        off();
+        let _ = write!($crate::debug::Debug, $($arg)*);
+        // enable interrupts
+        on();
+    })
+}
+
+// Version of printf for use BEFORE processes are inited
+#[macro_export]
+macro_rules! bootlog {
     ($($arg:tt)*) => ({
         use ::core::fmt::Write;
         let _ = write!($crate::debug::Debug, $($arg)*);

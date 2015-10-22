@@ -6,7 +6,7 @@
 
 use core::option::Option::{Some, None};
 
-use super::current;
+use super::{CURRENT_PROCESS};
 
 #[repr(packed)]
 #[derive(Clone, Copy)]
@@ -39,15 +39,16 @@ impl KContext {
 // save the KContext of the current process to its process struct
 #[no_mangle]
 pub fn store_kcontext (context_ptr: *mut KContext) {
-
-    if context_ptr == (0 as *mut KContext) {
+    if context_ptr.is_null() {
         panic!("null context ptr!");
     }
 
-    let context = unsafe { *context_ptr };
-
-    match current::current_mut() {
-        Some(current_proc) => { current_proc.kcontext = context }
-        None => { }
+    // Save context to current process
+    unsafe {
+        if !CURRENT_PROCESS.is_null() {
+            (*CURRENT_PROCESS).kcontext = unsafe {
+                *context_ptr
+            };
+        }
     }
 }

@@ -1,23 +1,42 @@
 #![allow(dead_code)]
 // This file contains the memory allocator used by the rust_alloc module
 //
+// ***INTERRUPTS MUST BE OFF BEFORE RUNNING ANYTHING IN THIS FILE!!!!
+//
 // The implementation in this file is a simple first-fit allocator.
 //
 // Invariants:
-// * All blocks will be a multiple of 16B
-// * All blocks will be 16B-aligned
-
-extern crate core;
+// * BLOCK_ALIGN = 4*size_of::<usize>()
+// * All blocks will be a multiple of BLOCK_ALIGN
+// * All blocks will be BLOCK_ALIGN-aligned
+//
+// Block structure:
+// * size
+// * forward pointer | free bits
+// * backward pointer | 0x0
+//   ...
+// * size (last word)
+//
+// When a block is free, the first and last words should match and be equal to the size of the
+// block. The forward pointer points to the head of the next free block. The backward pointer
+// points to the head of the previous free block. Since all blocks are at least 16B aligned, at
+// least the last 4 bits of all block addresses are 0. The last 4 bits of the forward pointer
+// should be all 1s if the block is free.
+//
+// When a block is in use, the whole block is usable for the user. Thus,
+// usable size and block size are equal.
 
 use core::mem::{size_of};
-use core::option::Option::{self, Some, None};
+use core::isize;
 
 const DEBUG: bool = false;
+
+static mut BLOCK_ALIGN: usize = 0;
 
 static mut START: usize = 0;
 static mut END: usize = 0;
 
-static mut free_list: *mut Block = (0 as *mut Block);
+static mut free_list: *mut Block = 0 as *mut Block;
 
 // heap stats
 static mut SUCC_MALLOCS: usize = 0;
@@ -25,213 +44,278 @@ static mut FAIL_MALLOCS: usize = 0;
 static mut FREES:        usize = 0;
 
 // memory block
-// the last word of every block is its allocation size
-#[repr(C, packed)]
-struct Block {
-    magic: usize, // If this is a free block, then it is magical: 0xCAFEFACE
-    size: usize, // Includes the size of the footer
-    next: *mut Block,
-    prev: *mut Block,
-}
+struct Block;
 
 impl Block {
-    // METHODS FOR ALL BLOCKS
-
-    // returns true if this is a valid free block
-    fn is_free(&self) -> bool {
-        self.magic == 0xCAFEFACE && self.size % 0x10 == 0
+    // returns the first word of the block
+    unsafe fn get_head(&self) -> usize {
+        *(self as *const Block as *const usize)
     }
 
-    // get the prev block in memory
-    //
-    // note: this is distinct from the prev block in the free list
-    // behavior is undefined if this is the last block.
-    unsafe fn get_prev(&self) -> *mut Block {
-        // check for corner cases
-        if self.this() == START {
-            panic!("Free block has no previous block: {:x}", self.this());
+    // sets the header to the given value
+    unsafe fn set_head(&mut self, head: usize) {
+        *(self as *mut Block as *mut usize) = head;
+    }
+
+    // returns the last word of the block
+    unsafe fn get_foot(&self) -> usize {
+        let ptr: *const u8 = self as *const Block as *const u8;
+        let size = self.get_size() - size_of::<usize>();
+
+        // avoid overflows and weirdness
+        if size >= (isize::MAX as usize) {
+            panic!("Huge block at {:x}\n", ptr as usize);
         }
 
-        // get the addr of previous block's size
-        let prev_foot: *const usize = (self.this() - core::mem::size_of::<usize>()) as *const usize;
-        let prev_size = *prev_foot;
-
-        // get previous block's addr
-        (self.this() - prev_size) as *mut Block
+        *(ptr.offset(size as isize) as *const usize)
     }
 
-    // get the next block in memory
-    //
-    // note: this is distinct from the next block in the free list
-    // behavior is undefined if this is the last block.
-    unsafe fn get_next(&self) -> *mut Block {
-        // check for corner cases
-        if self.this() + self.size == END {
-            panic!("Free block has no next block: {:x}", self.this());
+    // sets the footer to the given value
+    unsafe fn set_foot(&mut self, foot: usize) {
+        let ptr: *mut u8 = self as *mut Block as *mut u8;
+        let size = self.get_size() - size_of::<usize>();
+
+        // avoid overflows and weirdness
+        if size >= (isize::MAX as usize) {
+            panic!("Huge block at {:x}\n", ptr as usize);
         }
 
-        (self.this() + self.size) as *mut Block
+        *(ptr.offset(size as isize) as *mut usize) = foot;
     }
 
-    // Set the footer for this block. This method does not error checking, so
-    // be careful!
-    unsafe fn set_footer(&self, size: usize) {
-        let footer = (self.this() + self.size - core::mem::size_of::<usize>()) as *mut usize;
-        *footer = size;
+    // gets the 4 free bits of the block
+    unsafe fn get_free_bits(&self) -> u8 {
+        (*(self as *const Block as *const usize).offset(1) & 0xF) as u8
     }
 
-    #[inline]
-    unsafe fn this(&self) -> usize {
-        self as *const Block as usize
+    // set the forward pointer (but not the free bits)
+    unsafe fn set_next(&mut self, next: *mut Block) {
+        *(self as *mut Block as *mut usize).offset(1) =
+            ((next as usize) & !0xF) | (self.get_free_bits() as usize);
     }
 
-    // METHODS FOR ONLY FREE BLOCKS
+    // set the backward pointer
+    unsafe fn set_prev(&mut self, prev: *mut Block) {
+        *(self as *mut Block as *mut usize).offset(2) = (prev as usize) & !0xF;
+    }
 
-    // split the block into two blocks. The first block will be of the
-    // given usable size. The block must be free
-    unsafe fn split(&mut self, size: usize) {
-        // check that the math works out
+    // returns true if the block is a valid free block
+    pub unsafe fn is_free(&self) -> bool {
+        let head = self.get_head();
+
+        if head < BLOCK_ALIGN {
+            return false;
+        }
+
+        let foot = self.get_foot();
+
+        // check sentinels
+        if head != foot {
+            return false;
+        }
+
+        // check that free list pointers are valid
+        let forward_ptr = self.get_free_next();
+        let backward_ptr = self.get_free_prev();
+
+        if (forward_ptr < (START as *mut Block) &&
+            !forward_ptr.is_null()) ||
+           forward_ptr >= (END as *mut Block) ||
+           (backward_ptr < (START as *mut Block) &&
+            !backward_ptr.is_null()) ||
+           backward_ptr >= (END as *mut Block){
+            return false;
+        }
+
+        // check that the block is BLOCK_ALIGN aligned
+        if (self as *const Block as usize) % BLOCK_ALIGN != 0 {
+            return false;
+        }
+
+        // check that the block is free
+        self.get_free_bits() == 0xF
+    }
+
+    // set the free bits
+    pub unsafe fn mark_free(&mut self) {
+        *(self as *mut Block as *mut usize).offset(1) |= 0xF;
+    }
+
+    // clear the free bits
+    // the block should already be removed from the free list
+    pub unsafe fn mark_used(&mut self) {
+        *(self as *mut Block as *mut usize).offset(1) &= !0xF; // bitwise !
+    }
+
+    // return the size of the block (user-usable data size)
+    pub unsafe fn get_size(&self) -> usize {
+        self.get_head()
+    }
+
+    // set the size of block
+    pub unsafe fn set_size(&mut self, size: usize) {
+        self.set_head(size);
+        self.set_foot(size);
+    }
+
+    // returns the heap block immediately following this one
+    pub unsafe fn get_contiguous_next(&self) -> *mut Block {
+        let ptr: *const u8 = self as *const Block as *const u8;
+        let size = self.get_size();
+
+        // avoid overflows and weirdness
+        if size >= (isize::MAX as usize) {
+            panic!("Huge block at {:x}\n", ptr as usize);
+        }
+
+        ptr.offset(size as isize) as *mut Block
+    }
+
+    // returns the heap block immediately preceding this one
+    pub unsafe fn get_contiguous_prev(&self) -> *mut Block {
+        (self as *const Block as *const usize).offset(-1) as *mut Block
+    }
+
+    // returns the forward ptr of the block
+    // (excluding the free bits)
+    pub unsafe fn get_free_next(&self) -> *mut Block {
+        (*(self as *const Block as *const usize).offset(1) & !0xF) as *mut Block
+    }
+
+    // returns the backward ptr of the block
+    pub unsafe fn get_free_prev(&self) -> *mut Block {
+        (*(self as *const Block as *const usize).offset(2) & !0xF) as *mut Block
+    }
+
+    // remove from free list
+    // clear forward/backward pointers
+    pub unsafe fn remove(&mut self) {
+        // make sure the block is free and valid
         if !self.is_free() {
-            panic!("Attempt to split non-free block 0x{:X}",
-                   (self as *const Block) as usize);
-        }
-        if round_to_16(size + core::mem::size_of::<usize>()) >= self.size {
-            panic!("Splitting block that is too small: 0x{:X}, size {}",
-                   (self as *const Block) as usize, size);
+            panic!("Attempt to remove used block from free list: {:x}\n",
+                   self as *const Block as usize);
         }
 
-        // get new size of original block
-        let new_size = round_to_16(size + core::mem::size_of::<usize>());
+        // swap pointers
+        let next_ptr = self.get_free_next();
+        let prev_ptr = self.get_free_prev();
 
-        // create new block
-        let block = (self.this() + new_size) as *mut Block;
-        (*block).size = self.size - new_size;
-        (*block).set_footer((*block).size);
+        if !next_ptr.is_null() {
+            (*next_ptr).set_prev(prev_ptr);
+        }
 
-        // adjust this block's metadata
-        self.size = new_size;
-        self.set_footer(new_size);
+        if !prev_ptr.is_null() {
+            (*prev_ptr).set_next(next_ptr);
+        }
 
-        // insert at tail of free list
-        (*block).insert();
+        self.set_next(0 as *mut Block);
+        self.set_prev(0 as *mut Block);
     }
 
-    // coalesce this block with the next one. The two blocks must be free
-    unsafe fn combine(&mut self) {
-        // check that both are free!
+    // add to head of free list
+    pub unsafe fn insert(&mut self) {
+        let old_head = free_list;
+
         if !self.is_free() {
-            panic!("Attempt to coalesce non-free block 0x{:X} with next",
-                   (self as *const Block) as usize);
-        } else if !(*self.get_next()).is_free() {
             print_stats();
-            panic!("Attempt to coalesce non-free block 0x{:X} with prev",
-                   self.get_next() as *const Block as usize);
+            panic!("Adding taken block to free list: {:x}",
+                  self as *const Block as usize);
         }
-
-        let next = self.get_next();
-
-       // increase the size of this block
-       self.size += (*next).size;
-
-       // remove next block from free list
-       (*next).remove();
-
-       // adjust metadata
-       self.set_footer(self.size);
-    }
-
-    // remove this block from the free list. The block
-    // must be free. After this operation, the block's magic word is
-    // set to 0xDEADBEEF.
-    unsafe fn remove(&mut self) {
-        if !self.is_free() {
-            panic!("Attempt to remove non-free block from free list: {:x}", self.this());
-        }
-
-        // Set magic, so that this is definitely not a free block
-        self.magic = 0xDEADBEEF;
-
-        // get prev and next in free list
-        // corner cases:
-        // - if this is the head, prev = NULL
-        // - if this is the tail, next = NULL
-
-        if self.prev != (0 as *mut Block) {
-            (*self.prev).next = self.next;
-        } else {
-            // remove the head of the list
-            free_list = self.next;
-        }
-
-        if self.next != (0 as *mut Block) {
-            // not the tail
-            (*self.next).prev = self.prev;
-        }
-    }
-
-    // METHODS FOR ONLY USED BLOCKS
-
-    // inserts the given block at the head of the free list and sets
-    // the magic bits. The block cannot already be free.
-    unsafe fn insert(&mut self) {
-        if self.is_free() {
-            panic!("Attempt to insert a free block: {:X}", self.this());
-        }
-
-        // set magic bits
-        self.magic = 0xCAFEFACE;
-
-        // insert at head
-        let next = free_list;
 
         free_list = self as *mut Block;
-        self.next = next;
 
-        self.prev = 0 as *mut Block;
+        self.set_next(old_head);
+        self.set_prev(0 as *mut Block);
 
-        if next != (0 as *mut Block) {
-            (*next).prev = self.this() as *mut Block;
+        if !old_head.is_null() {
+            (*old_head).set_prev(self as *mut Block);
         }
     }
 
-    // STATIC
-
-    // Find a block that fits the bill
-    unsafe fn find(size: usize, align: usize) -> Option<*mut Block> {
-        // loop through blocks until a good one is found
-        let mut block_addr = free_list;
-
-        while block_addr != (0 as *mut Block) {
-            let block = &*block_addr;
-
-            // sanity check
-            if block_addr as usize >= END {
-                panic!("Free block beyond END!");
-            }
-
-            // return the first matching block
-            if Block::is_match(block, size, align) {
-                return Some(block_addr);
-            }
-
-            block_addr = block.next;
+    // merge with next
+    // removes the second block from the free list before merging
+    pub unsafe fn merge_with_next(&mut self) {
+        // make sure both blocks are free and valid
+        if !self.is_free() {
+            panic!("Attempt to merge non-free block: {:x}",
+                  self as *const Block as usize);
         }
 
-        None
+        let next = self.get_contiguous_next();
+        if !(*next).is_free() {
+            panic!("Attempt to merge with non-free block: {:x}",
+                  self as *const Block as usize);
+        }
+
+        // remove next block from free list
+        (*next).remove();
+
+        // make this block larger
+        let new_size = self.get_size() + (*next).get_size();
+        self.set_size(new_size);
     }
 
-    fn is_match(block: &Block, size: usize, align: usize) -> bool {
-        let block_usize = block as *const Block as usize;
-        let aligned = round_to_n(block_usize, align);
+    // split the block so that it is the given size
+    // inserts the new block into the free list
+    // the block must be large enough to split (>= 2*BLOCK_ALIGN)
+    // the block must be free
+    // the new size must be a multiple of BLOCK_ALIGN
+    pub unsafe fn split(&mut self, size: usize) {
+        // make sure the block is free and valid
+        if !self.is_free() {
+            panic!("Attempt to split non-free block: {:x}",
+                  self as *const Block as usize);
+        }
 
-        // total size - leftovers >= new_block and its metadata
-        block.size - (aligned - block_usize) >= size
+        let old_size = self.get_size();
+
+        // make sure the block is large enough
+        if old_size < 32 {
+            panic!("Block is to small to split: {:x}",
+                  self as *const Block as usize);
+        }
+
+        if old_size < size + BLOCK_ALIGN {
+            panic!("Block is to small to split at {}: {:x}",
+                  size, self as *const Block as usize);
+        }
+
+        let new_block_size = old_size - size;
+
+        // make this block smaller
+        self.set_size(size);
+
+        // set the next block size
+        let new_block = self.get_contiguous_next();
+
+        (*new_block).set_size(new_block_size);
+        (*new_block).mark_free();
+        (*new_block).set_next(0 as *mut Block);
+        (*new_block).set_prev(0 as *mut Block);
+        (*new_block).insert();
+    }
+
+    // returns true if this block matches the size and alignment
+    // returns the size it which the block should be split to obtain
+    //   an aligned block; the second return value is meaningless if
+    //   we return false.
+    pub unsafe fn is_match(&self, size: usize, align: usize) -> (bool, usize) {
+        let block_addr = self as *const Block as usize;
+        let aligned = round_to_n(block_addr, align);
+
+        // aligned part needs to be at least size bytes
+        let split_size = aligned - block_addr;
+        let matched = self.get_size() >= size + split_size;
+
+        (matched, split_size)
     }
 }
 
-// round up to the nearest multiple of 16
-fn round_to_16(size: usize) -> usize {
-    round_to_n(size, 16)
+// round up to the nearest multiple of BLOCK_ALIGN
+fn round_to_block_align(size: usize) -> usize {
+    unsafe {
+        round_to_n(size, BLOCK_ALIGN)
+    }
 }
 
 // n must be a power of 2
@@ -241,10 +325,12 @@ fn round_to_n(size: usize, n: usize) -> usize {
 
 // Init the heap
 pub fn init(start: usize, end: usize) {
-    // Round to nearest multiple of 16
     unsafe {
-        // round START up
-        START = round_to_16(start);
+        // set BLOCK_ALIGN
+        BLOCK_ALIGN = 4 * size_of::<usize>();
+
+        // Round up to nearest multiple of 16
+        START = round_to_block_align(start);
 
         // round END down
         END = end & !0xF;
@@ -254,22 +340,19 @@ pub fn init(start: usize, end: usize) {
             panic!("No heap space");
         }
 
-        printf! ("heap start addr: {:x}, end addr: {:x}, {} bytes\n",
+        bootlog! ("heap start addr: {:x}, end addr: {:x}, {} bytes\n",
                  START, END, END - START);
 
         // create first block and free list
-        let first: &mut Block = &mut*(START as *mut Block);
+        let first = START as *mut Block;
 
-        first.magic = 0xCAFEFACE;
-        first.size = END - START;
-        first.next = 0 as *mut Block;
-        first.prev = 0 as *mut Block;
-        first.set_footer(first.size);
+        (*first).set_size(END - START);
+        (*first).mark_free();
+        (*first).set_next(0 as *mut Block);
+        (*first).set_prev(0 as *mut Block);
 
-        free_list = START as *mut Block;
+        free_list = first;
     }
-
-    // print_stats();
 }
 
 /// Return a pointer to `size` bytes of memory aligned to `align`.
@@ -279,60 +362,68 @@ pub fn init(start: usize, end: usize) {
 /// Behavior is undefined if the requested size is 0 or the alignment is not a
 /// power of 2. The alignment must be no larger than the largest supported page
 /// size on the platform.
-pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
-    // TODO: lock here
+pub unsafe fn malloc(mut size: usize, mut align: usize) -> *mut u8 {
+    if DEBUG {bootlog!("malloc {}, {} -> ", size, align);}
 
-    if DEBUG {printf!("malloc {}, {} -> ", size, align);}
-
-    // get free block
-    let align_rounded = align.next_power_of_two();
-    let size_rounded = round_to_16(size + core::mem::size_of::<usize>());
-    let block_addr = Block::find(size_rounded, align_rounded);
-
-    match block_addr {
-        None => {
-            // check for out-of-memory; that is, empty free list
-            if free_list == (0 as *mut Block) {
-                panic!("Out of memory!");
-            }
-
-            // update stats
-            FAIL_MALLOCS += 1;
-
-            // TODO: unlock here
-
-            // return failure
-            0 as *mut u8
-        }
-        Some(addr) => {
-            let mut block: &mut Block = &mut*addr;
-
-            // check if the aligned block is in the middle
-            let addr_rounded = round_to_n(addr as usize, align_rounded);
-            if addr_rounded > addr as usize {
-                block.split(addr_rounded - (addr as usize) - core::mem::size_of::<usize>());
-                block = &mut*block.get_next();
-            }
-
-            // Split the block if it is too big
-            if block.size > size_rounded {
-                block.split(size);
-            }
-
-            // Remove the block from the free list
-            block.remove();
-
-            // update stats
-            SUCC_MALLOCS += 1;
-
-            // TODO: unlock here
-
-            if DEBUG {printf!("0x{:X}\n", block.this());}
-
-            // return ptr
-            block.this() as *mut u8
-        }
+    if size == 0 {
+        return 0 as *mut u8;
     }
+
+    size = round_to_block_align(size);
+    align = align.next_power_of_two();
+
+    // get a free block
+    let mut begin = free_list;
+    let mut matched = false;
+    let mut split_size = 0;
+    while !begin.is_null() {
+        let (matched_, split_size_) = (*begin).is_match(size, align);
+        matched = matched_;
+        split_size = split_size_;
+        if matched {
+            break;
+        }
+        begin = (*begin).get_free_next();
+    }
+
+    // no blocks found
+    if !matched {
+        if free_list.is_null() {
+            panic!("Out of memory!");
+        } else {
+            // NOTE: fail for now because rustc does not know
+            // how to handle failed mallocs
+            panic!("malloc({}, {}) -> *** malloc failed, rustc cannot handle this :( ***\n",
+                size, align);
+        }
+
+        // update stats
+        FAIL_MALLOCS += 1;
+
+        return 0 as *mut u8;
+    }
+
+    // split block if needed
+    if split_size > 0 {
+        (*begin).split(split_size);
+        begin = (*begin).get_contiguous_next();
+    }
+
+    // split block to fit
+    if (*begin).get_size() > size {
+        (*begin).split(size);
+    }
+
+    // make block used
+    (*begin).remove();
+    (*begin).mark_used();
+
+    // update stats
+    SUCC_MALLOCS += 1;
+
+    if DEBUG {bootlog!("0x{:X}\n", begin as *const u8 as usize);}
+
+    begin as *mut u8
 }
 
 /// Deallocates the memory referenced by `ptr`.
@@ -342,67 +433,51 @@ pub unsafe fn malloc(size: usize, align: usize) -> *mut u8 {
 /// The `old_size` and `align` parameters are the parameters that were used to
 /// create the allocation referenced by `ptr`. The `old_size` parameter may be
 /// any value in range_inclusive(requested_size, usable_size).
-pub unsafe fn free(ptr: *mut u8, old_size: usize) {
+pub unsafe fn free(ptr: *mut u8, mut old_size: usize) {
 
-    if DEBUG {printf!("free 0x{:X}, {}\n", ptr as usize, old_size);}
+    if DEBUG {bootlog!("free 0x{:X}, {}\n", ptr as usize, old_size);}
 
     // check input
     if ptr == (0 as *mut u8) {
         panic!("Attempt to free NULL ptr");
     }
 
-    let block: &mut Block = &mut*(ptr as *mut Block);
+    let block: *mut Block = ptr as *mut Block;
 
-    if block.is_free() {
+    if (*block).is_free() {
         panic!("Double free: {}", ptr as usize);
     }
 
-    let usize_size = core::mem::size_of::<usize>();
-    let true_size = round_to_16(old_size + usize_size);
+    // get actual size of block
+    old_size = round_to_block_align(old_size);
 
-    block.size = true_size;
-    block.set_footer(block.size); // just in case
+    // Create block and insert into free list
+    (*block).set_size(old_size);
+    (*block).mark_free();
+    (*block).set_next(0 as *mut Block);
+    (*block).set_prev(0 as *mut Block);
+    (*block).insert();
 
-    // TODO: lock here
+    // attempt coalescing
+    let next_block = (*block).get_contiguous_next();
+    if (*next_block).is_free() {
+        (*block).merge_with_next();
+    }
+
+    let prev_block = (*block).get_contiguous_prev();
+    if (*prev_block).is_free() {
+        (*prev_block).merge_with_next();
+    }
 
     // update stats
     FREES += 1;
-
-    // insert into free list
-    block.insert();
-
-    // attempt coalescing
-    let prev_free = if ptr as usize != START {
-        (*block.get_prev()).is_free()
-    } else {
-        false
-    };
-
-    let next_free = if ptr as usize + block.size < END {
-        (*block.get_next()).is_free()
-    } else {
-        false
-    };
-
-    if next_free {
-        block.combine();
-    }
-
-    if prev_free {
-        (*block.get_prev()).combine();
-    }
-
-    // TODO: unlock here
-
-    //print_stats();
 }
 
 /// Returns the usable size of an allocation created with the specified the
 /// `size` and `align`.
 #[allow(unused_variables)] // align has no impact on size in this implementation
 pub fn usable_size(size: usize, align: usize) -> usize {
-    let usize_size = core::mem::size_of::<usize>();
-    round_to_16(size + usize_size) - usize_size
+    round_to_block_align(size)
 }
 
 /// Prints implementation-defined allocator statistics.
@@ -410,48 +485,37 @@ pub fn usable_size(size: usize, align: usize) -> usize {
 /// These statistics may be inconsistent if other threads use the allocator
 /// during the call.
 pub fn print_stats() {
-    printf!("\nHeap stats\n----------\n");
+    unsafe{
+        bootlog!("\nHeap stats\n----------\n");
 
-    // Number of free blocks and amount of free memory
-    let (num_free, size_free, size_used) = get_block_stats();
-    printf!("{} free blocks; {} bytes free, {} bytes used\n",
-            num_free, size_free, size_used);
+        // Number of free blocks and amount of free memory
+        let (num_free, size_free, size_used) = get_block_stats();
+        bootlog!("{} free blocks; {} bytes free, {} bytes used\n",
+                num_free, size_free, size_used);
 
-    // Number of mallocs and frees
-    unsafe {
-        printf!("Successfull mallocs: {}; Failed mallocs: {}; Frees: {}\n\n",
+        // Number of mallocs and frees
+        bootlog!("Successfull mallocs: {}; Failed mallocs: {}; Frees: {}\n\n",
                 SUCC_MALLOCS, FAIL_MALLOCS, FREES);
     }
 }
 
 // Helper methods to compute stats
-fn get_block_stats() -> (usize, usize, usize) {
+unsafe fn get_block_stats() -> (usize, usize, usize) {
     // counters
     let mut num_free = 0;
     let mut size_free = 0;
 
-    // TODO: lock here
-
     // loop through all blocks
-    unsafe{
-        let mut block_addr = free_list as *mut Block;
-
-        while block_addr != (0 as *mut Block) {
-            let block = &*block_addr;
-
-            num_free += 1;
-            size_free += block.size;
-            printf!("free {:X}: {} B\n", block_addr as usize, block.size);
-
-            if block.next == (0 as *mut Block) {
-                break;
-            } else {
-                block_addr = block.next;
-            }
-        }
+    let mut begin = free_list;
+    while !begin.is_null() {
+        num_free += 1;
+        size_free += (*begin).get_size();
+        bootlog!("free {:X}: {} B\n", begin as usize, (*begin).get_size());
+        begin = (*begin).get_free_next();
     }
 
-    // TODO: unlock here
-
-    (num_free, size_free, unsafe { END - START - size_free })
+    (num_free, size_free, END - START - size_free)
 }
+
+
+

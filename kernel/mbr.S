@@ -7,9 +7,9 @@
     We will compile the MBR at 0x7C00 then extract the appropriate 512 byte
     block and copy it to the boot drive
 
-    
+
 */
-   
+
         .code16
 	.section mbr,"xa"
 
@@ -57,13 +57,13 @@ start:
 	movb 0x7000,%dl		# drive index
 	int $0x13		# read the sectors
 
-    jnc cont # if there is an error print 'e' and hang 
+    jnc cont # if there is an error print 'e' and hang
 
 	movb $'e',%al
 	movb $1,%ah
 	mov $0,%dx
 	int $0x14
-    
+
 error:
     jmp error
 

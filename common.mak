@@ -8,12 +8,16 @@ LD = ld
 OBJCOPY = objcopy
 DD = dd
 
-# DO NOT USE -O0. If kernel.img is > 64K, the BIOS will not load it
-RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g -C opt-level=1 -Z no-landing-pads
-ASFLAGS += -m32 -g -O1
+# If kernel.img is > 64K, the BIOS will not load it, so if it is crashing, use -O1, not -O0
+RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g -C opt-level=0 -Z no-landing-pads
+ASFLAGS += -m32 -g -O0
 
-vpath %.rs %.s %.S $(sort $(dir $(wildcard ./*/*)))
-RUSTFILES = $(notdir $(wildcard **/*.rs))
+vpath %.rs process
+vpath %.rs vga
+vpath %.rs data_structures
+vpath %.rs memory
+vpath %.rs interrupts
+RUSTFILES = $(notdir $(wildcard *.rs) $(wildcard process/*.rs) $(wildcard vga/*.rs) $(wildcard data_structures/*.rs) $(wildcard memory/*.rs) $(wildcard interrupts/*.rs))
 SFILES = $(notdir $(wildcard *.S) $(wildcard *.s))
 
 OFILES = $(subst .s,.o,$(subst .S,.o,$(SFILES)))

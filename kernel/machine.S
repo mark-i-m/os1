@@ -78,21 +78,23 @@
 # 	movw %dx,%ds            # no more memory refs until iret
 #
 #         iret
+
+    # pub fn load_gdt(size: u16, offset: &u32)
+#     .global load_gdt
+# load_gdt:
+#     subl $8, %esp
 #
+#     movl 12(%esp), %eax #size
+#     movl 16(%esp), %ecx #offset
 #
+#     movl %eax, (%esp)
+#     movl %ecx, 4(%esp)
 #
-# 	# oldval = cs32(uint32_t* ptr, uint32_t ifval, uint32_t thenval)
-# 	.global cs32
-# cs32:
-# 	mov 4(%esp),%ecx       # ptr
-# 	mov 8(%esp),%eax       # ifval
-# 	mov 12(%esp),%edx      # thenval
-#         lock cmpxchgl %edx,(%ecx)
-# 	ret                    # looks strange but always returns the oldval
-#                                #   - if it worked, %eax had the ifval which
-#                                #     is equals to the oldval
-#                                #   - if it failed, %eax will be loaded with
-#                                #     the oldval
+#     lgdt %esp
+#
+#     addl $8, %esp
+#     ret
+
 
     # pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>);
     .extern _proc_yield
@@ -121,7 +123,7 @@ proc_yield:
 
     call _proc_yield
 
-    ret 
+    ret
 
     # pub fn save_kcontext()
     .extern store_kcontext
@@ -168,11 +170,13 @@ context_switch:
 
 	// get the new flags, mostly used for interrupt flag
     push %ecx
-    popf
 
     // restore ecx and eax here, since we used them
     mov 24(%eax), %ecx
     mov 28(%eax), %eax
+
+    // restore interrupts
+    popf
 
     ret
 
@@ -220,16 +224,16 @@ inl:
 	pop %edx
 	ret
 
-#
-# 	#
-# 	# void ltr(uint32_t tr)
-# 	#
-# 	.global ltr
-# ltr:
-# 	mov 4(%esp),%eax
-# 	ltr %ax
-# 	ret
-#
+
+	#
+	# void ltr(uint32_t tr)
+	#
+	.global ltr
+ltr:
+	mov 4(%esp),%eax
+	ltr %ax
+	ret
+
 # 	/* vmm_on(pd) */
 # 	.global vmm_on
 # vmm_on:
@@ -256,172 +260,172 @@ inl:
 # 	mov 4(%esp),%eax
 # 	invlpg (%eax)
 # 	ret
-#
-# 	.global cli
-# cli:
-# 	cli
-# 	ret
-#
-# 	.global sti
-# sti:
-# 	sti
-# 	ret
-#
-# 	.global irq0
-# irq0:
-# 	push %eax
-# 	mov $0, %eax
-# 	jmp irq_common
-#
-# 	.global irq1
-# irq1:
-# 	push %eax
-# 	mov $1, %eax
-# 	jmp irq_common
-#
-# 	.global irq2
-# irq2:
-# 	push %eax
-# 	mov $2, %eax
-# 	jmp irq_common
-#
-# 	.global irq3
-# irq3:
-# 	push %eax
-# 	mov $3, %eax
-# 	jmp irq_common
-#
-# 	.global irq4
-# irq4:
-# 	push %eax
-# 	mov $4, %eax
-# 	jmp irq_common
-#
-# 	.global irq5
-# irq5:
-# 	push %eax
-# 	mov $5, %eax
-# 	jmp irq_common
-#
-# 	.global irq6
-# irq6:
-# 	push %eax
-# 	mov $6, %eax
-# 	jmp irq_common
-#
-# 	.global irq7
-# irq7:
-# 	push %eax
-# 	mov $7, %eax
-# 	jmp irq_common
-#
-# 	.global irq8
-# irq8:
-# 	push %eax
-# 	mov $8, %eax
-# 	jmp irq_common
-#
-# 	.global irq9
-# irq9:
-# 	push %eax
-# 	mov $9, %eax
-# 	jmp irq_common
-#
-# 	.global irq10
-# irq10:
-# 	push %eax
-# 	mov $10, %eax
-# 	jmp irq_common
-#
-# 	.global irq11
-# irq11:
-# 	push %eax
-# 	mov $11, %eax
-# 	jmp irq_common
-#
-# 	.global irq12
-# irq12:
-# 	push %eax
-# 	mov $12, %eax
-# 	jmp irq_common
-#
-# 	.global irq13
-# irq13:
-# 	push %eax
-# 	mov $13, %eax
-# 	jmp irq_common
-#
-# 	.global irq14
-# irq14:
-# 	push %eax
-# 	mov $14, %eax
-# 	jmp irq_common
-#
-# 	.global irq15
-# irq15:
-# 	push %eax
-# 	mov $15, %eax
-# 	jmp irq_common
-#
-# irq_common:
-# 	push %ebx
-# 	push %ecx
-# 	push %edx
-# 	push %esi
-# 	push %edi
-# 	push %ebp
-#
-# 	push %ds
-#
-# 	mov kernelDataSeg,%ecx
-# 	mov %cx,%ds
-#
-# 	mov %cr2,%ebp
-# 	push %ebp
-#
-#     mov %esp, %edx
-#
-#     # edx points to the saved user context
-#     push %edx
-# 	push %eax
-#
-# 	.extern pic_irq
-# 	call pic_irq
-#
-# 	add $8,%esp    /* pop arguments */
-#
-# 	pop %ebp
-# 	mov %ebp,%cr2
-#
-# 	pop %ds
-#
-# 	pop %ebp
-# 	pop %edi
-# 	pop %esi
-# 	pop %edx
-# 	pop %ecx
-# 	pop %ebx
-# 	pop %eax
-# 	iret
-#
-# # PIT
-#
-# 	/* pit_init(divide) */
-# 	.global pit_do_init
-# pit_do_init:
-# 	pushf			# push IF
-# 	cli			# disable interrupts
-# 	movb $0b00110100,%al	# 00 (channel 0)
-# 				# 110 (lobyte/hibyte)
-# 				# 100 (rate generator)
-# 	outb %al,$0x43		# write command
-# 	movb 8(%esp),%al	# divide
-#         outb %al,$0x40
-# 	movb 9(%esp),%al
-# 	outb %al,$0x40
-# 	popf			# pop IF
-# 	ret
-#
+
+	.global cli
+cli:
+	cli
+	ret
+
+	.global sti
+sti:
+	sti
+	ret
+
+	.global irq0
+irq0:
+	push %eax
+	mov $0, %eax
+	jmp irq_common
+
+	.global irq1
+irq1:
+	push %eax
+	mov $1, %eax
+	jmp irq_common
+
+	.global irq2
+irq2:
+	push %eax
+	mov $2, %eax
+	jmp irq_common
+
+	.global irq3
+irq3:
+	push %eax
+	mov $3, %eax
+	jmp irq_common
+
+	.global irq4
+irq4:
+	push %eax
+	mov $4, %eax
+	jmp irq_common
+
+	.global irq5
+irq5:
+	push %eax
+	mov $5, %eax
+	jmp irq_common
+
+	.global irq6
+irq6:
+	push %eax
+	mov $6, %eax
+	jmp irq_common
+
+	.global irq7
+irq7:
+	push %eax
+	mov $7, %eax
+	jmp irq_common
+
+	.global irq8
+irq8:
+	push %eax
+	mov $8, %eax
+	jmp irq_common
+
+	.global irq9
+irq9:
+	push %eax
+	mov $9, %eax
+	jmp irq_common
+
+	.global irq10
+irq10:
+	push %eax
+	mov $10, %eax
+	jmp irq_common
+
+	.global irq11
+irq11:
+	push %eax
+	mov $11, %eax
+	jmp irq_common
+
+	.global irq12
+irq12:
+	push %eax
+	mov $12, %eax
+	jmp irq_common
+
+	.global irq13
+irq13:
+	push %eax
+	mov $13, %eax
+	jmp irq_common
+
+	.global irq14
+irq14:
+	push %eax
+	mov $14, %eax
+	jmp irq_common
+
+	.global irq15
+irq15:
+	push %eax
+	mov $15, %eax
+	jmp irq_common
+
+irq_common:
+	push %ebx
+	push %ecx
+	push %edx
+	push %esi
+	push %edi
+	push %ebp
+
+	push %ds
+
+	mov kernelDataSeg,%ecx
+	mov %cx,%ds
+
+	mov %cr2,%ebp
+	push %ebp
+
+    mov %esp, %edx
+
+    # edx points to the saved user context
+    push %edx
+	push %eax
+
+	.extern pic_irq
+	call pic_irq
+
+	add $8,%esp    /* pop arguments */
+
+	pop %ebp
+	mov %ebp,%cr2
+
+	pop %ds
+
+	pop %ebp
+	pop %edi
+	pop %esi
+	pop %edx
+	pop %ecx
+	pop %ebx
+	pop %eax
+	iret
+
+# PIT
+
+	/* pit_init(divide) */
+	.global pit_do_init
+pit_do_init:
+	pushf			# push IF
+	cli			# disable interrupts
+	movb $0b00110100,%al	# 00 (channel 0)
+				# 110 (lobyte/hibyte)
+				# 100 (rate generator)
+	outb %al,$0x43		# write command
+	movb 8(%esp),%al	# divide
+        outb %al,$0x40
+	movb 9(%esp),%al
+	outb %al,$0x40
+	popf			# pop IF
+	ret
+
 #
 # 	.global pageFaultHandler
 # pageFaultHandler:
