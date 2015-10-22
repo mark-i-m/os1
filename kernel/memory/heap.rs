@@ -390,6 +390,11 @@ pub unsafe fn malloc(mut size: usize, mut align: usize) -> *mut u8 {
     if !matched {
         if free_list.is_null() {
             panic!("Out of memory!");
+        } else {
+            // NOTE: fail for now because rustc does not know
+            // how to handle failed mallocs
+            panic!("malloc({}, {}) -> *** malloc failed, rustc cannot handle this :( ***\n",
+                size, align);
         }
 
         // update stats
