@@ -244,7 +244,10 @@ pub fn _proc_yield(q: Option<usize>) {
 
 // Called by the current process to exit
 pub fn exit(code: usize) {
+    off();
+
     unsafe {
+        // Disable interrupts
         if !CURRENT_PROCESS.is_null() {
             if (*CURRENT_PROCESS).pid == 0 {
                 panic!("{:?} is exiting!\n", *CURRENT_PROCESS);
@@ -263,4 +266,6 @@ pub fn exit(code: usize) {
 
     // switch to next ready process
     switch_to_next();
+
+    panic!("The impossible has happened!");
 }
