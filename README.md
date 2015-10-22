@@ -5,6 +5,11 @@ Implementation of a simple OS in Rust
 
 I had originally intended not to have any library code in my kernel at all, but this is not possible with Rust yet. As a result I am linking in `libcore`, which contains the heart of Rust functionality. Special thanks to Krzysztof for helping me get that working!
 
+###Features so far
+* Heap allocation
+* Preemptive multitasking
+* VGA buffer management
+
 ###Requirements
 
 * ```qemu```
