@@ -251,7 +251,7 @@ pub fn exit(code: usize) {
             } else {
                 (*CURRENT_PROCESS).state = State::TERMINATED;
                 printf!("{:?} exiting with code 0x{:X}\n",
-                        CURRENT_PROCESS, code);
+                        *CURRENT_PROCESS, code);
             }
         } else {
             panic!("Exiting with no current process!\n");

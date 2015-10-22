@@ -29,7 +29,7 @@
 use core::mem::{size_of};
 use core::isize;
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 
 static mut BLOCK_ALIGN: usize = 0;
 
