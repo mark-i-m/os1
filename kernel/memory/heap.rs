@@ -29,7 +29,7 @@
 use core::mem::{size_of};
 use core::isize;
 
-const DEBUG: bool = false;
+const DEBUG: bool = true;
 
 static mut BLOCK_ALIGN: usize = 0;
 
@@ -217,6 +217,7 @@ impl Block {
         let old_head = free_list;
 
         if !self.is_free() {
+            print_stats();
             panic!("Adding taken block to free list: {:x}",
                   self as *const Block as usize);
         }
@@ -289,6 +290,8 @@ impl Block {
 
         (*new_block).set_size(new_block_size);
         (*new_block).mark_free();
+        (*new_block).set_next(0 as *mut Block);
+        (*new_block).set_prev(0 as *mut Block);
         (*new_block).insert();
     }
 
@@ -508,4 +511,6 @@ unsafe fn get_block_stats() -> (usize, usize, usize) {
 
     (num_free, size_free, END - START - size_free)
 }
+
+
 

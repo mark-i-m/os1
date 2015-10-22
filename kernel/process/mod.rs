@@ -139,7 +139,7 @@ impl Clone for Process {
 
 impl Debug for Process {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "Process #{}: {}", self.pid, self.name)
+        write!(f, "Process #{} @ {:x}: {}", self.pid, self as *const Process as usize, self.name)
     }
 }
 
@@ -211,10 +211,8 @@ pub fn switch_to_next() {
     // context switch
     match current::current() {
         Some(p) => unsafe{
-            //TODO turn on interrupts
-            //context_switch(p.kcontext,
-            //               if p.disable_cnt == 0 { 1 << 9 } else { 0 });
-            context_switch(p.kcontext, 0);
+            context_switch(p.kcontext,
+                           if p.disable_cnt == 0 { 1 << 9 } else { 0 });
         },
         None => { panic!("No current to switch to!"); }
     }

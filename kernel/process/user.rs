@@ -27,7 +27,8 @@ pub fn run(this: &Process) -> usize {
     w0.put_str(this.name);
 
     ready_queue::make_ready(Process::new("p1", self::run2));
-    super::proc_yield(None);
+
+    loop{}
 
     0
 }
