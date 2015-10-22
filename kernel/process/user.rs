@@ -47,5 +47,31 @@ pub fn run2(this: &Process) -> usize {
     w0.put_str("from ");
     w0.put_str(this.name);
 
+    let mut i = 0;
+    while i < 6000 {
+        ready_queue::make_ready(Process::new("loop_proc", self::run3));
+        i += 1;
+    }
+
+    0
+}
+
+pub fn run3(this: &Process) -> usize {
+    let mut w0 = Window::new(3, 1, (0, 0));
+
+    w0.set_bg_color(Color::Yellow);
+    w0.paint();
+
+    w0.set_cursor((0,0));
+    w0.set_fg_color(Color::Red);
+
+    match this.pid % 4 {
+        0 => w0.put_str("---"),
+        1 => w0.put_str("\\\\\\"),
+        2 => w0.put_str("|||"),
+        3 => w0.put_str("///"),
+        _ => panic!("The impossible has happened!"),
+    }
+
     0
 }
