@@ -10,6 +10,4 @@ pub fn run(this: &Process) -> usize {
 
     // TODO: join instead of loop forever
     loop{}
-
-    0xDEADBEEF
 }
