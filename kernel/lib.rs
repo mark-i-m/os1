@@ -54,7 +54,8 @@ pub fn kernel_main() {
     // DO NOT USE printf!() BEFORE HERE; USE bootlog!()//
     /////////////////////////////////////////////////////
 
-    interrupts::init(100 /* hz */);
+    // TODO enable
+    //interrupts::init(100 /* hz */);
 
     // yield to init process
     printf!("Everything inited! Here we go!\n");

@@ -29,7 +29,7 @@
 use core::mem::{size_of};
 use core::isize;
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 
 static mut BLOCK_ALIGN: usize = 0;
 
@@ -102,6 +102,11 @@ impl Block {
     // returns true if the block is a valid free block
     pub unsafe fn is_free(&self) -> bool {
         let head = self.get_head();
+
+        if head < BLOCK_ALIGN {
+            return false;
+        }
+
         let foot = self.get_foot();
 
         // check sentinels
@@ -420,59 +425,44 @@ pub unsafe fn malloc(mut size: usize, mut align: usize) -> *mut u8 {
 /// The `old_size` and `align` parameters are the parameters that were used to
 /// create the allocation referenced by `ptr`. The `old_size` parameter may be
 /// any value in range_inclusive(requested_size, usable_size).
-pub unsafe fn free(ptr: *mut u8, old_size: usize) {
+pub unsafe fn free(ptr: *mut u8, mut old_size: usize) {
 
-    //if DEBUG {bootlog!("free 0x{:X}, {}\n", ptr as usize, old_size);}
+    if DEBUG {bootlog!("free 0x{:X}, {}\n", ptr as usize, old_size);}
 
-    //// check input
-    //if ptr == (0 as *mut u8) {
-    //    panic!("Attempt to free NULL ptr");
-    //}
+    // check input
+    if ptr == (0 as *mut u8) {
+        panic!("Attempt to free NULL ptr");
+    }
 
-    //let block: &mut Block = &mut*(ptr as *mut Block);
+    let block: *mut Block = ptr as *mut Block;
 
-    //if block.is_free() {
-    //    panic!("Double free: {}", ptr as usize);
-    //}
+    if (*block).is_free() {
+        panic!("Double free: {}", ptr as usize);
+    }
 
-    //let usize_size = core::mem::size_of::<usize>();
-    //let true_size = round_to_16(old_size + usize_size);
+    // get actual size of block
+    old_size = round_to_block_align(old_size);
 
-    //block.size = true_size;
-    //block.set_footer(block.size); // just in case
+    // Create block and insert into free list
+    (*block).set_size(old_size);
+    (*block).mark_free();
+    (*block).set_next(0 as *mut Block);
+    (*block).set_prev(0 as *mut Block);
+    (*block).insert();
 
-    //// TODO: lock here
+    // attempt coalescing
+    let next_block = (*block).get_contiguous_next();
+    if (*next_block).is_free() {
+        (*block).merge_with_next();
+    }
 
-    //// update stats
-    //FREES += 1;
+    let prev_block = (*block).get_contiguous_prev();
+    if (*prev_block).is_free() {
+        (*prev_block).merge_with_next();
+    }
 
-    //// insert into free list
-    //block.insert();
-
-    //// attempt coalescing
-    //let prev_free = if ptr as usize != START {
-    //    (*block.get_prev()).is_free()
-    //} else {
-    //    false
-    //};
-
-    //let next_free = if ptr as usize + block.size < END {
-    //    (*block.get_next()).is_free()
-    //} else {
-    //    false
-    //};
-
-    //if next_free {
-    //    block.combine();
-    //}
-
-    //if prev_free {
-    //    (*block.get_prev()).combine();
-    //}
-
-    //// TODO: unlock here
-
-    ////print_stats();
+    // update stats
+    FREES += 1;
 }
 
 /// Returns the usable size of an allocation created with the specified the
