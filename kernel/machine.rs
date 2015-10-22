@@ -1,7 +1,6 @@
 #[link(name = "asmcode", repr="static")]
 
 use core::option::Option;
-use super::data_structures::Queue;
 use alloc::boxed::Box;
 use super::process::Process;
 
@@ -40,7 +39,7 @@ extern "C" {
     pub fn irq14();
     pub fn irq15();
 
-    pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>);
+    pub fn proc_yield(q: Option<usize>);
     pub fn save_kcontext();
     pub fn context_switch(next_context: super::process::context::KContext, eflags: usize);
     pub fn eflags() -> usize;

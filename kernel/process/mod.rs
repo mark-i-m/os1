@@ -1,12 +1,5 @@
 // This is an implementation of simple cooperative processes
 //
-// Invariants:
-// 1) Every process is owned by a box
-// 2) Every process box is owned by
-//      a) A queue
-//      OR
-//      b) The current process pointer
-//
 // TODO: check killed
 // TODO: kill
 // TODO: test yielding to other q's
@@ -20,14 +13,16 @@ use core::clone::Clone;
 use core::fmt::{Debug, Formatter, Result};
 use core::cmp::PartialEq;
 
-use super::data_structures::Queue;
 use super::data_structures::concurrency::Atomic32;
+use super::data_structures::ProcessQueue;
 
 use super::interrupts::{on, off};
 
 use super::machine::{context_switch};
 
 use self::context::{KContext};
+
+pub use self::current::{CURRENT_PROCESS};
 
 pub mod context;
 pub mod current;
@@ -57,6 +52,7 @@ enum State {
 // Process struct
 #[repr(C,packed)]
 pub struct Process {
+    // Name of the process; some string
     name: &'static str,
     pid: usize,
 
@@ -76,10 +72,13 @@ pub struct Process {
     // Number of calls to interrupts::on() while this process was running
     // Interrupts are on if disable_cnt == 0
     pub disable_cnt: usize,
+
+    // A link to the next process to be scheduled
+    pub next_proc: *mut Process,
 }
 
 impl Process {
-    pub fn new(name: &'static str, run: fn(&Process) -> usize) -> Box<Process> {
+    pub fn new(name: &'static str, run: fn(&Process) -> usize) -> *mut Process {
 
         let mut p = Process {
             name: name,
@@ -89,11 +88,12 @@ impl Process {
             stack: 0,
             kcontext: KContext::new(),
             disable_cnt: 0,
+            next_proc: 0 as *mut Process,
         };
 
         p.get_stack();
 
-        box p
+        unsafe { boxed::into_raw(box p) }
     }
 
     fn get_stack(&mut self) {
@@ -122,24 +122,9 @@ impl Process {
     }
 }
 
-impl Clone for Process {
-    fn clone(&self) -> Process {
-        // printf!("clone process 0x{:X}\n", self as *const Process as usize);
-        Process {
-            name: self.name,
-            pid: self.pid,
-            run: self.run,
-            state: self.state,
-            stack: self.stack,
-            kcontext: self.kcontext,
-            disable_cnt: self.disable_cnt,
-        }
-    }
-}
-
 impl Debug for Process {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "Process #{} @ {:x}: {}", self.pid, self as *const Process as usize, self.name)
+        write!(f, "Process #{} @ 0x{:x}: {}", self.pid, self as *const Process as usize, self.name)
     }
 }
 
@@ -155,11 +140,8 @@ pub fn init() {
     current::init(); // THIS MUST BE FIRST
     ready_queue::init();
 
-    // Create the init process
-    let init = Process::new("init", self::init::run);
-
     // Add the init process to the ready q
-    ready_queue::make_ready(init);
+    ready_queue::make_ready(Process::new("init", self::init::run));
 
     printf!("Processes inited\n");
 }
@@ -171,14 +153,16 @@ fn start_proc() {
     // TODO check killed
 
     // run current process
-    let code = match current::current() {
-        Some(c_box) => {
-            printf!("Starting {:?}\n", *c_box);
-            ((*c_box).run)(&*c_box)
-        }
-        None => { panic!("No current process to start") }
-    };
-    exit(code);
+    unsafe {
+        let code = if !CURRENT_PROCESS.is_null() {
+            printf!("Starting {:?}\n", *CURRENT_PROCESS);
+            ((*CURRENT_PROCESS).run)(&*CURRENT_PROCESS)
+        } else {
+            panic!("No current process to start")
+        };
+
+        exit(code);
+    }
 }
 
 // Restore the context of the next process on the ready q
@@ -195,26 +179,28 @@ pub fn switch_to_next() {
     off();
 
     // get next process from ready q
-    let next = ready_queue::ready_q().pop();
+    let next = ready_queue::get_next();
 
     // set current process and context switch to it
-    match next {
-        Some(p) => {
-            current::set_current(Some(p));
-        }
-        None => {
+    unsafe {
+        if !next.is_null() {
+            CURRENT_PROCESS = next;
+        } else {
             // TODO: idle process
             panic!("Empty ready q");
         }
-    }
 
-    // context switch
-    match current::current() {
-        Some(p) => unsafe{
-            context_switch(p.kcontext,
-                           if p.disable_cnt == 0 { 1 << 9 } else { 0 });
-        },
-        None => { panic!("No current to switch to!"); }
+        // context switch
+        if !CURRENT_PROCESS.is_null() {
+            context_switch((*CURRENT_PROCESS).kcontext,
+                           if (*CURRENT_PROCESS).disable_cnt == 0 {
+                               1 << 9
+                           } else {
+                               0
+                           });
+        } else {
+            panic!("No current to switch to!");
+        }
     }
 
     // enable interrupts
@@ -222,7 +208,7 @@ pub fn switch_to_next() {
 }
 
 // safe wrapper around machine::proc_yield
-pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
+pub fn proc_yield(q: Option<usize>) {
     // disable interrupts
     off();
 
@@ -241,15 +227,15 @@ pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>) {
 //
 // Interrupts should already be disabled here
 #[no_mangle]
-pub fn _proc_yield(q: Option<&mut Queue<Box<Process>>>) {
+pub fn _proc_yield(q: Option<usize>) {
     // move current process to the ready q if there is one
     // TODO: yielding onto q
-    match current::current() {
-        Some(c) => {
-            ready_queue::make_ready((*c).clone());
-            current::set_current(None);
+
+    unsafe {
+        if !CURRENT_PROCESS.is_null() {
+            ready_queue::make_ready(CURRENT_PROCESS);
+            CURRENT_PROCESS = 0 as *mut Process;
         }
-        None => { }
     }
 
     // switch to next process
@@ -258,20 +244,22 @@ pub fn _proc_yield(q: Option<&mut Queue<Box<Process>>>) {
 
 // Called by the current process to exit
 pub fn exit(code: usize) {
-    match current::current_mut() {
-        Some(current) => {
-            if current.pid == 0 {
-                panic!("{:?} is exiting!\n", current);
+    unsafe {
+        if !CURRENT_PROCESS.is_null() {
+            if (*CURRENT_PROCESS).pid == 0 {
+                panic!("{:?} is exiting!\n", *CURRENT_PROCESS);
             } else {
-                current.state = State::TERMINATED;
-                printf!("{:?} exiting with code 0x{:X}\n", current, code);
+                (*CURRENT_PROCESS).state = State::TERMINATED;
+                printf!("{:?} exiting with code 0x{:X}\n",
+                        CURRENT_PROCESS, code);
             }
+        } else {
+            panic!("Exiting with no current process!\n");
         }
-        None => panic!("Exiting with no current process!\n")
-    }
 
-    // set current to None, so we will never run this again
-    current::set_current(None);
+        // set current to None, so we will never run this again
+        CURRENT_PROCESS = 0 as *mut Process;
+    }
 
     // switch to next ready process
     switch_to_next();
