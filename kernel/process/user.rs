@@ -26,7 +26,7 @@ pub fn run(this: &Process) -> usize {
 
     ready_queue::make_ready(Process::new("p1", self::run2));
 
-    loop{}
+    0
 }
 
 pub fn run2(this: &Process) -> usize {

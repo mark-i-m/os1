@@ -1,5 +1,7 @@
 // An abstraction for any kind of process queue
 
+#![allow(dead_code)]
+
 use super::super::process::{Process};
 
 pub struct ProcessQueue {

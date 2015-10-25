@@ -101,9 +101,19 @@ impl Block {
 
     // returns true if the block is a valid free block
     pub unsafe fn is_free(&self) -> bool {
+        // make sure the block addr is reasonable
+        let self_usize = self as *const Block as usize;
+        if self_usize < START ||
+           self_usize >= END ||
+           self_usize % BLOCK_ALIGN != 0 {
+            return false;
+        }
+
         let head = self.get_head();
 
-        if head < BLOCK_ALIGN {
+        // make sure the block size is reasonable
+        if head < BLOCK_ALIGN ||
+           head % BLOCK_ALIGN != 0{
             return false;
         }
 
@@ -124,11 +134,6 @@ impl Block {
            (backward_ptr < (START as *mut Block) &&
             !backward_ptr.is_null()) ||
            backward_ptr >= (END as *mut Block){
-            return false;
-        }
-
-        // check that the block is BLOCK_ALIGN aligned
-        if (self as *const Block as usize) % BLOCK_ALIGN != 0 {
             return false;
         }
 
@@ -172,8 +177,26 @@ impl Block {
     }
 
     // returns the heap block immediately preceding this one
+    // returns null if there is no valid previous block
     pub unsafe fn get_contiguous_prev(&self) -> *mut Block {
-        (self as *const Block as *const usize).offset(-1) as *mut Block
+        let prev_size_ptr = (self as *const Block as *const usize).offset(-1);
+
+        // check that we are still in the heap
+        if (prev_size_ptr as usize) < START {
+            return 0 as *mut Block;
+        }
+
+        let prev_size = *prev_size_ptr;
+
+        // check that the size is reasonable
+        if prev_size >= (isize::MAX as usize) ||
+           prev_size == 0 {
+            return 0 as *mut Block;
+        }
+
+        // attempt to get pointer to previous block
+        let ptr: *const u8 = self as *const Block as *const u8;
+        ptr.offset(-(prev_size as isize)) as *mut Block
     }
 
     // returns the forward ptr of the block
@@ -239,14 +262,15 @@ impl Block {
     pub unsafe fn merge_with_next(&mut self) {
         // make sure both blocks are free and valid
         if !self.is_free() {
-            panic!("Attempt to merge non-free block: {:x}",
+            panic!("Attempt to merge non-free block 0x{:x} with next",
                   self as *const Block as usize);
         }
 
         let next = self.get_contiguous_next();
         if !(*next).is_free() {
-            panic!("Attempt to merge with non-free block: {:x}",
-                  self as *const Block as usize);
+            panic!("Attempt to merge 0x{:x} with non-free block 0x{:x}",
+                  self as *const Block as usize,
+                  next as usize);
         }
 
         // remove next block from free list
@@ -420,6 +444,10 @@ pub unsafe fn malloc(mut size: usize, mut align: usize) -> *mut u8 {
     (*begin).remove();
     (*begin).mark_used();
 
+    // mess up metadata so as to make life easier later
+    (*begin).set_foot(0xFFFFFFFF);
+    (*begin).set_head(0xFFFFFFFF);
+
     // update stats
     SUCC_MALLOCS += 1;
 
@@ -466,10 +494,11 @@ pub unsafe fn free(ptr: *mut u8, mut old_size: usize) {
         (*block).merge_with_next();
     }
 
-    let prev_block = (*block).get_contiguous_prev();
-    if (*prev_block).is_free() {
-        (*prev_block).merge_with_next();
-    }
+    // TODO: fix me
+    //let prev_block = (*block).get_contiguous_prev();
+    //if !prev_block.is_null() && (*prev_block).is_free() {
+    //    (*prev_block).merge_with_next();
+    //}
 
     // update stats
     FREES += 1;

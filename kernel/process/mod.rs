@@ -22,6 +22,7 @@ use super::machine::{context_switch};
 use self::context::{KContext};
 
 pub use self::current::{CURRENT_PROCESS};
+pub use self::idle::{IDLE_PROCESS};
 
 pub use super::machine::{proc_yield};
 
@@ -159,6 +160,9 @@ pub fn init() {
     // Add the init process to the ready q
     ready_queue::make_ready(Process::new("init", self::init::run));
 
+    // Create the idle process
+    idle::init();
+
     // Add the reaper process
     ready_queue::make_ready(Process::new("reaper", self::reaper::run));
 
@@ -210,8 +214,8 @@ pub fn _proc_yield(q: Option<usize>) {
         if !next.is_null() {
             CURRENT_PROCESS = next;
         } else {
-            // TODO: idle process
-            panic!("Empty ready q");
+            // run the idle process when everyone is done
+            CURRENT_PROCESS = IDLE_PROCESS;
         }
 
         // context switch (return from proc_yield)
@@ -222,8 +226,6 @@ pub fn _proc_yield(q: Option<usize>) {
                            } else {
                                0
                            });
-        } else {
-            panic!("No current to switch to!");
         }
 
         panic!("The impossible has happened!");
@@ -239,7 +241,7 @@ pub fn exit(code: usize) {
         if !CURRENT_PROCESS.is_null() {
             // check if the init process is exiting
             if (*CURRENT_PROCESS).pid == 0 {
-                panic!("{:?} is exiting!\n", *CURRENT_PROCESS);
+                //panic!("{:?} is exiting!\n", *CURRENT_PROCESS);
             } else {
                 (*CURRENT_PROCESS).set_state(State::TERMINATED);
                 printf!("{:?} exiting with code 0x{:X}\n",
