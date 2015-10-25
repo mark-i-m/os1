@@ -206,6 +206,8 @@ impl Block {
 
         if !prev_ptr.is_null() {
             (*prev_ptr).set_next(next_ptr);
+        } else {
+            free_list = next_ptr;
         }
 
         self.set_next(0 as *mut Block);
@@ -398,9 +400,9 @@ pub unsafe fn malloc(mut size: usize, mut align: usize) -> *mut u8 {
         }
 
         // update stats
-        FAIL_MALLOCS += 1;
+        //FAIL_MALLOCS += 1;
 
-        return 0 as *mut u8;
+        //return 0 as *mut u8;
     }
 
     // split block if needed

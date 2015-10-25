@@ -58,7 +58,9 @@ pub fn kernel_main() {
 
     // yield to init process
     printf!("Everything inited! Here we go!\n");
-    process::proc_yield(core::option::Option::None);
+    unsafe {
+        process::proc_yield(core::option::Option::None);
+    }
 
     // yield should never return to here
     panic! ("This should never happen!\n");

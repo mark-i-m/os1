@@ -100,6 +100,8 @@
     .extern _proc_yield
     .global proc_yield
 proc_yield:
+    cli
+
     // push all regs
     pusha
 

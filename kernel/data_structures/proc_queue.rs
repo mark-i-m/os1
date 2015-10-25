@@ -46,6 +46,9 @@ impl ProcessQueue {
                 self.tail = self.head;
             }
 
+            // Remove link to next process
+            (*next).next_proc = 0 as *mut Process;
+
             next
         }
     }

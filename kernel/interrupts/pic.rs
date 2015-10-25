@@ -86,7 +86,9 @@ pub fn pic_irq(irq: usize) {
     pic_eoi(irq as u8);
 
     // TODO: only do this for pit interrupts
-    super::super::process::proc_yield(None);
+    unsafe {
+        super::super::process::proc_yield(None);
+    }
 
     // bookkeeping
     super::process::end_irq();

@@ -9,7 +9,6 @@ use alloc::boxed::Box;
 
 //use core::marker::{Sync, Send};
 use core::option::Option::{self, Some, None};
-use core::clone::Clone;
 use core::fmt::{Debug, Formatter, Result};
 use core::cmp::PartialEq;
 
@@ -24,12 +23,16 @@ use self::context::{KContext};
 
 pub use self::current::{CURRENT_PROCESS};
 
+pub use super::machine::{proc_yield};
+
 pub mod context;
 pub mod current;
 
 mod ready_queue;
 
 mod init;
+mod idle;
+mod reaper;
 mod user;
 
 // constants
@@ -96,6 +99,19 @@ impl Process {
         unsafe { boxed::into_raw(box p) }
     }
 
+    pub fn destroy(process: *mut Process) {
+        if process.is_null() {
+            panic!("Deallocating a null process!");
+        }
+
+        unsafe {
+            Box::from_raw((*process).stack as *mut [usize; 2048]);
+            Box::from_raw(process);
+        }
+
+        // let the boxes go out of scope to dealloc
+    }
+
     fn get_stack(&mut self) {
         // TODO: fudge
         // Allocate a stack
@@ -114,7 +130,7 @@ impl Process {
 
         self.kcontext.esp = unsafe { stack_ptr.offset(STACK_SIZE as isize - 2) } as usize;
 
-        printf!("stack for {:?} is at 0x{:x}\n", self, self.stack);
+        // printf!("stack for {:?} is at 0x{:x}\n", self, self.stack);
     }
 
     fn set_state(&mut self, s: State) {
@@ -124,13 +140,13 @@ impl Process {
 
 impl Debug for Process {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "Process #{} @ 0x{:x}: {}", self.pid, self as *const Process as usize, self.name)
+        write!(f, "Process #{} @ 0x{:x}: {}",
+               self.pid, self as *const Process as usize, self.name)
     }
 }
 
 impl PartialEq for Process {
     fn eq(&self, other: &Process) -> bool {
-        // TODO: make this more comprehensive?
         self.pid == other.pid
     }
 }
@@ -142,6 +158,9 @@ pub fn init() {
 
     // Add the init process to the ready q
     ready_queue::make_ready(Process::new("init", self::init::run));
+
+    // Add the reaper process
+    ready_queue::make_ready(Process::new("reaper", self::reaper::run));
 
     printf!("Processes inited\n");
 }
@@ -156,6 +175,7 @@ fn start_proc() {
     unsafe {
         let code = if !CURRENT_PROCESS.is_null() {
             printf!("Starting {:?}\n", *CURRENT_PROCESS);
+            (*CURRENT_PROCESS).set_state(State::RUNNING);
             ((*CURRENT_PROCESS).run)(&*CURRENT_PROCESS)
         } else {
             panic!("No current process to start")
@@ -165,24 +185,28 @@ fn start_proc() {
     }
 }
 
-// Restore the context of the next process on the ready q
-// and switch to that process.
+// Yield to the next process waiting
 //
-// This function should not be called in any process's code.
-// It is called by the kernel to
-// - yield
-// - exit
-// - handle syscalls
-// - handle signals
-pub fn switch_to_next() {
-    // disable interrupts
-    off();
+// This function is called by the current process to
+// yield to the next process on the ready q.
+//
+// To yield normally, call process::proc_yield()
+//
+// Interrupts should already be disabled here
+#[no_mangle]
+pub fn _proc_yield(q: Option<usize>) {
+    // TODO: yielding onto q
 
-    // get next process from ready q
-    let next = ready_queue::get_next();
-
-    // set current process and context switch to it
     unsafe {
+        if !CURRENT_PROCESS.is_null() {
+            ready_queue::make_ready(CURRENT_PROCESS);
+            CURRENT_PROCESS = 0 as *mut Process;
+        }
+
+        // get next process from ready q
+        let next = ready_queue::get_next();
+
+        // set current process and context switch to it
         if !next.is_null() {
             CURRENT_PROCESS = next;
         } else {
@@ -190,7 +214,7 @@ pub fn switch_to_next() {
             panic!("Empty ready q");
         }
 
-        // context switch
+        // context switch (return from proc_yield)
         if !CURRENT_PROCESS.is_null() {
             context_switch((*CURRENT_PROCESS).kcontext,
                            if (*CURRENT_PROCESS).disable_cnt == 0 {
@@ -201,61 +225,29 @@ pub fn switch_to_next() {
         } else {
             panic!("No current to switch to!");
         }
+
+        panic!("The impossible has happened!");
     }
-
-    // enable interrupts
-    on();
-}
-
-// safe wrapper around machine::proc_yield
-pub fn proc_yield(q: Option<usize>) {
-    // disable interrupts
-    off();
-
-    unsafe {super::machine::proc_yield(q)}
-
-    // enable interrupts
-    on();
-}
-
-// Yield to the next process waiting
-//
-// This function is called by the current process to
-// yield to the next process on the ready q.
-//
-// Do not call this process directly! Call it through process::proc_yield()
-//
-// Interrupts should already be disabled here
-#[no_mangle]
-pub fn _proc_yield(q: Option<usize>) {
-    // move current process to the ready q if there is one
-    // TODO: yielding onto q
-
-    unsafe {
-        if !CURRENT_PROCESS.is_null() {
-            ready_queue::make_ready(CURRENT_PROCESS);
-            CURRENT_PROCESS = 0 as *mut Process;
-        }
-    }
-
-    // switch to next process
-    switch_to_next();
 }
 
 // Called by the current process to exit
 pub fn exit(code: usize) {
+    // Disable interrupts
     off();
 
     unsafe {
-        // Disable interrupts
         if !CURRENT_PROCESS.is_null() {
+            // check if the init process is exiting
             if (*CURRENT_PROCESS).pid == 0 {
                 panic!("{:?} is exiting!\n", *CURRENT_PROCESS);
             } else {
-                (*CURRENT_PROCESS).state = State::TERMINATED;
+                (*CURRENT_PROCESS).set_state(State::TERMINATED);
                 printf!("{:?} exiting with code 0x{:X}\n",
                         *CURRENT_PROCESS, code);
             }
+
+            // reaper
+            self::reaper::reaper_add(CURRENT_PROCESS);
         } else {
             panic!("Exiting with no current process!\n");
         }
@@ -265,7 +257,7 @@ pub fn exit(code: usize) {
     }
 
     // switch to next ready process
-    switch_to_next();
+    _proc_yield(None);
 
     panic!("The impossible has happened!");
 }

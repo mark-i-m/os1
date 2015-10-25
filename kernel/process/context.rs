@@ -4,8 +4,6 @@
 // switch in to kernel mode. The kernel context is saved
 // to the process struct when we context switch.
 
-use core::option::Option::{Some, None};
-
 use super::{CURRENT_PROCESS};
 
 #[repr(packed)]
@@ -46,9 +44,7 @@ pub fn store_kcontext (context_ptr: *mut KContext) {
     // Save context to current process
     unsafe {
         if !CURRENT_PROCESS.is_null() {
-            (*CURRENT_PROCESS).kcontext = unsafe {
-                *context_ptr
-            };
+            (*CURRENT_PROCESS).kcontext = *context_ptr;
         }
     }
 }

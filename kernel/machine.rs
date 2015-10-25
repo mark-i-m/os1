@@ -1,8 +1,6 @@
 #[link(name = "asmcode", repr="static")]
 
 use core::option::Option;
-use alloc::boxed::Box;
-use super::process::Process;
 
 #[allow(improper_ctypes)]
 #[allow(dead_code)]
