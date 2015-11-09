@@ -79,15 +79,20 @@ pub fn pic_irq(irq: usize) {
         0   => super::pit::handler(),
         1   => { } // keyboard
         13  => { } // Processor, FPU
-        _   => printf!("interrupt {}\n",irq),
+        _   => {
+            unsafe { cli(); }
+            panic!("interrupt {}\n",irq)
+        },
     }
 
     // the PIC can deliver the next interrupt, but interrupts are still disabled
     pic_eoi(irq as u8);
 
-    // TODO: only do this for pit interrupts
-    unsafe {
-        super::super::process::proc_yield(None);
+    // only do this for pit interrupts
+    if irq == 0 {
+        unsafe {
+            super::super::process::proc_yield(None);
+        }
     }
 
     // bookkeeping

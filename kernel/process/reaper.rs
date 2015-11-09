@@ -14,7 +14,8 @@ static mut REAPER_QUEUE: ProcessQueue = ProcessQueue {
     tail: 0 as *mut Process
 };
 
-// The reaper process routine: during our quantum, pop from the
+// The reaper process routine:,
+// If there are dead processes, pop them from the
 // REAPER_QUEUE and free the process's resources.
 #[allow(unused_variables)]
 pub fn run(this: &Process) -> usize {
@@ -26,16 +27,16 @@ pub fn run(this: &Process) -> usize {
         on();
 
         if dead_proc.is_null() {
-            unsafe {
-                super::proc_yield(None);
-            }
+            break;
         } else {
             unsafe {
-                printf!("Reaping {:?}\n", *dead_proc);
+                printf!("{:?} [Reaping]\n", *dead_proc);
             }
             super::Process::destroy(dead_proc);
         }
     }
+
+    0
 }
 
 pub fn reaper_add(dead_proc: *mut Process) {

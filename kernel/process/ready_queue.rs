@@ -21,7 +21,7 @@ pub fn make_ready(process: *mut Process) {
     off();
 
     unsafe {
-        //bootlog!("Readying {:?}\n", *process);
+        //bootlog!("{:?} [Ready]\n", *process);
         (*process).set_state(State::READY);
         READY_QUEUE.push_tail(process);
     }

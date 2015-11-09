@@ -56,6 +56,7 @@ pub fn end_irq() {
                 panic!("end_irq with disable_cnt = {} > 1", (*CURRENT_PROCESS).disable_cnt);
             }
             (*CURRENT_PROCESS).disable_cnt = 0;
+            // bootlog!("{:?} [End irq]\n", *CURRENT_PROCESS);
         }
     }
 }

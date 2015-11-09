@@ -1,5 +1,8 @@
-use super::{Process};
+use core::option::Option::{None};
+
+use super::{Process, proc_yield};
 use super::ready_queue;
+use super::reaper;
 
 // idle process
 pub static mut IDLE_PROCESS: *mut Process = 0 as *mut Process;
@@ -16,6 +19,10 @@ pub fn init() {
 #[allow(unused_variables)]
 pub fn run(this: &Process) -> usize {
     loop{
+        // Spawn a reaper process
+        ready_queue::make_ready(Process::new("reaper", reaper::run));
+        super::proc_yield(None);
+
         printf!("idle\n");
     }
 }

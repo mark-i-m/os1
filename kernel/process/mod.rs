@@ -17,14 +17,12 @@ use super::data_structures::ProcessQueue;
 
 use super::interrupts::{on, off};
 
-use super::machine::{context_switch};
+use super::machine::{self, context_switch};
 
 use self::context::{KContext};
 
 pub use self::current::{CURRENT_PROCESS};
 pub use self::idle::{IDLE_PROCESS};
-
-pub use super::machine::{proc_yield};
 
 pub mod context;
 pub mod current;
@@ -163,9 +161,6 @@ pub fn init() {
     // Create the idle process
     idle::init();
 
-    // Add the reaper process
-    ready_queue::make_ready(Process::new("reaper", self::reaper::run));
-
     printf!("Processes inited\n");
 }
 
@@ -178,7 +173,7 @@ fn start_proc() {
     // run current process
     unsafe {
         let code = if !CURRENT_PROCESS.is_null() {
-            printf!("Starting {:?}\n", *CURRENT_PROCESS);
+            printf!("{:?} [Starting]\n", *CURRENT_PROCESS);
             (*CURRENT_PROCESS).set_state(State::RUNNING);
             ((*CURRENT_PROCESS).run)(&*CURRENT_PROCESS)
         } else {
@@ -186,6 +181,15 @@ fn start_proc() {
         };
 
         exit(code);
+    }
+}
+
+// A safe wrapper around machine::proc_yield
+pub fn proc_yield(q: Option<usize>) {
+    unsafe {
+        off();
+        machine::proc_yield(q);
+        on();
     }
 }
 
@@ -198,38 +202,37 @@ fn start_proc() {
 //
 // Interrupts should already be disabled here
 #[no_mangle]
-pub fn _proc_yield(q: Option<usize>) {
+pub unsafe fn _proc_yield(q: Option<usize>) {
     // TODO: yielding onto q
 
-    unsafe {
-        if !CURRENT_PROCESS.is_null() {
-            ready_queue::make_ready(CURRENT_PROCESS);
-            CURRENT_PROCESS = 0 as *mut Process;
-        }
-
-        // get next process from ready q
-        let next = ready_queue::get_next();
-
-        // set current process and context switch to it
-        if !next.is_null() {
-            CURRENT_PROCESS = next;
-        } else {
-            // run the idle process when everyone is done
-            CURRENT_PROCESS = IDLE_PROCESS;
-        }
-
-        // context switch (return from proc_yield)
-        if !CURRENT_PROCESS.is_null() {
-            context_switch((*CURRENT_PROCESS).kcontext,
-                           if (*CURRENT_PROCESS).disable_cnt == 0 {
-                               1 << 9
-                           } else {
-                               0
-                           });
-        }
-
-        panic!("The impossible has happened!");
+    if !CURRENT_PROCESS.is_null() {
+        ready_queue::make_ready(CURRENT_PROCESS);
+        CURRENT_PROCESS = 0 as *mut Process;
     }
+
+    // get next process from ready q
+    let next = ready_queue::get_next();
+
+    // set current process and context switch to it
+    if !next.is_null() {
+        CURRENT_PROCESS = next;
+    } else {
+        // run the idle process when everyone is done
+        CURRENT_PROCESS = IDLE_PROCESS;
+    }
+
+    // context switch (return from proc_yield)
+    if !CURRENT_PROCESS.is_null() {
+        //bootlog!("{:?} [Switching]\n", *CURRENT_PROCESS);
+        context_switch((*CURRENT_PROCESS).kcontext,
+                       if (*CURRENT_PROCESS).disable_cnt == 0 {
+                           1 << 9
+                       } else {
+                           0
+                       });
+    }
+
+    panic!("The impossible has happened!");
 }
 
 // Called by the current process to exit
@@ -244,7 +247,7 @@ pub fn exit(code: usize) {
                 //panic!("{:?} is exiting!\n", *CURRENT_PROCESS);
             } else {
                 (*CURRENT_PROCESS).set_state(State::TERMINATED);
-                printf!("{:?} exiting with code 0x{:X}\n",
+                printf!("{:?} [Exit 0x{:X}]\n",
                         *CURRENT_PROCESS, code);
             }
 
@@ -256,10 +259,10 @@ pub fn exit(code: usize) {
 
         // set current to None, so we will never run this again
         CURRENT_PROCESS = 0 as *mut Process;
-    }
 
-    // switch to next ready process
-    _proc_yield(None);
+        // switch to next ready process
+        _proc_yield(None);
+    }
 
     panic!("The impossible has happened!");
 }
