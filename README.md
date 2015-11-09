@@ -3,15 +3,15 @@
 
 Implementation of a simple OS in Rust
 
-I had originally intended not to have any library code in my kernel at all, but this is not possible with Rust yet. As a result I am linking in `libcore`, which contains the heart of Rust functionality. Special thanks to Krzysztof for helping me get that working!
+I had originally intended not to have any library code in my kernel at all, but this is not possible with Rust yet. As a result I am linking in `libcore` and `liballoc` which contain the heart of Rust functionality. Special thanks to Krzysztof for helping me get that set up!
 
 ###Features so far
 * Heap allocation
 * Preemptive multitasking
 * VGA buffer management
+* Reaper
 
 ###TODO
-* Reaper
 * Concurrency Control
 * Virtual Memory
 * User mode/system calls
@@ -21,7 +21,7 @@ I had originally intended not to have any library code in my kernel at all, but 
 
 * ```qemu```
 * ```gcc```
-* ```rust 1.1``` (2015-05-10 nightly version or after), by this command line ```curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly --date=2015-05-10```
+* ```rust 1.1``` (2015-05-10 nightly version): ```curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly --date=2015-05-10```
 
 ###Build instructions
 
@@ -34,5 +34,4 @@ Thanks to
 - Krzysztof Drewniak for build system and help
 - AG for bootloader code
 - OSDev wiki for general helpfulness
-- rustboot (github.com/charliesome/rustboot)
-
+- [rustboot](http://github.com/charliesome/rustboot)
