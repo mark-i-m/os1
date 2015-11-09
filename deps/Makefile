@@ -6,7 +6,7 @@ RUSTFLAGS_LIBS = --target=../i686-unknown-elf.json -L . --crate-type=rlib -C opt
 
 default: all
 
-all: librlibc.rlib liballoc.rlib #libcollections.rlib
+all: librlibc.rlib liballoc.rlib liballoc_system.rlib 
 
 libcore.rlib: ../i686-unknown-elf.json
 	${RUSTC} ${RUSTFLAGS_LIBS} ${RUSTSRC}/src/libcore/lib.rs
@@ -14,14 +14,11 @@ libcore.rlib: ../i686-unknown-elf.json
 liballoc.rlib: libcore.rlib
 	${RUSTC} ${RUSTFLAGS_LIBS} --cfg feature=\"external_funcs\" ${RUSTSRC}/src/liballoc/lib.rs
 
+liballoc_system.rlib: alloc_system.rs libcore.rlib
+	${RUSTC} ${RUSTFLAGS_LIBS} --cfg feature=\"external_funcs\" $< 
+
 librlibc.rlib: rlibc.rs libcore.rlib
 	${RUSTC} ${RUSTFLAGS_LIBS} $<
-
-# librustc_unicode.rlib: libcore.rlib
-# 	${RUSTC} ${RUSTFLAGS_LIBS} ${RUSTSRC}/src/librustc_unicode/lib.rs
-# 
-# libcollections.rlib: liballoc.rlib librustc_unicode.rlib
-# 	${RUSTC} ${RUSTFLAGS_LIBS} ${RUSTSRC}/src/libcollections/lib.rs
 
 clean::
 	rm -f *.rlib

@@ -14,7 +14,7 @@ kernel: deps
 	${MAKE} -C kernel all
 
 user: deps
-	${MAKE} -C user all
+	#${MAKE} -C user all
 
 clean:
 	${MAKE} -C kernel clean

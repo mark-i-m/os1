@@ -5,7 +5,6 @@
 #![crate_name="rustcode"]
 
 #[macro_use]
-extern crate core;
 
 use core::prelude::*;
 use core::fmt;

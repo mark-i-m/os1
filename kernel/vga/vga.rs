@@ -1,6 +1,7 @@
 use machine;
 
 // colors for VGA display
+#[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub enum Color {
     Black      = 0,

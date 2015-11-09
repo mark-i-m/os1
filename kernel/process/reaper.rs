@@ -1,7 +1,5 @@
 // Contains the reaper queue
 
-use core::option::Option::{None};
-
 use super::{Process};
 
 use super::super::data_structures::ProcessQueue;

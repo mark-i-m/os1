@@ -90,9 +90,7 @@ pub fn pic_irq(irq: usize) {
 
     // only do this for pit interrupts
     if irq == 0 {
-        unsafe {
-            super::super::process::proc_yield(None);
-        }
+        super::super::process::proc_yield(None);
     }
 
     // bookkeeping

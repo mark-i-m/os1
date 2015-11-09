@@ -1,4 +1,4 @@
-#![feature(no_std,lang_items,core,alloc,box_syntax,box_patterns,debug_builders)]
+#![feature(no_std,lang_items,alloc,core_str_ext,box_syntax,box_patterns)]
 #![no_std]
 
 #![crate_type = "staticlib"]
@@ -6,7 +6,6 @@
 
 // use libcore
 #[macro_use]
-extern crate core;
 extern crate alloc;
 extern crate rlibc;
 

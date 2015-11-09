@@ -4,10 +4,8 @@
 // TODO: kill
 // TODO: test yielding to other q's
 
-use alloc::boxed;
 use alloc::boxed::Box;
 
-//use core::marker::{Sync, Send};
 use core::option::Option::{self, Some, None};
 use core::fmt::{Debug, Formatter, Result};
 use core::cmp::PartialEq;
@@ -95,7 +93,7 @@ impl Process {
 
         p.get_stack();
 
-        unsafe { boxed::into_raw(box p) }
+        Box::into_raw(box p)
     }
 
     pub fn destroy(process: *mut Process) {
@@ -116,7 +114,7 @@ impl Process {
         // Allocate a stack
         let stack: Box<[usize; STACK_SIZE]> = box [0; STACK_SIZE];
 
-        let stack_ptr = unsafe {boxed::into_raw(stack)} as *mut usize;
+        let stack_ptr = Box::into_raw(stack) as *mut usize;
 
         // set the pointer
         self.stack = stack_ptr as usize;

@@ -21,7 +21,7 @@ I had originally intended not to have any library code in my kernel at all, but 
 
 * ```qemu```
 * ```gcc```
-* ```rust 1.1``` (2015-05-10 nightly version): ```curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly --date=2015-05-10```
+* ```rust 1.6 (2015-11-08 nightly): curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly --date=2015-11-08```
 
 ###Build instructions
 
