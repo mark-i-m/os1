@@ -10,7 +10,7 @@ pub struct ProcessQueue {
 }
 
 impl ProcessQueue {
-    pub fn new() -> ProcessQueue {
+    pub const fn new() -> ProcessQueue {
         ProcessQueue {
             head: 0 as *mut Process,
             tail: 0 as *mut Process,

@@ -7,10 +7,7 @@ use super::super::data_structures::ProcessQueue;
 use super::super::interrupts::{on, off};
 
 // The reaper queue
-static mut REAPER_QUEUE: ProcessQueue = ProcessQueue {
-    head: 0 as *mut Process,
-    tail: 0 as *mut Process
-};
+static mut REAPER_QUEUE: ProcessQueue = ProcessQueue::new();
 
 // The reaper process routine:,
 // If there are dead processes, pop them from the

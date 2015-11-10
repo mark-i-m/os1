@@ -5,11 +5,7 @@ use super::{Process, State};
 use super::super::data_structures::{ProcessQueue};
 
 // points to the next process to run
-pub static mut READY_QUEUE: ProcessQueue = ProcessQueue {
-    head: 0 as *mut Process,
-    tail: 0 as *mut Process
-};
-//pub static mut READY_QUEUE: ProcessQueue = ProcessQueue::new();
+pub static mut READY_QUEUE: ProcessQueue = ProcessQueue::new();
 
 // init the ready q
 pub fn init() {

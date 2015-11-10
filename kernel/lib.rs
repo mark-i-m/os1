@@ -1,4 +1,4 @@
-#![feature(no_std,lang_items,alloc,core_str_ext,box_syntax,box_patterns)]
+#![feature(no_std,lang_items,alloc,core_str_ext,box_syntax,box_patterns,const_fn)]
 #![no_std]
 
 #![crate_type = "staticlib"]
