@@ -1,5 +1,7 @@
 // Contains the reaper queue
 
+use alloc::boxed::Box;
+
 use super::{Process};
 
 use super::super::data_structures::ProcessQueue;
@@ -26,8 +28,9 @@ pub fn run(this: &Process) -> usize {
         } else {
             unsafe {
                 printf!("{:?} [Reaping]\n", *dead_proc);
+                Box::from_raw(dead_proc);
             }
-            super::Process::destroy(dead_proc);
+            // let the box go out of scope to dealloc
         }
     }
 

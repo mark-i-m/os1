@@ -12,6 +12,8 @@ use core::cmp::PartialEq;
 
 use core::sync::atomic::{AtomicUsize, Ordering};
 
+use core::ops::Drop;
+
 use super::data_structures::ProcessQueue;
 
 use super::interrupts::{on, off};
@@ -51,7 +53,6 @@ enum State {
 }
 
 // Process struct
-#[repr(C,packed)]
 pub struct Process {
     // Name of the process; some string
     name: &'static str,
@@ -97,19 +98,6 @@ impl Process {
         Box::into_raw(box p)
     }
 
-    pub fn destroy(process: *mut Process) {
-        if process.is_null() {
-            panic!("Deallocating a null process!");
-        }
-
-        unsafe {
-            Box::from_raw((*process).stack as *mut [usize; 2048]);
-            Box::from_raw(process);
-        }
-
-        // let the boxes go out of scope to dealloc
-    }
-
     fn get_stack(&mut self) {
         // TODO: fudge
         // Allocate a stack
@@ -133,6 +121,15 @@ impl Process {
 
     fn set_state(&mut self, s: State) {
         self.state = s;
+    }
+}
+
+impl Drop for Process {
+    fn drop(&mut self) {
+        unsafe {
+            Box::from_raw(self.stack as *mut [usize; 2048]);
+        }
+        // let the box go out of scope to dealloc
     }
 }
 
