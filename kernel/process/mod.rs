@@ -10,7 +10,8 @@ use core::option::Option::{self, Some, None};
 use core::fmt::{Debug, Formatter, Result};
 use core::cmp::PartialEq;
 
-use super::data_structures::concurrency::Atomic32;
+use core::sync::atomic::{AtomicUsize, Ordering};
+
 use super::data_structures::ProcessQueue;
 
 use super::interrupts::{on, off};
@@ -36,7 +37,7 @@ mod user;
 const STACK_SIZE: usize = 2048;
 
 // next pid
-static NEXT_ID: Atomic32 = Atomic32 {i: 0};
+static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
 
 // Process state
 #[repr(C)]
@@ -82,7 +83,7 @@ impl Process {
 
         let mut p = Process {
             name: name,
-            pid: NEXT_ID.get_then_add(),
+            pid: NEXT_ID.fetch_add(1, Ordering::Relaxed),
             run: run,
             state: State::INIT,
             stack: 0,
