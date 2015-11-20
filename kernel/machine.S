@@ -96,7 +96,7 @@
 #     ret
 
 
-    # pub fn proc_yield(q: Option<&mut Queue<Box<Process>>>);
+    # pub fn proc_yield(q: Option<&mut ProcessQueue>);
     .extern _proc_yield
     .global proc_yield
 proc_yield:
@@ -123,7 +123,8 @@ proc_yield:
     pop %esp
     popa
 
-    call _proc_yield
+    // don't call _proc_yield because call pushes a RA
+    jmp _proc_yield
 
     ret
 
