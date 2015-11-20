@@ -10,9 +10,9 @@ I had originally intended not to have any library code in my kernel at all, but 
 * Preemptive multitasking
 * VGA buffer management
 * Reaper
+* Concurrency Control
 
 ###TODO
-* Concurrency Control
 * Virtual Memory
 * User mode/system calls
 * File system
