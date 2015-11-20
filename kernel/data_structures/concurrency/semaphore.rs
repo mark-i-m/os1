@@ -62,7 +62,7 @@ impl StaticSemaphore {
 
     pub fn down(&mut self) {
         off();
-        if self.count.fetch_sub(1, Ordering::AcqRel) < 0 {
+        if self.count.fetch_sub(1, Ordering::AcqRel) <= 0 {
             self.count.fetch_add(1, Ordering::AcqRel);
             // block
             proc_yield(Some(&mut self.queue));

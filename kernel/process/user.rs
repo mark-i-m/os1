@@ -8,70 +8,85 @@ use super::super::vga::window::{Window, Color};
 
 use super::super::data_structures::concurrency::{StaticSemaphore};
 
-static mut s1: StaticSemaphore = StaticSemaphore::new(3);
+const ROWS: usize = 25;
+const COLS: usize = 80;
+
+static mut current: (usize, usize) = (0,0);
+static mut s1: StaticSemaphore = StaticSemaphore::new(0);
 
 pub fn run(this: &Process) -> usize {
-    // clear the screen
-    Window::clear_screen();
-
-    let mut w0 = Window::new(40, 10, (4, 10));
+    let mut w0 = Window::new(COLS, ROWS, (0, 0));
+    let mut msg = Window::new(43, 4, (1,25));
 
     w0.set_bg_color(Color::LightBlue);
     w0.paint();
 
-    w0.set_cursor((1, 1));
-    w0.set_bg_color(Color::LightGreen);
-    w0.set_fg_color(Color::Red);
-    w0.put_str("Hello World!");
+    msg.set_cursor((0,0));
+    msg.set_bg_color(Color::LightGray);
+    msg.set_fg_color(Color::Black);
 
-    w0.set_cursor((2,1));
-    w0.put_str("from ");
-    w0.put_str(this.name);
-
-    ready_queue::make_ready(Process::new("p1", self::run2));
-
-    0
-}
-
-pub fn run2(this: &Process) -> usize {
-    let mut w0 = Window::new(20, 10, (10, 40));
-
-    w0.set_bg_color(Color::White);
-    w0.paint();
-
-    w0.set_cursor((1, 1));
-    w0.set_fg_color(Color::Black);
-    w0.put_str("Hello World!");
-
-    w0.set_cursor((2,1));
-    w0.put_str("from ");
-    w0.put_str(this.name);
+    msg.put_str("^-- If semaphores work correctly, then this block \
+                should be red when all loop_procs finish running");
 
     let mut i = 0;
     while i < 6000 {
-        ready_queue::make_ready(Process::new("loop_proc", self::run3));
+        ready_queue::make_ready(Process::new("loop_proc", super::user::run2));
+        super::proc_yield(None);
         i += 1;
     }
+
+    unsafe { s1.up(); }
 
     0
 }
 
-pub fn run3(this: &Process) -> usize {
-    let mut w0 = Window::new(3, 1, (0, 0));
-
-    w0.set_bg_color(Color::Yellow);
-    w0.paint();
-
-    w0.set_cursor((0,0));
-    w0.set_fg_color(Color::Red);
-
-    match this.pid % 4 {
-        0 => w0.put_str("---"),
-        1 => w0.put_str("\\\\\\"),
-        2 => w0.put_str("|||"),
-        3 => w0.put_str("///"),
-        _ => panic!("The impossible has happened!"),
+fn get_prev((r,c): (usize, usize)) -> (usize, usize) {
+    if r == 0 && c > 0 { // top
+        (0, c-1)
+    } else if c == COLS-1 { // right
+        (r-1, c)
+    } else if r == ROWS-1 { // bottom
+        (r, c+1)
+    } else { // left
+        (r+1, c)
     }
+}
+
+fn get_next((r,c): (usize, usize)) -> (usize, usize) {
+    if r == 0 && c < COLS-1 { // top
+        (0, c+1)
+    } else if c == COLS-1 && r < ROWS-1 { // right
+        (r+1, c)
+    } else if r == ROWS-1 && c > 0 { // bottom
+        (r, c-1)
+    } else { // left
+        (r-1, c)
+    }
+}
+
+fn run2(this: &Process) -> usize {
+    unsafe { s1.down(); }
+
+    let mut w = Window::new(COLS,ROWS, (0,0));
+
+    let me = unsafe { current };
+    let prev = get_prev(me);
+
+    unsafe {
+        current = get_next(me);
+    }
+
+    printf!("Erase ({},{}) ", prev.0, prev.1);
+    w.set_bg_color(Color::LightBlue);
+    w.set_cursor(prev);
+    w.put_str(" ");
+
+    printf!("Draw ({},{})\n", me.0,me.1);
+    w.set_bg_color(Color::Red);
+    w.set_cursor(me);
+    w.put_str(" ");
+
+    unsafe { s1.up(); }
 
     0
 }
