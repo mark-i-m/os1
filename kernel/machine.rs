@@ -2,6 +2,8 @@
 
 use core::option::Option;
 
+use data_structures::ProcessQueue;
+
 #[allow(improper_ctypes)]
 #[allow(dead_code)]
 extern "C" {
@@ -37,7 +39,8 @@ extern "C" {
     pub fn irq14();
     pub fn irq15();
 
-    pub fn proc_yield(q: Option<usize>);
+    #[inline(never)]
+    pub fn proc_yield<'a>(q: Option<&'a mut ProcessQueue>);
     pub fn save_kcontext();
     pub fn context_switch(next_context: super::process::context::KContext, eflags: usize);
     pub fn eflags() -> usize;

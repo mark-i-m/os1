@@ -2,9 +2,13 @@
 use super::Process;
 use super::ready_queue;
 
-use core::option::Option::None;
+use core::option::Option::{Some, None};
 
 use super::super::vga::window::{Window, Color};
+
+use super::super::data_structures::concurrency::{StaticSemaphore};
+
+static mut s1: StaticSemaphore = StaticSemaphore::new(3);
 
 pub fn run(this: &Process) -> usize {
     // clear the screen

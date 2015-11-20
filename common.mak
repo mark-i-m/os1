@@ -15,9 +15,10 @@ ASFLAGS += -m32 -g -O0
 vpath %.rs process
 vpath %.rs vga
 vpath %.rs data_structures
+vpath %.rs data_structures/concurrency
 vpath %.rs memory
 vpath %.rs interrupts
-RUSTFILES = $(notdir $(wildcard *.rs) $(wildcard process/*.rs) $(wildcard vga/*.rs) $(wildcard data_structures/*.rs) $(wildcard memory/*.rs) $(wildcard interrupts/*.rs))
+RUSTFILES = $(notdir $(wildcard *.rs) $(wildcard process/*.rs) $(wildcard vga/*.rs) $(wildcard data_structures/*.rs) $(wildcard data_structures/concurrency/*.rs) $(wildcard memory/*.rs) $(wildcard interrupts/*.rs))
 SFILES = $(notdir $(wildcard *.S) $(wildcard *.s))
 
 OFILES = $(subst .s,.o,$(subst .S,.o,$(SFILES)))

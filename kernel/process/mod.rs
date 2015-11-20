@@ -1,8 +1,7 @@
 // This is an implementation of simple cooperative processes
 //
-// TODO: check killed
 // TODO: kill
-// TODO: test yielding to other q's
+// TODO: check killed
 
 use alloc::boxed::Box;
 
@@ -22,13 +21,14 @@ use super::machine::{self, context_switch};
 
 use self::context::{KContext};
 
+use self::idle::IDLE_PROCESS;
+
 pub use self::current::{CURRENT_PROCESS};
-pub use self::idle::{IDLE_PROCESS};
 
 pub mod context;
 pub mod current;
 
-mod ready_queue;
+pub mod ready_queue;
 
 mod init;
 mod idle;
@@ -181,7 +181,7 @@ fn start_proc() {
 }
 
 // A safe wrapper around machine::proc_yield
-pub fn proc_yield(q: Option<usize>) {
+pub fn proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     unsafe {
         off();
         machine::proc_yield(q);
@@ -198,11 +198,17 @@ pub fn proc_yield(q: Option<usize>) {
 //
 // Interrupts should already be disabled here
 #[no_mangle]
-pub unsafe fn _proc_yield(q: Option<usize>) {
-    // TODO: yielding onto q
-
+#[inline(never)]
+pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
+    // yield onto the right queue
     if !CURRENT_PROCESS.is_null() {
-        ready_queue::make_ready(CURRENT_PROCESS);
+        if let Some(queue) = q {
+            (*CURRENT_PROCESS).set_state(State::BLOCKED);
+            queue.push_tail(CURRENT_PROCESS);
+        } else {
+            ready_queue::make_ready(CURRENT_PROCESS);
+        }
+
         CURRENT_PROCESS = 0 as *mut Process;
     }
 

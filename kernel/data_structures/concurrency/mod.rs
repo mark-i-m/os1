@@ -1,5 +1,5 @@
 // A module for concurrency control
 
-pub use self::semaphore::Semaphore;
+pub use self::semaphore::*;
 
 mod semaphore;
