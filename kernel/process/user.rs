@@ -2,7 +2,7 @@
 use super::Process;
 use super::ready_queue;
 
-use core::option::Option::{Some, None};
+use core::option::Option::None;
 
 use super::super::vga::window::{Window, Color};
 
@@ -14,6 +14,7 @@ const COLS: usize = 80;
 static mut current: (usize, usize) = (0,0);
 static mut s1: StaticSemaphore = StaticSemaphore::new(0);
 
+#[allow(unused_variables)]
 pub fn run(this: &Process) -> usize {
     let mut w0 = Window::new(COLS, ROWS, (0, 0));
     let mut msg = Window::new(43, 4, (1,25));
@@ -64,6 +65,7 @@ fn get_next((r,c): (usize, usize)) -> (usize, usize) {
     }
 }
 
+#[allow(unused_variables)]
 fn run2(this: &Process) -> usize {
     unsafe { s1.down(); }
 
