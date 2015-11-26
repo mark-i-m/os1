@@ -16,6 +16,8 @@ I had originally intended not to have any library code in my kernel at all, but 
 * Virtual Memory
 * User mode/system calls
 * File system
+* Process resources
+    - Finish native semaphore implementation
 
 ###Requirements
 
