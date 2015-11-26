@@ -11,9 +11,9 @@ I had originally intended not to have any library code in my kernel at all, but 
 * VGA buffer management
 * Reaper
 * Concurrency Control
+* Virtual Memory
 
 ###TODO
-* Virtual Memory
 * User mode/system calls
 * File system
 * Process resources
