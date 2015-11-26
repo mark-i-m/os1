@@ -1,8 +1,6 @@
 use core::option::Option::{None};
 
 use super::{Process, proc_yield};
-use super::ready_queue;
-use super::reaper;
 
 // idle process
 pub static mut IDLE_PROCESS: *mut Process = 0 as *mut Process;

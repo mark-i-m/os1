@@ -2,8 +2,6 @@
 use super::Process;
 use super::ready_queue;
 
-use core::option::Option::None;
-
 use super::super::vga::window::{Window, Color};
 
 use super::super::data_structures::concurrency::{StaticSemaphore};
