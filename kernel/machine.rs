@@ -14,10 +14,10 @@ extern "C" {
     pub fn ltr(tr: usize);
     pub fn pit_do_init(divide: usize);
 
-    // pub fn vmm_on(cr3: usize);
+    pub fn vmm_on(cr3: usize);
     // pub fn getcr0() -> usize;
     // pub fn getcr3() -> usize;
-    // pub fn invlpg(pg: u32);
+    pub fn invlpg(pg: u32);
 
     pub fn cli();
     pub fn sti();
@@ -47,7 +47,7 @@ extern "C" {
 
     // pub fn switchToUser(pc: usize, esp: usize, eax: usize);
 
-    // pub fn pageFaultHandler();
+    pub fn page_fault_handler();
     // pub fn syscallTrap();
 
     //pub fn sys_sigret(uint32_t);

@@ -1,5 +1,7 @@
 // This module contains everything that has to do with memory
 
+pub use self::vm::vmm_page_fault;
+
 pub mod rust_alloc;
 
 mod heap;

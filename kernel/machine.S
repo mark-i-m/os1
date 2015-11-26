@@ -229,16 +229,16 @@ ltr:
 	ltr %ax
 	ret
 
-# 	/* vmm_on(pd) */
-# 	.global vmm_on
-# vmm_on:
-# 	mov 4(%esp),%eax
-# 	mov %eax,%cr3
-#
-# 	mov %cr0,%eax
-# 	or $0x80000000,%eax
-# 	mov %eax,%cr0
-# 	ret
+	/* vmm_on(pd) */
+	.global vmm_on
+vmm_on:
+	mov 4(%esp),%eax
+	mov %eax,%cr3
+
+	mov %cr0,%eax
+	or $0x80000000,%eax
+	mov %eax,%cr0
+	ret
 #
 # 	.global getcr0
 # getcr0:
@@ -250,11 +250,11 @@ ltr:
 # 	mov %cr3,%eax
 # 	ret
 #
-# 	.global invlpg
-# invlpg:
-# 	mov 4(%esp),%eax
-# 	invlpg (%eax)
-# 	ret
+	.global invlpg
+invlpg:
+	mov 4(%esp),%eax
+	invlpg (%eax)
+	ret
 
 	.global cli
 cli:
@@ -421,46 +421,46 @@ pit_do_init:
 	popf			# pop IF
 	ret
 
-#
-# 	.global pageFaultHandler
-# pageFaultHandler:
-#         push %eax
-#         push %ebx
-#         push %ecx
-#         push %edx
-#         push %esi
-#         push %edi
-#         push %ebp
-#
-# 	/* switch to kernel DS */
-# 	push %ds
-# 	mov kernelDataSeg,%eax
-# 	mov %ax,%ds
-#
-#
-#         mov %cr2,%eax   /* address */
-#         push %eax
-#
-# 	mov %esp, %eax
-# 	push %eax
-#
-#         .extern vmm_pageFault
-#         call vmm_pageFault
-#
-#         add $8,%esp    /* pop argument */
-#
-#         /* restore DS */
-#         pop %ds
-#
-#         pop %ebp
-#         pop %edi
-#         pop %esi
-#         pop %edx
-#         pop %ecx
-#         pop %ebx
-#         pop %eax
-#         add $4,%esp   /* pop error */
-#         iret
+
+	.global page_fault_handler
+page_fault_handler:
+        push %eax
+        push %ebx
+        push %ecx
+        push %edx
+        push %esi
+        push %edi
+        push %ebp
+
+	/* switch to kernel DS */
+	push %ds
+	mov kernelDataSeg,%eax
+	mov %ax,%ds
+
+
+        mov %cr2,%eax   /* address */
+        push %eax
+
+	#mov %esp, %eax
+	#push %eax
+
+        .extern vmm_page_fault
+        call vmm_page_fault
+
+        add $8,%esp    /* pop argument */
+
+        /* restore DS */
+        pop %ds
+
+        pop %ebp
+        pop %edi
+        pop %esi
+        pop %edx
+        pop %ecx
+        pop %ebx
+        pop %eax
+        add $4,%esp   /* pop error */
+        iret
 #
 #     # void sys_sigret(sigcontext context)
 #     .global sys_sigret

@@ -27,6 +27,7 @@ mod interrupts;
 pub use self::process::context::store_kcontext;
 pub use self::process::_proc_yield;
 pub use self::interrupts::pic::pic_irq;
+pub use self::memory::vmm_page_fault;
 
 // kernel constans
 const KHEAP_START: usize = (1 << 20); // 1M

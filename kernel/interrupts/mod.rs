@@ -2,6 +2,8 @@
 
 pub use self::process::{on, off};
 
+pub use self::idt::add_trap_handler;
+
 mod idt;
 mod process;
 

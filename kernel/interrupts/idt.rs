@@ -40,7 +40,7 @@ impl IDTDescr {
 
     pub fn set_type_attr(&mut self, present: bool, dpl: u8, storage_seg: bool, gate_type: u8) {
         if dpl > 3 { panic!("dpl > 3"); }
-        if gate_type > 1<<4 { panic!("gate_type > 15"); }
+        if gate_type > 15 { panic!("gate_type > 15"); }
 
         self.type_attr = ((present as u8) << 7) | (dpl << 5) | ((storage_seg as u8) << 4) | gate_type;
     }
@@ -57,5 +57,15 @@ pub fn add_interrupt_handler(irq: u8, handler: unsafe extern "C" fn()) {
         idt[idx].set_offset(handler as u32);
         idt[idx].set_selector(kernelCodeSeg);
         idt[idx].set_type_attr(true, 0, false, 0xE);
+    }
+}
+
+pub fn add_trap_handler(index: u8, handler: unsafe extern "C" fn(), dpl: u8) {
+    let idx = index as usize;
+    unsafe {
+        idt[idx] = IDTDescr::new();
+        idt[idx].set_offset(handler as u32);
+        idt[idx].set_selector(kernelCodeSeg);
+        idt[idx].set_type_attr(true, dpl, false, 0xF);
     }
 }
