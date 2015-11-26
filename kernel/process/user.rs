@@ -12,12 +12,13 @@ const ROWS: usize = 25;
 const COLS: usize = 80;
 
 static mut current: (usize, usize) = (0,0);
-static mut s1: StaticSemaphore = StaticSemaphore::new(0);
+static mut s1: StaticSemaphore = StaticSemaphore::new(1);
+static mut s2: StaticSemaphore = StaticSemaphore::new(1);
 
 #[allow(unused_variables)]
 pub fn run(this: &Process) -> usize {
     let mut w0 = Window::new(COLS, ROWS, (0, 0));
-    let mut msg = Window::new(43, 4, (1,25));
+    let mut msg = Window::new(43, 4, (1,1));
 
     w0.set_bg_color(Color::LightBlue);
     w0.paint();
@@ -26,17 +27,15 @@ pub fn run(this: &Process) -> usize {
     msg.set_bg_color(Color::LightGray);
     msg.set_fg_color(Color::Black);
 
-    msg.put_str("^-- If semaphores work correctly, then this block \
+    msg.put_str("<-- If semaphores work correctly, then this block \
                 should be red when all loop_procs finish running");
 
     let mut i = 0;
-    while i < 6000 {
+    while i < 206*100 {
         ready_queue::make_ready(Process::new("loop_proc", super::user::run2));
-        super::proc_yield(None);
+        unsafe { s1.down(); }
         i += 1;
     }
-
-    unsafe { s1.up(); }
 
     0
 }
@@ -67,7 +66,7 @@ fn get_next((r,c): (usize, usize)) -> (usize, usize) {
 
 #[allow(unused_variables)]
 fn run2(this: &Process) -> usize {
-    unsafe { s1.down(); }
+    unsafe { s2.down(); }
 
     let mut w = Window::new(COLS,ROWS, (0,0));
 
@@ -88,6 +87,7 @@ fn run2(this: &Process) -> usize {
     w.set_cursor(me);
     w.put_str(" ");
 
+    unsafe { s2.up(); }
     unsafe { s1.up(); }
 
     0

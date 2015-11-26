@@ -16,6 +16,7 @@ use core::ops::Drop;
 use super::data_structures::ProcessQueue;
 
 use super::interrupts::{on, off};
+use super::interrupts::pit::JIFFIES;
 
 use super::machine::{self, context_switch};
 
@@ -212,8 +213,14 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
         CURRENT_PROCESS = 0 as *mut Process;
     }
 
+    // every 50 jiffies, spawn a reaper process
+
     // get next process from ready q
-    let next = ready_queue::get_next();
+    let next = if JIFFIES % 50 == 0 {
+        Process::new("reaper", self::reaper::run)
+    } else {
+        ready_queue::get_next()
+    };
 
     // set current process and context switch to it
     if !next.is_null() {

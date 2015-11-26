@@ -6,7 +6,7 @@ const FREQ: usize = 1193182;
 static mut hz: usize = 0;
 
 #[allow(dead_code)]
-static mut jiffies: usize = 0;
+pub static mut JIFFIES: usize = 0;
 
 pub fn init(pit_hz: usize) {
      let d = FREQ / pit_hz;
@@ -23,10 +23,10 @@ pub fn init(pit_hz: usize) {
 }
 
 pub fn handler() {
-    unsafe {jiffies += 1;}
+    unsafe {JIFFIES += 1;}
 }
 
 #[allow(dead_code)]
 pub fn seconds() -> usize {
-    unsafe {jiffies / hz}
+    unsafe {JIFFIES / hz}
 }

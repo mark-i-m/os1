@@ -1,8 +1,12 @@
 // This module contains everything that has to do with memory
 
 pub mod rust_alloc;
-mod heap;
 
-pub fn init(start: usize, end: usize) {
-    heap::init(start, end);
+mod heap;
+mod vm;
+
+pub fn init(heap_start: usize, heap_end: usize,
+            frames_start: usize, frames_end: usize) {
+    heap::init(heap_start, heap_end);
+    vm::init(frames_start, frames_end);
 }
