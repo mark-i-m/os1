@@ -4,6 +4,8 @@ use core::sync::atomic::{AtomicIsize, Ordering};
 use core::cell::UnsafeCell;
 use core::option::Option::Some;
 
+use core::ops::{Deref, DerefMut};
+
 use alloc::boxed::Box;
 
 use super::super::ProcessQueue;
@@ -26,8 +28,9 @@ pub struct StaticSemaphore {
 }
 
 // RAII native SemaphoreGuard
-pub struct SemaphoreGuard<'a, T: 'a> {
-    semaphore: &'a Semaphore<T>,
+pub struct SemaphoreGuard<'semaphore, T: 'semaphore> {
+    semaphore: &'semaphore mut StaticSemaphore,
+    data: &'semaphore UnsafeCell<T>,
 }
 
 
@@ -42,7 +45,13 @@ impl<T> Semaphore<T> {
         }
     }
 
-    // TODO
+    // acquire
+    // returns an RAII guard, so no need for up()
+    pub fn down<'semaphore>(&'semaphore mut self) -> SemaphoreGuard<'semaphore, T> {
+        // acquire semaphore
+        self.inner.down();
+        SemaphoreGuard::new(&mut *self.inner, &self.data)
+    }
 }
 
 impl<T> Drop for Semaphore<T> {
@@ -60,6 +69,7 @@ impl StaticSemaphore {
         }
     }
 
+    // acquire
     pub fn down(&mut self) {
         off();
         if self.count.fetch_sub(1, Ordering::AcqRel) <= 0 {
@@ -70,6 +80,7 @@ impl StaticSemaphore {
         on();
     }
 
+    // release
     pub fn up(&mut self) {
         off();
         let next = self.queue.pop_head();
@@ -93,12 +104,33 @@ impl StaticSemaphore {
 }
 
 
-
-
-
-
-
-
-impl<'a, T> SemaphoreGuard<'a, T> {
-
+impl<'semaphore, T> SemaphoreGuard<'semaphore, T> {
+    pub fn new(semaphore: &'semaphore mut StaticSemaphore,
+               data: &'semaphore UnsafeCell<T>) -> SemaphoreGuard<'semaphore, T>{
+        SemaphoreGuard {
+            semaphore: semaphore,
+            data: data,
+        }
+    }
 }
+
+impl<'semaphore, T> Drop for SemaphoreGuard<'semaphore, T> {
+    fn drop(&mut self) {
+        self.semaphore.up();
+    }
+}
+
+impl<'semaphore, T> Deref for SemaphoreGuard<'semaphore, T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        unsafe { &*self.data.get() }
+    }
+}
+
+impl<'semaphore, T> DerefMut for SemaphoreGuard<'semaphore, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        unsafe { &mut *self.data.get() }
+    }
+}
+
