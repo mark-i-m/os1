@@ -20,7 +20,7 @@ use super::interrupts::pit::JIFFIES;
 
 use super::machine::{self, context_switch};
 
-use super::memory::AddressSpace;
+use super::memory::{AddressSpace, esp0};
 
 use self::context::{KContext};
 
@@ -238,7 +238,7 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     (*next).addr_space.activate();
 
     // switch stacks
-    TSS.esp0((*CURRENT_PROCESS).stack + STACK_SIZE*4);
+    esp0((*CURRENT_PROCESS).stack + STACK_SIZE*4);
 
     // set the CURRENT_PROCESS
     CURRENT_PROCESS = next;

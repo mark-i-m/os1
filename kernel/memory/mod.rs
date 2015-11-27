@@ -4,7 +4,7 @@ pub use self::vm::vmm_page_fault;
 
 pub use self::vm::AddressSpace;
 
-pub use self::tss::TSS;
+pub use self::tss::esp0;
 
 pub mod rust_alloc;
 

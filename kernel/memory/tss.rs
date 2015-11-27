@@ -4,7 +4,7 @@ use core::mem;
 
 use super::super::machine::ltr;
 
-pub static mut TSS: TSS = TSS::new();
+static mut TSS_: TSS = TSS::new();
 
 extern "C" {
     static mut tssDescriptor: TSSDescriptor;
@@ -73,15 +73,19 @@ impl TSS {
         }
     }
 
-    fn esp0(v: usize) {
+    fn esp0(&mut self, v: usize) {
         self.esp0 = v;
     }
 }
 
 pub fn init() {
     unsafe {
-        TSS.ss0 = kernelDataSeg as usize;
-        tssDescriptor.set(&TSS, mem::size_of::<TSS>());
+        TSS_.ss0 = kernelDataSeg as usize;
+        tssDescriptor.set(&TSS_, mem::size_of::<TSS>());
         ltr(tssDS)
     }
+}
+
+pub fn esp0(v: usize) {
+    unsafe { TSS_.esp0(v); }
 }
