@@ -17,7 +17,7 @@ extern "C" {
     pub fn vmm_on(cr3: usize);
     // pub fn getcr0() -> usize;
     // pub fn getcr3() -> usize;
-    pub fn invlpg(pg: u32);
+    pub fn invlpg(pg: usize);
 
     pub fn cli();
     pub fn sti();

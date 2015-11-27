@@ -20,6 +20,8 @@ use super::interrupts::pit::JIFFIES;
 
 use super::machine::{self, context_switch};
 
+use super::memory::AddressSpace;
+
 use self::context::{KContext};
 
 use self::idle::IDLE_PROCESS;
@@ -72,6 +74,9 @@ pub struct Process {
     // The saved kernel context for context switching
     kcontext: KContext,
 
+    // Address space
+    addr_space: AddressSpace,
+
     // Number of calls to interrupts::on() while this process was running
     // Interrupts are on if disable_cnt == 0
     pub disable_cnt: usize,
@@ -90,6 +95,7 @@ impl Process {
             state: State::INIT,
             stack: 0,
             kcontext: KContext::new(),
+            addr_space: AddressSpace::new(),
             disable_cnt: 0,
             next_proc: 0 as *mut Process,
         };

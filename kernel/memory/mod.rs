@@ -2,6 +2,8 @@
 
 pub use self::vm::vmm_page_fault;
 
+pub use self::vm::AddressSpace;
+
 pub mod rust_alloc;
 
 mod heap;

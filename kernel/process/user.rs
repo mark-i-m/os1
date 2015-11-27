@@ -25,11 +25,11 @@ pub fn run(this: &Process) -> usize {
     msg.set_bg_color(Color::LightGray);
     msg.set_fg_color(Color::Black);
 
-    msg.put_str("<-- If semaphores work correctly, then this block \
+    msg.put_str("<-- If semaphores work correctly, then only this block \
                 should be red when all loop_procs finish running");
 
     let mut i = 0;
-    while i < 206*100 {
+    while i < 206*3 {
         ready_queue::make_ready(Process::new("loop_proc", super::user::run2));
         unsafe { s1.down(); }
         i += 1;
