@@ -12,9 +12,12 @@ I had originally intended not to have any library code in my kernel at all, but 
 * Reaper
 * Concurrency Control
 * Virtual Memory
+* User mode/system calls
+    - TSS
+    - Switch to user mode
+    - Fork
 
 ###TODO
-* User mode/system calls
 * File system
 * Process resources
     - Finish native semaphore implementation
