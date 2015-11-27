@@ -67,7 +67,7 @@ pub struct Process {
     state: State,
 
     // The kheap-allocated stack
-    // - this is a pointer to the stack, but *mut usize is not Send/Sync for sone reason
+    // - this is a pointer to the stack, but *mut usize is not Send/Sync
     // - this pointer is to the bottom of the stack, not the head
     stack: usize,
 
@@ -236,6 +236,9 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
 
     // switch address spaces
     (*next).addr_space.activate();
+
+    // switch stacks
+    TSS.esp0((*CURRENT_PROCESS).stack + STACK_SIZE*4);
 
     // set the CURRENT_PROCESS
     CURRENT_PROCESS = next;

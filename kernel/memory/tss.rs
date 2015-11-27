@@ -1,0 +1,87 @@
+// TSS module
+
+use core::mem;
+
+use super::super::machine::ltr;
+
+pub static mut TSS: TSS = TSS::new();
+
+extern "C" {
+    static mut tssDescriptor: TSSDescriptor;
+    static tssDS: usize;
+    static kernelDataSeg: u16;
+}
+
+#[repr(C,packed)]
+struct TSSDescriptor {
+    f0: usize,
+    f1: usize,
+}
+
+#[allow(dead_code)]
+#[repr(C,packed)]
+struct TSS {
+    prev: usize,
+    esp0: usize,
+    ss0:  usize,
+    esp1: usize,
+    ss1:  usize,
+    esp2: usize,
+    ss2:  usize,
+    unused: [usize; 19],
+}
+
+impl TSSDescriptor {
+    fn set(&mut self, base: &'static TSS, limit: usize) {
+        let base_usize = base as *const TSS as usize;
+
+        // clear
+        self.f0 = 0;
+        self.f1 = 0;
+
+        // f0 [bbbbbbbbbbbbbbbbllllllllllllllll]
+        // f1 [bbbbbbbb    llllp   ttttbbbbbbbb]
+
+        // set base
+        self.f0 = (self.f0 & 0x0000_FFFF) | ((base_usize<<16) & 0xFFFF_0000);
+        self.f1 = (self.f1 & 0xFFFF_FF00) | ((base_usize>>16) & 0x0000_00FF);
+        self.f1 = (self.f1 & 0x00FF_FFFF) | (base_usize & 0xFF00_0000);
+
+        // set limit
+        self.f0 = (self.f0 & 0xFFFF_0000) | (limit & 0x0000_FFFF);
+        self.f1 = (self.f1 & 0xFFF0_FFFF) | (limit & 0x000F_0000);
+
+        // set present
+        self.f1 |= 1 << 15;
+
+        // set type
+        self.f1 |= 0x9 << 8;
+    }
+}
+
+impl TSS {
+    const fn new() -> TSS {
+        TSS {
+            prev: 0,
+            esp0: 0,
+            ss0:  0,
+            esp1: 0,
+            ss1:  0,
+            esp2: 0,
+            ss2:  0,
+            unused: [0; 19],
+        }
+    }
+
+    fn esp0(v: usize) {
+        self.esp0 = v;
+    }
+}
+
+pub fn init() {
+    unsafe {
+        TSS.ss0 = kernelDataSeg as usize;
+        tssDescriptor.set(&TSS, mem::size_of::<TSS>());
+        ltr(tssDS)
+    }
+}

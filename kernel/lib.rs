@@ -48,9 +48,7 @@ pub fn kernel_main() {
     // Start initing stuff                             //
     /////////////////////////////////////////////////////
 
-    // TODO: tss
-
-    // init heap and vm
+    // init tss, heap, and vm
     memory::init(KHEAP_START, KHEAP_END,
                  PHYS_MEM_START, PHYS_MEM_END);
 
