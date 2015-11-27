@@ -447,7 +447,8 @@ page_fault_handler:
         .extern vmm_page_fault
         call vmm_page_fault
 
-        add $8,%esp    /* pop argument */
+        #add $8,%esp    /* pop argument */
+        add $4,%esp    /* pop argument */
 
         /* restore DS */
         pop %ds

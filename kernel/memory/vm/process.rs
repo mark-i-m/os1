@@ -10,6 +10,8 @@ use super::super::super::machine::{invlpg, vmm_on};
 
 use super::super::super::interrupts::{on, off};
 
+use super::super::super::process::CURRENT_PROCESS;
+
 // The address space of a single process
 pub struct AddressSpace {
     page_dir: &'static mut VMTable,
@@ -283,6 +285,15 @@ impl IndexMut<usize> for VMTable {
 
 // handle for vmm for asm
 #[no_mangle]
-pub extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: *mut usize) {
-    panic!("Page fault at {:x}", fault_addr as usize);
+pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: usize) {
+    // segfault! should be very rare with rust
+    if fault_addr < 0x1000 {
+        // TODO: only kill that process
+        unsafe {
+            panic!("{:?} [segmentation violation @ 0x{:X}]",
+                   *CURRENT_PROCESS, fault_addr);
+        }
+    }
+
+    (*CURRENT_PROCESS).addr_space.map(Frame::new() as *mut Frame as usize, fault_addr);
 }

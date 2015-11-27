@@ -75,7 +75,7 @@ pub struct Process {
     kcontext: KContext,
 
     // Address space
-    addr_space: AddressSpace,
+    pub addr_space: AddressSpace,
 
     // Number of calls to interrupts::on() while this process was running
     // Interrupts are on if disable_cnt == 0
@@ -219,33 +219,34 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
         CURRENT_PROCESS = 0 as *mut Process;
     }
 
-    // every 50 jiffies, spawn a reaper process
-
     // get next process from ready q
-    let next = if JIFFIES % 50 == 0 {
+    // every 50 jiffies, spawn a reaper process
+    let mut next = if JIFFIES % 50 == 0 {
         Process::new("reaper", self::reaper::run)
     } else {
         ready_queue::get_next()
     };
 
-    // set current process and context switch to it
-    if !next.is_null() {
-        CURRENT_PROCESS = next;
-    } else {
-        // run the idle process when everyone is done
-        CURRENT_PROCESS = IDLE_PROCESS;
+    // run the idle process when everyone is done
+    if next.is_null() {
+        next = IDLE_PROCESS;
     }
 
-    // context switch (return from proc_yield)
-    if !CURRENT_PROCESS.is_null() {
-        //bootlog!("{:?} [Switching]\n", *CURRENT_PROCESS);
-        context_switch((*CURRENT_PROCESS).kcontext,
-                       if (*CURRENT_PROCESS).disable_cnt == 0 {
-                           1 << 9
-                       } else {
-                           0
-                       });
-    }
+    //bootlog!("{:?} [Switching]\n", *CURRENT_PROCESS);
+
+    // switch address spaces
+    (*next).addr_space.activate();
+
+    // set the CURRENT_PROCESS
+    CURRENT_PROCESS = next;
+
+    // context switch
+    context_switch((*CURRENT_PROCESS).kcontext,
+                   if (*CURRENT_PROCESS).disable_cnt == 0 {
+                       1 << 9
+                   } else {
+                       0
+                   });
 
     panic!("The impossible has happened!");
 }

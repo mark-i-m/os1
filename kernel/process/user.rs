@@ -18,6 +18,8 @@ pub fn run(this: &Process) -> usize {
     let mut w0 = Window::new(COLS, ROWS, (0, 0));
     let mut msg = Window::new(43, 4, (1,1));
 
+    unsafe { *(0xc00000 as *mut usize) = this.pid; }
+
     w0.set_bg_color(Color::LightBlue);
     w0.paint();
 
@@ -32,6 +34,13 @@ pub fn run(this: &Process) -> usize {
     while i < 206*3 {
         ready_queue::make_ready(Process::new("loop_proc", super::user::run2));
         unsafe { s1.down(); }
+
+        // test vm
+        if unsafe { *(0xc00000 as *mut usize) } != this.pid {
+            panic!("Oh no! *0xc00000 should be {} but is {}",
+                   this.pid, unsafe { *(0xc00000 as *mut usize) });
+        }
+
         i += 1;
     }
 
@@ -64,6 +73,9 @@ fn get_next((r,c): (usize, usize)) -> (usize, usize) {
 
 #[allow(unused_variables)]
 fn run2(this: &Process) -> usize {
+
+    unsafe { *(0xc00000 as *mut usize) = this.pid; }
+
     unsafe { s2.down(); }
 
     let mut w = Window::new(COLS,ROWS, (0,0));
@@ -86,6 +98,13 @@ fn run2(this: &Process) -> usize {
     w.put_str(" ");
 
     unsafe { s2.up(); }
+
+    // test vm
+    if unsafe { *(0xc00000 as *mut usize) } != this.pid {
+        panic!("Oh no! *0xc00000 should be {} but is {}",
+               this.pid, unsafe { *(0xc00000 as *mut usize) });
+    }
+
     unsafe { s1.up(); }
 
     0

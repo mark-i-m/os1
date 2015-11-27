@@ -4,7 +4,7 @@ use core::ops::{Index, IndexMut};
 
 use super::super::super::interrupts::{add_trap_handler, on, off};
 
-use super::super::super::machine::{vmm_on, invlpg, page_fault_handler};
+use super::super::super::machine::page_fault_handler;
 
 // beginning and end of available frames
 // NOTE: cannot use *mut [Frame] because this has size of 8B for some reason
