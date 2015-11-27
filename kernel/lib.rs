@@ -33,7 +33,7 @@ pub use self::memory::vmm_page_fault;
 const KHEAP_START: usize = (1 << 20); // 1M
 const KHEAP_END: usize = (1 << 22); // 4M
 const PHYS_MEM_START: usize = (1 << 22); // 4M
-const PHYS_MEM_END: usize = (1 << 26); // 64M
+const PHYS_MEM_END: usize = (1 << 23); // 8M
 
 // This is the entry point to the kernel. It is the first rust code that runs.
 #[no_mangle]
