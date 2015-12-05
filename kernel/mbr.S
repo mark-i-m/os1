@@ -106,6 +106,8 @@ notext:
     jz skipent                  # if length is 0, skip the region
     inc %bp                     # increment good entry count
     add $24, %di                # move to next entry storage spot
+    cmp $20, %bp                # don't allow more than 20 regions
+    je done
 skipent:
     test %ebx, %ebx             # if ebx == 0, list is complete
     jne e820lp
