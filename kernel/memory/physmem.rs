@@ -6,7 +6,7 @@ use super::super::interrupts::{add_trap_handler, on, off};
 
 use super::super::machine::page_fault_handler;
 
-use super::detect::MemoryList;
+use super::regionmap::RegionMap;
 
 // beginning of available frames
 pub static mut PHYS_MEM_BEGIN: *mut Frame = 0 as *mut Frame;
@@ -98,11 +98,13 @@ pub fn init(start: usize) {
     // Detect available memory
     let mut mem = RegionMap::new(PHYS_MEM_BEGIN);
 
-    // add all frames to free list
+    // add all available frames to free list
     let mut num_frames = 0;
-    while let Some(frame) = mem.avail(num_frames) {
-        frame.free();
-        num_frames += 1;
+    while let Some((base, num)) = mem.next_avail() {
+        for i in 0..num {
+            base[i].free();
+        }
+        num_frames += num;
     }
 
     // Register page fault handler

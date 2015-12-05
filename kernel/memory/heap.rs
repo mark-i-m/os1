@@ -33,8 +33,8 @@ const DEBUG: bool = false;
 
 static mut BLOCK_ALIGN: usize = 0;
 
-static mut START: usize = 0;
-static mut END: usize = 0;
+pub static mut START: usize = 0;
+pub static mut END: usize = 0;
 
 static mut free_list: *mut Block = 0 as *mut Block;
 
