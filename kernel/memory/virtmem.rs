@@ -6,11 +6,11 @@ use core::intrinsics::transmute;
 
 use super::physmem::Frame;
 
-use super::super::super::machine::{invlpg, vmm_on};
+use super::super::machine::{invlpg, vmm_on};
 
-use super::super::super::interrupts::{on, off};
+use super::super::interrupts::{on, off};
 
-use super::super::super::process::CURRENT_PROCESS;
+use super::super::process::CURRENT_PROCESS;
 
 // The address space of a single process
 pub struct AddressSpace {
@@ -45,15 +45,17 @@ impl AddressSpace {
         let mut addr_space = AddressSpace { page_dir: pd };
 
         // Direct map the beginning of memory
+        //
+        // TODO
 
         // Omit page 0, so we can detect segfaults.
         // segfaults should be very rare with rust,
         // but better safe than sorry...
-        i = 1<<12;
-        while i < unsafe { super::physmem::PHYS_MEM_END as usize } {
-            addr_space.map(i, i);
-            i += 1<<12;
-        }
+        //i = 1<<12;
+        //while i < unsafe { super::physmem::PHYS_MEM_END as usize } {
+        //    addr_space.map(i, i);
+        //    i += 1<<12;
+        //}
 
         addr_space
     }
@@ -117,9 +119,10 @@ impl AddressSpace {
 
             // unmap and deallocate frame
             pte.set_present(false);
-            if virt >= unsafe { super::physmem::PHYS_MEM_END as usize } {
-                frame.free();
-            }
+            // TODO
+            //if virt >= unsafe { super::physmem::PHYS_MEM_END as usize } {
+            //    frame.free();
+            //}
         }
 
         // if page table is now empty,
@@ -169,7 +172,9 @@ impl Drop for AddressSpace {
                     let pte = &mut pt[pte_index];
                     let virt = pde_index << 22 | pte_index << 12;
 
-                    pte.free(virt >= unsafe { super::physmem::PHYS_MEM_END as usize });
+                    // TODO
+
+                    //pte.free(virt >= unsafe { super::physmem::PHYS_MEM_END as usize });
                     pte_index += 1;
                 }
 

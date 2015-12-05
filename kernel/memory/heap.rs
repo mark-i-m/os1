@@ -350,7 +350,7 @@ fn round_to_n(size: usize, n: usize) -> usize {
 }
 
 // Init the heap
-pub fn init(start: usize, end: usize) {
+pub fn init(start: usize, size: usize) {
     unsafe {
         // set BLOCK_ALIGN
         BLOCK_ALIGN = 4 * size_of::<usize>();
@@ -359,7 +359,7 @@ pub fn init(start: usize, end: usize) {
         START = round_to_block_align(start);
 
         // round END down
-        END = end & !0xF;
+        END = (START + size) & !0xF;
 
         // bounds check
         if END <= START {

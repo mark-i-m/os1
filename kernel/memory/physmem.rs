@@ -2,14 +2,14 @@
 
 use core::ops::{Index, IndexMut};
 
-use super::super::super::interrupts::{add_trap_handler, on, off};
+use super::super::interrupts::{add_trap_handler, on, off};
 
-use super::super::super::machine::page_fault_handler;
+use super::super::machine::page_fault_handler;
 
-// beginning and end of available frames
-// NOTE: cannot use *mut [Frame] because this has size of 8B for some reason
+use super::detect::MemoryList;
+
+// beginning of available frames
 pub static mut PHYS_MEM_BEGIN: *mut Frame = 0 as *mut Frame;
-pub static mut PHYS_MEM_END: *mut Frame = 0 as *mut Frame;
 
 // stack of free frames as a linked list
 static mut FREE_FRAMES: *mut Frame = 0 as *mut Frame;
@@ -84,8 +84,8 @@ impl IndexMut<usize> for Frame {
     }
 }
 
-// init phys mem frames
-pub fn init(start: usize, end: usize) {
+// init phys mem frames using the rest of physical memory
+pub fn init(start: usize) {
     unsafe {
         // round start up to nearest page boundary
         PHYS_MEM_BEGIN = if start % 0x1000 == 0 {
@@ -93,28 +93,23 @@ pub fn init(start: usize, end: usize) {
         } else {
             start - (start % 0x1000) + 0x1000
         } as *mut Frame;
-
-        // round end down to nearest page boundary
-        PHYS_MEM_END = (end & 0xFFFF_F000) as *mut Frame;
     }
 
+    // Detect available memory
+    let mut mem = RegionMap::new(PHYS_MEM_BEGIN);
+
     // add all frames to free list
-    // in reverse order because it is a stack
-    // and because I like them being used in order
-    unsafe {
-        let mut frame = PHYS_MEM_END.offset(-1);
-        while frame >= PHYS_MEM_BEGIN {
-            (*frame).free();
-            frame = frame.offset(-1);
-        }
-        FREE_FRAMES = PHYS_MEM_BEGIN;
+    let mut num_frames = 0;
+    while let Some(frame) = mem.avail(num_frames) {
+        frame.free();
+        num_frames += 1;
     }
 
     // Register page fault handler
     add_trap_handler(14, page_fault_handler, 0);
 
     unsafe{
-        bootlog!("phys mem start addr 0x{:X}, end addr 0x{:X}\n",
-                PHYS_MEM_BEGIN as usize, PHYS_MEM_END as usize);
+        bootlog!("phys mem start addr 0x{:X}, {} frames\n",
+                PHYS_MEM_BEGIN as usize, num_frames);
     }
 }

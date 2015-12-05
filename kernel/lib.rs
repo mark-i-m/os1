@@ -31,9 +31,7 @@ pub use self::memory::vmm_page_fault;
 
 // kernel constans
 const KHEAP_START: usize = (1 << 20); // 1M
-const KHEAP_END: usize = (1 << 22); // 4M
-const PHYS_MEM_START: usize = (1 << 22); // 4M
-const PHYS_MEM_END: usize = (1 << 23); // 8M
+const KHEAP_SIZE: usize = (3 << 20); // 3M
 
 // This is the entry point to the kernel. It is the first rust code that runs.
 #[no_mangle]
@@ -51,8 +49,7 @@ pub fn kernel_main() {
     // TODO: tss
 
     // init heap and vm
-    memory::init(KHEAP_START, KHEAP_END,
-                 PHYS_MEM_START, PHYS_MEM_END);
+    memory::init(KHEAP_START, KHEAP_SIZE);
 
     // init processes
     process::init(); // this creates Process #0: init
