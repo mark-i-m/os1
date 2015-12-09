@@ -93,25 +93,23 @@ pub fn init(start: usize) {
         } else {
             start - (start % 0x1000) + 0x1000
         } as *mut Frame;
-    }
 
-    // Detect available memory
-    let mut mem = RegionMap::new(PHYS_MEM_BEGIN);
+        // Detect available memory
+        let mut num_frames = 0;
+        let mut mem = RegionMap::new(PHYS_MEM_BEGIN);
 
-    // add all available frames to free list
-    let mut num_frames = 0;
-    while let Some((base, num)) = mem.next_avail() {
-        for i in 0..num {
-            base[i].free();
+        // add all available frames to free list
+        while let Some((base, num)) = mem.next_avail() {
+            for i in 0..num {
+                (*base.offset(i as isize)).free();
+            }
+            num_frames += num;
         }
-        num_frames += num;
-    }
 
-    // Register page fault handler
-    add_trap_handler(14, page_fault_handler, 0);
+        // Register page fault handler
+        add_trap_handler(14, page_fault_handler, 0);
 
-    unsafe{
         bootlog!("phys mem start addr 0x{:X}, {} frames\n",
-                PHYS_MEM_BEGIN as usize, num_frames);
+                 PHYS_MEM_BEGIN as usize, num_frames);
     }
 }

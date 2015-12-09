@@ -1,5 +1,21 @@
 // Process address spaces
 
+// TODO:
+// - Map last page to the frame containing the PD
+// - Any address after 0xFFC00000 is an offset in a page table
+// - To map a page in another address space:
+//   TODO
+// - To map a page in this address space:
+//   TODO
+// - To map a page before paging is turned on:
+//   TODO
+// - To unmap a page in another address space:
+//   TODO
+// - To unmap a page in this address space:
+//   TODO
+// - To unmap a page before paging is turned on:
+//   TODO
+
 use core::ops::{Index, IndexMut};
 
 use core::intrinsics::transmute;

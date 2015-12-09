@@ -115,6 +115,8 @@ impl Region {
     }
 
     // recursively print mappings
+    // used for debugging
+    #[allow(dead_code)]
     pub fn dump(&self) {
         bootlog!("0x{:08X} - 0x{:08X} : {}\n",
                  self.start,
@@ -139,14 +141,35 @@ impl RegionMap {
         }
     }
 
-    // If the index-th frame is available physical mem, return a reference
-    // to the frame, other wise, none
-    pub fn next_avail<'a>(&mut self) -> Option<(&'a mut [Frame], usize)> {
-        if self.index < 20 {
-            index += 1;
-            // TODO
-        } else {
-            None
+    // Returns a reference to the next avail frame or None if there aren't any more
+    pub fn next_avail(&mut self) -> Option<(*mut Frame, usize)> {
+        // find the current region
+        let mut region = &self.list;
+        for i in 0..self.index {
+            region = if let Some(ref r) = region.next {
+                r
+            } else {
+                // end of list
+                return None;
+            }
         }
+
+        // round up to get first page aligned address in the region
+        let f_start = (region.start + 0xFFF) & !0xFFF;
+
+        // go to the end or the next reserved region
+        while let Some(ref r) = region.next {
+            if r.usable {
+                region = r;
+                self.index += 1;
+            } else {
+                break;
+            }
+        }
+
+        // determine number of useable frame
+        let f_num = ((region.end - f_start + 1) / (1<<12)) & !0xFFF;
+
+        Some((f_start as *mut Frame, f_num))
     }
 }
