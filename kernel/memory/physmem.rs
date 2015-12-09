@@ -30,6 +30,15 @@ pub struct FrameInfoSection {
 }
 
 // Frame info
+// When free
+// 31                 20           0
+// [nnnnnnnnnnnnnnnnnnnn           1]
+//  ^-- next free index            ^-- free bit
+//
+// When allocated
+// 31                           30 0
+// [ssssssssssssssssssssssssssssss 0]
+//  ^-- ptr to shared frame info   ^-- free bit
 #[repr(C, packed)]
 pub struct FrameInfo {
     info: usize,
@@ -102,7 +111,7 @@ impl FrameInfo {
     // NOTE this should only be called on the first frame in the free list
     pub fn alloc(&mut self) {
         if self.get_index() != unsafe {FREE_FRAMES} {
-            panic!("Attempt to alloc middle frame {}", self.get_index());
+            panic!("Attempt to alloc middle free frame {}", self.get_index());
         }
 
         off();
@@ -141,16 +150,17 @@ impl FrameInfo {
     }
 
     fn set_free(&mut self, free: bool) {
-        // TODO
+        let base = self.info & !1;
+        self.info = base | if free { 1 } else { 0 }
     }
 
     fn get_next_free(&self) -> usize {
-        0
-            //TODO
+        self.info >> 12
     }
 
     fn set_next_free(&mut self, next: usize) {
-        // TODO
+        let base = self.info & 0xFFF;
+        self.info = (next << 12) | base;
     }
 }
 
