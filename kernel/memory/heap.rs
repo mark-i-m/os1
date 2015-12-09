@@ -27,7 +27,6 @@
 // usable size and block size are equal.
 
 use core::mem::{size_of};
-use core::isize;
 
 const DEBUG: bool = false;
 
@@ -63,7 +62,7 @@ impl Block {
         let size = self.get_size() - size_of::<usize>();
 
         // avoid overflows and weirdness
-        if size >= (isize::MAX as usize) {
+        if size >= END - START {
             panic!("Huge block at {:x}\n", ptr as usize);
         }
 
@@ -76,7 +75,7 @@ impl Block {
         let size = self.get_size() - size_of::<usize>();
 
         // avoid overflows and weirdness
-        if size >= (isize::MAX as usize) {
+        if size >= END - START {
             panic!("Huge block at {:x}\n", ptr as usize);
         }
 
@@ -113,7 +112,8 @@ impl Block {
 
         // make sure the block size is reasonable
         if head < BLOCK_ALIGN ||
-           head % BLOCK_ALIGN != 0{
+           head % BLOCK_ALIGN != 0 ||
+           head > END - START {
             return false;
         }
 
@@ -169,7 +169,7 @@ impl Block {
         let size = self.get_size();
 
         // avoid overflows and weirdness
-        if size >= (isize::MAX as usize) {
+        if size >= END - START {
             panic!("Huge block at {:x}\n", ptr as usize);
         }
 
@@ -189,7 +189,7 @@ impl Block {
         let prev_size = *prev_size_ptr;
 
         // check that the size is reasonable
-        if prev_size >= (isize::MAX as usize) ||
+        if prev_size >= END - START ||
            prev_size == 0 {
             return 0 as *mut Block;
         }
@@ -366,9 +366,6 @@ pub fn init(start: usize, size: usize) {
             panic!("No heap space");
         }
 
-        bootlog! ("heap start addr: {:x}, end addr: {:x}, {} bytes\n",
-                 START, END, END - START);
-
         // create first block and free list
         let first = START as *mut Block;
 
@@ -378,6 +375,9 @@ pub fn init(start: usize, size: usize) {
         (*first).set_prev(0 as *mut Block);
 
         free_list = first;
+
+        bootlog! ("heap inited - start addr: {:x}, end addr: {:x}, {} bytes\n",
+                 START, END, END - START);
     }
 }
 

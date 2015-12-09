@@ -145,8 +145,6 @@ impl RegionMap {
 
     // Returns the index of the next avail frame and number of available frames OR None if there aren't any more
     pub fn next_avail(&mut self) -> Option<(usize, usize)> {
-        self.list.dump();
-
         // find the current region
         let mut region = &self.list;
         for i in 0..self.index {
@@ -158,7 +156,7 @@ impl RegionMap {
             }
         }
 
-        // find the first useable region 
+        // find the first useable region
         while !region.usable {
             if let Some(ref r) = region.next {
                 region = r;

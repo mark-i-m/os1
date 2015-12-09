@@ -48,14 +48,9 @@ pub fn kernel_main() {
     memory::init();
 
     // init processes
-    process::init(); // this creates Process #0: init
-
+    process::init();
 
     // init interupts
-    /* NOTE
-      DO NOT USE interrupts::on()/off() BEFORE HERE
-      DO NOT USE printf!() BEFORE HERE; USE bootlog!()
-    */
     interrupts::init(1000 /* hz */);
 
     /////////////////////////////////////////////////////

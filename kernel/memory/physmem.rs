@@ -101,6 +101,10 @@ impl FrameInfo {
     // allocate the frame referred to by this FrameInfo
     // NOTE this should only be called on the first frame in the free list
     pub fn alloc(&mut self) {
+        if self.get_index() != unsafe {FREE_FRAMES} {
+            panic!("Attempt to alloc middle frame {}", self.get_index());
+        }
+
         off();
 
         // Remove from list
@@ -178,5 +182,5 @@ pub fn init(start: usize) {
     // Register page fault handler
     add_trap_handler(14, page_fault_handler, 0);
 
-    bootlog!("phys mem inited: {} frames\n", num_frames);
+    bootlog!("phys mem inited - {} frames\n", num_frames);
 }
