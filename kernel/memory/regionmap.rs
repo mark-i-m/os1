@@ -78,6 +78,7 @@ impl Region {
     fn find(addr: usize) -> Option<(usize, usize)> {
         let mut most = 0;
         let mut length = 0;
+        let mut region_start = 0;
         for i in 0..(memory_map_count as usize) {
             let start = memory_map[i].base_l as usize;
             let end = if memory_map[i].base_l == 0 {
@@ -90,6 +91,7 @@ impl Region {
             if start <= addr && addr <= end && region_type > most {
                 length = end - start;
                 most = region_type;
+                region_start = start;
                 if most > 1 { break; }
             }
         }
@@ -97,7 +99,7 @@ impl Region {
         if most == 0 { // not found
             None
         } else {
-            Some((length+1, most))
+            Some((length+1-(addr-region_start), most))
         }
     }
 
@@ -141,8 +143,10 @@ impl RegionMap {
         }
     }
 
-    // Returns a reference to the next avail frame or None if there aren't any more
-    pub fn next_avail(&mut self) -> Option<(*mut Frame, usize)> {
+    // Returns the index of the next avail frame and number of available frames OR None if there aren't any more
+    pub fn next_avail(&mut self) -> Option<(usize, usize)> {
+        self.list.dump();
+
         // find the current region
         let mut region = &self.list;
         for i in 0..self.index {
@@ -154,22 +158,31 @@ impl RegionMap {
             }
         }
 
+        // find the first useable region 
+        while !region.usable {
+            if let Some(ref r) = region.next {
+                region = r;
+                self.index += 1;
+            } else {
+                // No more useable regions
+                return None;
+            }
+        }
+
         // round up to get first page aligned address in the region
         let f_start = (region.start + 0xFFF) & !0xFFF;
 
         // go to the end or the next reserved region
         while let Some(ref r) = region.next {
+            self.index += 1;
+
             if r.usable {
                 region = r;
-                self.index += 1;
             } else {
                 break;
             }
         }
 
-        // determine number of useable frame
-        let f_num = ((region.end - f_start + 1) / (1<<12)) & !0xFFF;
-
-        Some((f_start as *mut Frame, f_num))
+        Some((f_start >> 12, (region.end - f_start + 1) >> 12))
     }
 }

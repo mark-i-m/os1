@@ -9,7 +9,9 @@ mod physmem;
 mod virtmem;
 mod regionmap;
 
-pub fn init(heap_start: usize, heap_size: usize) {
-    heap::init(heap_start, heap_size);
-    physmem::init(unsafe { self::heap::END });
+pub fn init() {
+    // make the kernel heap 3MiB starting at 1MiB.
+    // make memory data structures take up the next 4MiB.
+    heap::init(1<<20, 3<<20);
+    physmem::init(4<<20);
 }

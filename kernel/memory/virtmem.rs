@@ -1,21 +1,5 @@
 // Process address spaces
 
-// TODO:
-// - Map last page to the frame containing the PD
-// - Any address after 0xFFC00000 is an offset in a page table
-// - To map a page in another address space:
-//   TODO
-// - To map a page in this address space:
-//   TODO
-// - To map a page before paging is turned on:
-//   TODO
-// - To unmap a page in another address space:
-//   TODO
-// - To unmap a page in this address space:
-//   TODO
-// - To unmap a page before paging is turned on:
-//   TODO
-
 use core::ops::{Index, IndexMut};
 
 use core::intrinsics::transmute;
@@ -27,6 +11,8 @@ use super::super::machine::{invlpg, vmm_on};
 use super::super::interrupts::{on, off};
 
 use super::super::process::CURRENT_PROCESS;
+
+// TODO: memclr an alloced frame
 
 // The address space of a single process
 pub struct AddressSpace {
@@ -155,7 +141,8 @@ impl AddressSpace {
         if empty {
             pde.set_present(false);
             let pt_frame = unsafe { &mut *(pde.get_address() as *mut Frame) };
-            pt_frame.free();
+            //TODO
+            //pt_frame.free();
         }
 
         // invalidate TLB entry
@@ -195,7 +182,8 @@ impl Drop for AddressSpace {
                 }
 
                 // free the page table
-                pde.free(true);
+                //pde.free(true);
+                //TODO
             }
 
             pde_index += 1;
@@ -204,7 +192,8 @@ impl Drop for AddressSpace {
         off();
 
         // free the page directory
-        unsafe{ transmute::<&mut VMTable, &mut Frame>(self.page_dir).free(); }
+        // TODO
+        //unsafe{ transmute::<&mut VMTable, &mut Frame>(self.page_dir).free(); }
 
         on();
     }
@@ -272,7 +261,8 @@ impl PagingEntry {
             if dealloc {
                 // free the frame
                 let frame = unsafe { &mut *(self.get_address() as *mut Frame) };
-                frame.free();
+                //frame.free();
+                //TODO
             }
 
             // mark this entry not present
@@ -284,7 +274,7 @@ impl PagingEntry {
 
 impl VMTable {
     fn new() -> &'static mut VMTable {
-        unsafe { transmute(Frame::new()) }
+        unsafe { transmute(Frame::alloc()) }
     }
 }
 
@@ -316,5 +306,5 @@ pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: 
         }
     }
 
-    (*CURRENT_PROCESS).addr_space.map(Frame::new() as *mut Frame as usize, fault_addr);
+    (*CURRENT_PROCESS).addr_space.map(Frame::alloc() as *mut Frame as usize, fault_addr);
 }
