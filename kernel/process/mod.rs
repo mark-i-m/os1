@@ -16,7 +16,6 @@ use core::ops::Drop;
 use super::data_structures::ProcessQueue;
 
 use super::interrupts::{on, off};
-use super::interrupts::pit::JIFFIES;
 
 use super::machine::{self, context_switch};
 
@@ -220,8 +219,8 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     }
 
     // get next process from ready q
-    // every 50 jiffies, spawn a reaper process
-    let mut next = if JIFFIES % 50 == 0 {
+    // spawn a reaper when there are a few processes that have died
+    let mut next = if self::reaper::DEAD_COUNT >= 5 {
         Process::new("reaper", self::reaper::run)
     } else {
         ready_queue::get_next()
@@ -258,16 +257,12 @@ pub fn exit(code: usize) {
 
     unsafe {
         if !CURRENT_PROCESS.is_null() {
-            // check if the init process is exiting
-            if (*CURRENT_PROCESS).pid == 0 {
-                //panic!("{:?} is exiting!\n", *CURRENT_PROCESS);
-            } else {
-                (*CURRENT_PROCESS).set_state(State::TERMINATED);
-                printf!("{:?} [Exit 0x{:X}]\n",
-                        *CURRENT_PROCESS, code);
-            }
+            (*CURRENT_PROCESS).set_state(State::TERMINATED);
 
-            // reaper
+            // NOTE: need to print *before* adding to reaper q
+            printf!("{:?} [Exit 0x{:X}]\n",
+                    *CURRENT_PROCESS, code);
+
             self::reaper::reaper_add(CURRENT_PROCESS);
         } else {
             panic!("Exiting with no current process!\n");

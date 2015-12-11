@@ -1,6 +1,6 @@
 // Process address spaces
 
-use core::ops::{Index, IndexMut, Deref, DerefMut};
+use core::ops::{Index, IndexMut};
 
 use core::intrinsics::transmute;
 
@@ -64,11 +64,13 @@ impl AddressSpace {
 
         // if VM on
         // clean up after kmap
-        unsafe {
-            if !CURRENT_PROCESS.is_null() {
-                (*CURRENT_PROCESS).addr_space.unmap(pd as *mut VMTable as usize);
-            }
-        }
+        // TODO: kunmap? we cannot do the below because this will
+        // also free the mapped frame, which we don't want
+        //unsafe {
+        //    if !CURRENT_PROCESS.is_null() {
+        //        (*CURRENT_PROCESS).addr_space.unmap(pd as *mut VMTable as usize);
+        //    }
+        //}
 
         a
     }
@@ -78,6 +80,7 @@ impl AddressSpace {
     // because it assumes that the PD is at 0x802000
     fn map(&mut self, phys: usize, virt: usize) {
         off();
+        bootlog!("map {:x} -> {:x}\n", virt, phys);
 
         // invalidate TLB entry
         unsafe { invlpg(virt) };
@@ -85,7 +88,7 @@ impl AddressSpace {
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
-        let mut pd = unsafe {&mut *(self.page_dir as *mut VMTable)};
+        let mut pd = unsafe {&mut *(0x802000 as *mut VMTable)};
 
         // if pd entry is not already there
         let pde = &mut pd[pde_index];
@@ -101,7 +104,7 @@ impl AddressSpace {
         }
 
         // follow pde to get pt
-        let mut pt = *pde;
+        let mut pt = unsafe {&mut *(((2<<22) | (pde_index<<12)) as *mut VMTable)};
         let pte = &mut pt[pte_index];
 
         // if pt entry is not already there
@@ -132,10 +135,12 @@ impl AddressSpace {
         self.kmap_index += 1;
 
         // get associated address
-        let vaddr = 0xC000_0000 + (next as usize) * 0x1000;
+        let vaddr = 0xC00000 + (next as usize) * 0x1000;
 
         // map the frame
         self.map(paddr, vaddr);
+
+        printf!("kmap {:x} -> {:x}\n", vaddr, paddr);
 
         unsafe { &mut *(vaddr as *mut Frame) }
     }
@@ -150,16 +155,16 @@ impl AddressSpace {
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
-        let mut pd = unsafe {&mut *(self.page_dir as *mut VMTable)};
+        let mut pd = unsafe {&mut *(0x802000 as *mut VMTable)};
 
         let pde = &mut pd[pde_index];
-        let mut pt = *pde;
+        let mut pt = unsafe {&mut *(((2<<22) | (pde_index<<12)) as *mut VMTable)};
 
         // unmap and deallocate frame
         {
             let pte = &mut pt[pte_index];
             pte.set_present(false);
-            pte.free(virt >= 0xC000_0000);
+            pte.free(virt >= 0xD00000);
         }
 
         // if page table is now empty,
@@ -187,21 +192,21 @@ impl AddressSpace {
 impl Drop for AddressSpace {
     // cannot call unmap because this address space is not active
     fn drop(&mut self) {
-        let mut pd = unsafe {&mut *(self.page_dir as *mut VMTable)};
+        let mut pd = unsafe {&mut *(0x802000 as *mut VMTable)};
 
         // for each pde
-        for pde_index in 0..1024 {
+        for pde_index in 3..1024 {
             let pde = &mut pd[pde_index];
             // if the pde is present
             if pde.is_flag(0) { // present bit
                 // get the page table
-                let mut pt = *pde;
+                let mut pt = unsafe {&mut *(((2<<22) | (pde_index<<12)) as *mut VMTable)};
 
                 // attempt to free each pte
                 for pte_index in 0..1024 {
                     let pte = &mut pt[pte_index];
                     let virt = pde_index << 22 | pte_index << 12;
-                    pte.free(virt >= 0xC000_0000);
+                    pte.free(virt >= 0xD00000);
                 }
 
                 // free the page table
@@ -209,12 +214,8 @@ impl Drop for AddressSpace {
             }
         }
 
-        off();
-
         // free the page directory
         Frame::free(self.page_dir >> 12);
-
-        on();
     }
 }
 
@@ -288,20 +289,6 @@ impl PagingEntry {
     }
 }
 
-impl Deref for PagingEntry {
-    type Target = VMTable;
-
-    fn deref<'a>(&'a self) -> &'a VMTable {
-        unsafe { & *(self.get_address() as *const VMTable) }
-    }
-}
-
-impl DerefMut for PagingEntry {
-    fn deref_mut<'a>(&'a mut self) -> &'a mut VMTable {
-        unsafe { &mut *(self.get_address() as *mut VMTable) }
-    }
-}
-
 impl VMTable {
     // returns a reference to a new VMTable and its paddr
     fn new() -> (&'static mut VMTable, usize) {
@@ -356,7 +343,7 @@ pub fn init() {
         PDE0.set_address(Frame::alloc()); // alloc a new PT
 
         // map first 4MiB except page 0
-        let pt0 = &mut *PDE0;
+        let pt0 = &mut *(PDE0.get_address() as *mut VMTable);
         for i in 1..1024 {
             pt0[i] = PagingEntry::new();
             pt0[i].set_present(true); // present
@@ -374,7 +361,7 @@ pub fn init() {
         PDE1.set_address(Frame::alloc()); // alloc a new PT
 
         // map second 4MiB
-        let pt1 = &mut *PDE1;
+        let pt1 = &mut *(PDE1.get_address() as *mut VMTable);
         for i in 0..1024 {
             pt1[i] = PagingEntry::new();
             pt1[i].set_present(true); // present
@@ -395,16 +382,22 @@ pub fn init() {
 #[no_mangle]
 pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: usize) {
     // segfault! should be very rare with rust
-    if fault_addr < 0x1000 {
+    // first 13MiB are reserved by kernel
+    if fault_addr < 0xD00000 {
         // TODO: only kill that process
         panic!("{:?} [segmentation violation @ 0x{:X}]",
                *CURRENT_PROCESS, fault_addr);
     }
 
-    printf!("page fault {:X}\n", fault_addr);
+    //printf!("page fault {:X}\n", fault_addr);
 
-    (*CURRENT_PROCESS).addr_space.map(Frame::alloc(), fault_addr);
+    if !CURRENT_PROCESS.is_null() {
+        (*CURRENT_PROCESS).addr_space.map(Frame::alloc(), fault_addr);
+    } else {
+        panic!("Page fault with no current process");
+    }
 
     // TODO: memclr an alloced frame?
 
+    printf!("page fault done {:X}\n", fault_addr);
 }
