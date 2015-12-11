@@ -164,7 +164,7 @@ pub fn init() {
     // Create the idle process
     idle::init();
 
-    printf!("Processes inited\n");
+    printf!("processes inited\n");
 }
 
 // The entry point of all processes
