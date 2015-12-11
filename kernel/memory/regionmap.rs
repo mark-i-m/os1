@@ -1,5 +1,7 @@
 // Module for detecting available physical memory
 
+use core::iter::Iterator;
+
 use alloc::boxed::Box;
 
 use super::physmem::Frame;
@@ -142,12 +144,16 @@ impl RegionMap {
             index: 0,
         }
     }
+}
+
+impl Iterator for RegionMap {
+    type Item = (usize, usize);
 
     // Returns the index of the next avail frame and number of available frames OR None if there aren't any more
-    pub fn next_avail(&mut self) -> Option<(usize, usize)> {
+    fn next(&mut self) -> Option<(usize, usize)> {
         // find the current region
         let mut region = &self.list;
-        for i in 0..self.index {
+        for _ in 0..self.index {
             region = if let Some(ref r) = region.next {
                 r
             } else {

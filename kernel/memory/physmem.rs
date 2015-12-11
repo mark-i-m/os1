@@ -129,6 +129,8 @@ impl FrameInfo {
 
     // free the frame referred to by this FrameInfo
     pub fn free(&mut self) {
+        // TODO: handle case of shared pages
+
         // mark free
         self.set_free(true);
 
@@ -178,11 +180,11 @@ pub fn init(start: usize) {
     let all_frames = unsafe {&mut *FRAME_INFO};
 
     // Detect available memory
-    let mut mem = RegionMap::new((8<<20) as *mut Frame);
+    let mem = RegionMap::new((8<<20) as *mut Frame);
     let mut num_frames = 0;
 
     // add all available frames to free list
-    while let Some((base, num)) = mem.next_avail() {
+    for (base, num) in mem {
         for i in base..(base+num) {
             all_frames[i].free();
         }

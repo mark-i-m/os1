@@ -14,4 +14,5 @@ pub fn init() {
     // make memory data structures take up the next 4MiB.
     heap::init(1<<20, 3<<20);
     physmem::init(4<<20);
+    virtmem::init();
 }

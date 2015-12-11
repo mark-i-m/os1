@@ -1,6 +1,6 @@
 // Process address spaces
 
-use core::ops::{Index, IndexMut};
+use core::ops::{Index, IndexMut, Deref, DerefMut};
 
 use core::intrinsics::transmute;
 
@@ -12,16 +12,23 @@ use super::super::interrupts::{on, off};
 
 use super::super::process::CURRENT_PROCESS;
 
-// TODO: memclr an alloced frame
+// shared PDEs direct mapping the first 8MiB
+static mut PDE0: PagingEntry = PagingEntry {entry: 0};
+static mut PDE1: PagingEntry = PagingEntry {entry: 0};
 
 // The address space of a single process
 pub struct AddressSpace {
-    page_dir: &'static mut VMTable,
+    // paddr of this addr space's PD
+    page_dir: usize,
+
+    // the index of the first un-kmapped page
+    kmap_index: u8,
 }
 
 // A single entry in a page directory or table
 // 31                 12  9       0
 // [                    000 flags  ]
+#[derive(Copy, Clone)]
 #[repr(C,packed)]
 struct PagingEntry {
     entry: usize,
@@ -35,33 +42,40 @@ struct VMTable {
 impl AddressSpace {
     pub fn new() -> AddressSpace {
         // allocate a frame
-        let pd = VMTable::new();
+        let (pd, pd_paddr) = VMTable::new();
 
-        // clear the table
-        let mut i = 0;
-        while i < 1024 {
-            pd[i] = PagingEntry::new();
-            i += 1;
+        // copy the first two entries of the pd to direct map
+        // the first 8MiB
+        pd[0] = unsafe {PDE0};
+        pd[1] = unsafe {PDE1};
+
+        // point the third PDE at the PD to map all page tables
+        // so PD is at vaddr 0x802000
+        pd[2].set_present(true); // present
+        pd[2].set_read_write(true); // read/write
+        pd[2].set_privelege_level(false); // kernel only
+        pd[2].set_caching(false); // write-back
+        pd[2].set_address(pd_paddr); // PD paddr
+
+        let a = AddressSpace {
+            page_dir: pd_paddr,
+            kmap_index: 0,
+        };
+
+        // if VM on
+        // clean up after kmap
+        unsafe {
+            if !CURRENT_PROCESS.is_null() {
+                (*CURRENT_PROCESS).addr_space.unmap(pd as *mut VMTable as usize);
+            }
         }
 
-        let mut addr_space = AddressSpace { page_dir: pd };
-
-        // Direct map the beginning of memory
-        //
-        // TODO
-
-        // Omit page 0, so we can detect segfaults.
-        // segfaults should be very rare with rust,
-        // but better safe than sorry...
-        //i = 1<<12;
-        //while i < unsafe { super::physmem::PHYS_MEM_END as usize } {
-        //    addr_space.map(i, i);
-        //    i += 1<<12;
-        //}
-
-        addr_space
+        a
     }
 
+    // map the va to the pa in the address space
+    // NOTE: should only be called on the current address space
+    // because it assumes that the PD is at 0x802000
     fn map(&mut self, phys: usize, virt: usize) {
         off();
 
@@ -71,24 +85,23 @@ impl AddressSpace {
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
-        // if pd entry is not already there
-        let pde = &mut self.page_dir[pde_index];
-        if !pde.is_flag(0) { // present bit
-            // no pd entry yet -> create one
+        let mut pd = unsafe {&mut *(self.page_dir as *mut VMTable)};
 
-            // get a new page table
-            let new_pt = VMTable::new();
+        // if pd entry is not already there
+        let pde = &mut pd[pde_index];
+        if !pde.is_flag(0) { // present bit
+            // no pd entry yet => create one
 
             // set pde
             pde.set_present(true); // present
             pde.set_read_write(true); // read/write
             pde.set_privelege_level(false); // kernel only
             pde.set_caching(false); // write-back
-            pde.set_address(new_pt as *mut VMTable as usize); // point to pt
+            pde.set_address(Frame::alloc()); // alloc a new frame
         }
 
         // follow pde to get pt
-        let pt = unsafe { &mut *(pde.get_address() as *mut VMTable) };
+        let mut pt = *pde;
         let pte = &mut pt[pte_index];
 
         // if pt entry is not already there
@@ -106,43 +119,54 @@ impl AddressSpace {
         on();
     }
 
+    // map the given paddr for temporary use by the kernel and return a mut reference to the frame
+    // kmap can only be called 256 times between calls to activate()
+    // NOTE: the mappings are undefined after activate() is called, so it is the caller's
+    // responsibility to unmap if needed to free resources
+    // NOTE: should only be called on the current address space
+    // because it assumes that the PD is at 0x802000
+    // unless if VM is off
+    fn kmap(&mut self, paddr: usize) -> &mut Frame {
+        // get next unmapped address
+        let next = self.kmap_index;
+        self.kmap_index += 1;
+
+        // get associated address
+        let vaddr = 0xC000_0000 + (next as usize) * 0x1000;
+
+        // map the frame
+        self.map(paddr, vaddr);
+
+        unsafe { &mut *(vaddr as *mut Frame) }
+    }
+
+    // remove any mapping for this virtual address
+    // NOTE: should only be called on the current address space
+    // because it assumes that the PD is at 0x802000
     fn unmap(&mut self, virt: usize) {
+        // TODO: completely clear entries unless paging out
         off();
 
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
-        let pde = &mut self.page_dir[pde_index];
-        let pt = unsafe { &mut *(pde.get_address() as *mut VMTable) };
+        let mut pd = unsafe {&mut *(self.page_dir as *mut VMTable)};
 
+        let pde = &mut pd[pde_index];
+        let mut pt = *pde;
+
+        // unmap and deallocate frame
         {
             let pte = &mut pt[pte_index];
-            let frame = unsafe { &mut *(pte.get_address() as *mut Frame) };
-
-            // unmap and deallocate frame
             pte.set_present(false);
-            // TODO
-            //if virt >= unsafe { super::physmem::PHYS_MEM_END as usize } {
-            //    frame.free();
-            //}
+            pte.free(virt >= 0xC000_0000);
         }
 
         // if page table is now empty,
         // unmap and deallocate it
-        let mut i = 0;
-        let mut empty = true;
-        while i < 1024 {
-            if pt[i].is_flag(0) {
-                empty = false;
-            }
-            i += 1;
-        }
-
-        if empty {
+        if (0..1024).all(|i| !pt[i].is_flag(0)) {
             pde.set_present(false);
-            let pt_frame = unsafe { &mut *(pde.get_address() as *mut Frame) };
-            //TODO
-            //pt_frame.free();
+            pde.free(true);
         }
 
         // invalidate TLB entry
@@ -151,49 +175,44 @@ impl AddressSpace {
         on();
     }
 
-    pub fn activate(&self) {
+    pub fn activate(&mut self) {
         off();
-        unsafe { vmm_on(self.page_dir as *const VMTable as usize) }
+        unsafe { vmm_on(self.page_dir) }
         on();
+
+        self.kmap_index = 0;
     }
 }
 
 impl Drop for AddressSpace {
+    // cannot call unmap because this address space is not active
     fn drop(&mut self) {
+        let mut pd = unsafe {&mut *(self.page_dir as *mut VMTable)};
+
         // for each pde
-        let mut pde_index = 0;
-        while pde_index < 1024 {
-            let pde = &mut self.page_dir[pde_index];
+        for pde_index in 0..1024 {
+            let pde = &mut pd[pde_index];
             // if the pde is present
             if pde.is_flag(0) { // present bit
                 // get the page table
-                let pt = unsafe { &mut *(pde.get_address() as *mut VMTable) };
+                let mut pt = *pde;
 
                 // attempt to free each pte
-                let mut pte_index = 0;
-                while pte_index < 1024 {
+                for pte_index in 0..1024 {
                     let pte = &mut pt[pte_index];
                     let virt = pde_index << 22 | pte_index << 12;
-
-                    // TODO
-
-                    //pte.free(virt >= unsafe { super::physmem::PHYS_MEM_END as usize });
-                    pte_index += 1;
+                    pte.free(virt >= 0xC000_0000);
                 }
 
                 // free the page table
-                //pde.free(true);
-                //TODO
+                pde.free(true);
             }
-
-            pde_index += 1;
         }
 
         off();
 
         // free the page directory
-        // TODO
-        //unsafe{ transmute::<&mut VMTable, &mut Frame>(self.page_dir).free(); }
+        Frame::free(self.page_dir >> 12);
 
         on();
     }
@@ -259,10 +278,7 @@ impl PagingEntry {
         off();
         if self.is_flag(0) {
             if dealloc {
-                // free the frame
-                let frame = unsafe { &mut *(self.get_address() as *mut Frame) };
-                //frame.free();
-                //TODO
+                Frame::free(self.get_address() >> 12);
             }
 
             // mark this entry not present
@@ -272,9 +288,44 @@ impl PagingEntry {
     }
 }
 
+impl Deref for PagingEntry {
+    type Target = VMTable;
+
+    fn deref<'a>(&'a self) -> &'a VMTable {
+        unsafe { & *(self.get_address() as *const VMTable) }
+    }
+}
+
+impl DerefMut for PagingEntry {
+    fn deref_mut<'a>(&'a mut self) -> &'a mut VMTable {
+        unsafe { &mut *(self.get_address() as *mut VMTable) }
+    }
+}
+
 impl VMTable {
-    fn new() -> &'static mut VMTable {
-        unsafe { transmute(Frame::alloc()) }
+    // returns a reference to a new VMTable and its paddr
+    fn new() -> (&'static mut VMTable, usize) {
+        // allocate a frame
+        let paddr = Frame::alloc();
+
+        let mut table: &mut VMTable = unsafe {
+            // if VM is on, kmap this frame
+            // otherwise use the paddr
+            let frame = if !CURRENT_PROCESS.is_null() {
+                (*CURRENT_PROCESS).addr_space.kmap(paddr)
+            } else {
+                &mut *(paddr as *mut Frame)
+            };
+
+            transmute(frame)
+        };
+
+        // clear the frame
+        for i in 0..1024 {
+            table[i] = PagingEntry::new();
+        }
+
+        (table, paddr)
     }
 }
 
@@ -294,17 +345,22 @@ impl IndexMut<usize> for VMTable {
     }
 }
 
+pub fn init() {
+    // TODO: init PDE0 and PDE1
+}
+
 // handle for vmm for asm
 #[no_mangle]
 pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: usize) {
     // segfault! should be very rare with rust
     if fault_addr < 0x1000 {
         // TODO: only kill that process
-        unsafe {
-            panic!("{:?} [segmentation violation @ 0x{:X}]",
-                   *CURRENT_PROCESS, fault_addr);
-        }
+        panic!("{:?} [segmentation violation @ 0x{:X}]",
+               *CURRENT_PROCESS, fault_addr);
     }
 
     (*CURRENT_PROCESS).addr_space.map(Frame::alloc() as *mut Frame as usize, fault_addr);
+
+    // TODO: memclr an alloced frame?
+
 }
