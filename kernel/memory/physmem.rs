@@ -2,9 +2,7 @@
 
 use core::ops::{Index, IndexMut};
 
-use super::super::interrupts::{add_trap_handler, on, off};
-
-use super::super::machine::page_fault_handler;
+use super::super::interrupts::{on, off};
 
 use super::regionmap::RegionMap;
 
@@ -190,9 +188,6 @@ pub fn init(start: usize) {
         }
         num_frames += num;
     }
-
-    // Register page fault handler
-    add_trap_handler(14, page_fault_handler, 0);
 
     bootlog!("phys mem inited - {} frames\n", num_frames);
 }

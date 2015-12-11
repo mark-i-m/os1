@@ -6,15 +6,15 @@ use core::intrinsics::transmute;
 
 use super::physmem::Frame;
 
-use super::super::machine::{invlpg, vmm_on};
+use super::super::machine::{invlpg, vmm_on, page_fault_handler};
 
-use super::super::interrupts::{on, off};
+use super::super::interrupts::{add_trap_handler, on, off};
 
 use super::super::process::CURRENT_PROCESS;
 
 // shared PDEs direct mapping the first 8MiB
-static mut PDE0: PagingEntry = PagingEntry {entry: 0};
-static mut PDE1: PagingEntry = PagingEntry {entry: 0};
+static mut PDE0: PagingEntry = PagingEntry::new();
+static mut PDE1: PagingEntry = PagingEntry::new();
 
 // The address space of a single process
 pub struct AddressSpace {
@@ -220,7 +220,7 @@ impl Drop for AddressSpace {
 
 impl PagingEntry {
     // get a blank entry
-    fn new() -> PagingEntry {
+    const fn new() -> PagingEntry {
         PagingEntry {
             entry: 0,
         }
@@ -346,7 +346,49 @@ impl IndexMut<usize> for VMTable {
 }
 
 pub fn init() {
-    // TODO: init PDE0 and PDE1
+    // create the first two PDEs
+    unsafe {
+        // PDE0
+        PDE0.set_present(true); // present
+        PDE0.set_read_write(true); // read/write
+        PDE0.set_privelege_level(false); // kernel only
+        PDE0.set_caching(false); // write-back
+        PDE0.set_address(Frame::alloc()); // alloc a new PT
+
+        // map first 4MiB except page 0
+        let pt0 = &mut *PDE0;
+        for i in 1..1024 {
+            pt0[i] = PagingEntry::new();
+            pt0[i].set_present(true); // present
+            pt0[i].set_read_write(true); // read/write
+            pt0[i].set_privelege_level(false); // kernel only
+            pt0[i].set_caching(false); // write-back
+            pt0[i].set_address(i << 12); // PD paddr
+        }
+
+        // PDE1
+        PDE1.set_present(true); // present
+        PDE1.set_read_write(true); // read/write
+        PDE1.set_privelege_level(false); // kernel only
+        PDE1.set_caching(false); // write-back
+        PDE1.set_address(Frame::alloc()); // alloc a new PT
+
+        // map second 4MiB
+        let pt1 = &mut *PDE1;
+        for i in 0..1024 {
+            pt1[i] = PagingEntry::new();
+            pt1[i].set_present(true); // present
+            pt1[i].set_read_write(true); // read/write
+            pt1[i].set_privelege_level(false); // kernel only
+            pt1[i].set_caching(false); // write-back
+            pt1[i].set_address((i+1024) << 12); // PD paddr
+        }
+    }
+
+    // Register page fault handler
+    add_trap_handler(14, page_fault_handler, 0);
+
+    bootlog!("virt mem inited\n");
 }
 
 // handle for vmm for asm
@@ -359,7 +401,9 @@ pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: 
                *CURRENT_PROCESS, fault_addr);
     }
 
-    (*CURRENT_PROCESS).addr_space.map(Frame::alloc() as *mut Frame as usize, fault_addr);
+    printf!("page fault {:X}\n", fault_addr);
+
+    (*CURRENT_PROCESS).addr_space.map(Frame::alloc(), fault_addr);
 
     // TODO: memclr an alloced frame?
 
