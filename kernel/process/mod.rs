@@ -222,7 +222,7 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     // get next process from ready q
     // spawn a reaper when there are a few processes that have died
     let mut next = if self::reaper::DEAD_COUNT >= 5 &&
-        JIFFIES % 75 == 0 && 1 == 3 {
+        JIFFIES % 75 == 0 && 1 == 3 { // TODO: allow reaper
         Process::new("reaper", self::reaper::run)
     } else {
         ready_queue::get_next()
