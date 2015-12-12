@@ -30,8 +30,7 @@ pub fn run(this: &Process) -> usize {
     msg.put_str("<-- If semaphores work correctly, then only this block \
                 should be red when all loop_procs finish running");
 
-    let mut i = 0;
-    while i < 206*3 {
+    for _ in 0..206*3 {
         ready_queue::make_ready(Process::new("loop_proc", super::user::run2));
         unsafe { s1.down(); }
 
@@ -40,8 +39,6 @@ pub fn run(this: &Process) -> usize {
             panic!("Oh no! *0xf00000 should be {} but is {}",
                    this.pid, unsafe { *(0xf00000 as *mut usize) });
         }
-
-        i += 1;
     }
 
     0

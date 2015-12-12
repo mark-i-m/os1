@@ -69,9 +69,7 @@ impl Frame {
         let all_frames = unsafe {&mut *FRAME_INFO};
 
         off();
-
         all_frames[index].free();
-
         on();
     }
 }

@@ -16,6 +16,9 @@ use super::super::process::CURRENT_PROCESS;
 static mut PDE0: PagingEntry = PagingEntry::new();
 static mut PDE1: PagingEntry = PagingEntry::new();
 
+// is VM on
+static mut VMM_ON: bool = false;
+
 // The address space of a single process
 pub struct AddressSpace {
     // paddr of this addr space's PD
@@ -67,7 +70,7 @@ impl AddressSpace {
         // TODO: kunmap? we cannot do the below because this will
         // also free the mapped frame, which we don't want
         //unsafe {
-        //    if !CURRENT_PROCESS.is_null() {
+        //    if !CURRENT_PROCESS.is_null() && VMM_ON {
         //        (*CURRENT_PROCESS).addr_space.unmap(pd as *mut VMTable as usize);
         //    }
         //}
@@ -80,7 +83,6 @@ impl AddressSpace {
     // because it assumes that the PD is at 0x802000
     fn map(&mut self, phys: usize, virt: usize) {
         off();
-        bootlog!("map {:x} -> {:x}\n", virt, phys);
 
         // invalidate TLB entry
         unsafe { invlpg(virt) };
@@ -123,24 +125,29 @@ impl AddressSpace {
     }
 
     // map the given paddr for temporary use by the kernel and return a mut reference to the frame
-    // kmap can only be called 256 times between calls to activate()
-    // NOTE: the mappings are undefined after activate() is called, so it is the caller's
-    // responsibility to unmap if needed to free resources
     // NOTE: should only be called on the current address space
+    // NOTE: noone should use more than 256 kmappings at a time
     // because it assumes that the PD is at 0x802000
-    // unless if VM is off
     fn kmap(&mut self, paddr: usize) -> &mut Frame {
         // get next unmapped address
         let next = self.kmap_index;
-        self.kmap_index += 1;
+
+        // increment
+        if next == 255 {
+            // unmap all if we have run out
+            for i in 0..256 {
+                self.unmap(0xC00000 + i * 0x1000);
+            }
+            self.kmap_index = 0;
+        } else {
+            self.kmap_index += 1;
+        }
 
         // get associated address
         let vaddr = 0xC00000 + (next as usize) * 0x1000;
 
         // map the frame
         self.map(paddr, vaddr);
-
-        printf!("kmap {:x} -> {:x}\n", vaddr, paddr);
 
         unsafe { &mut *(vaddr as *mut Frame) }
     }
@@ -149,29 +156,26 @@ impl AddressSpace {
     // NOTE: should only be called on the current address space
     // because it assumes that the PD is at 0x802000
     fn unmap(&mut self, virt: usize) {
-        // TODO: completely clear entries unless paging out
+        // TODO: completely clear entries (not just P bit) unless paging out
+
         off();
 
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
-        let mut pd = unsafe {&mut *(0x802000 as *mut VMTable)};
+        let pd = unsafe {&mut *(0x802000 as *mut VMTable)};
 
-        let pde = &mut pd[pde_index];
-        let mut pt = unsafe {&mut *(((2<<22) | (pde_index<<12)) as *mut VMTable)};
+        if pd[pde_index].is_flag(0) { // present bit
+            let mut pt = unsafe {&mut *(((2<<22) | (pde_index<<12)) as *mut VMTable)};
 
-        // unmap and deallocate frame
-        {
-            let pte = &mut pt[pte_index];
-            pte.set_present(false);
-            pte.free(virt >= 0xD00000);
-        }
+            // unmap and deallocate frame
+            pt[pte_index].free(virt >= 0xD00000);
 
-        // if page table is now empty,
-        // unmap and deallocate it
-        if (0..1024).all(|i| !pt[i].is_flag(0)) {
-            pde.set_present(false);
-            pde.free(true);
+            // if page table is now empty,
+            // unmap and deallocate it
+            if (0..1024).all(|i| !pt[i].is_flag(0)) {
+                pd[pde_index].free(virt >= 0xC00000);
+            }
         }
 
         // invalidate TLB entry
@@ -182,38 +186,33 @@ impl AddressSpace {
 
     pub fn activate(&mut self) {
         off();
-        unsafe { vmm_on(self.page_dir) }
+        unsafe {
+            vmm_on(self.page_dir);
+            VMM_ON = true;
+        }
         on();
+    }
 
-        self.kmap_index = 0;
+    // remove all non-kernel mappings
+    // NOTE: must run while this address space is active
+    pub fn clear(&mut self) {
+        let pd = unsafe {&mut *(0x802000 as *mut VMTable)};
+
+        // for each present PDE, remove all
+        // mappings associated with it
+        for pde_index in 3..1024 {
+            if pd[pde_index].is_flag(0) { // present bit
+                for pte_index in 0..1024 {
+                    self.unmap((pde_index << 22) | (pte_index << 12));
+                }
+            }
+        }
     }
 }
 
 impl Drop for AddressSpace {
-    // cannot call unmap because this address space is not active
+    // NOTE: cannot run while the address space is active
     fn drop(&mut self) {
-        let mut pd = unsafe {&mut *(0x802000 as *mut VMTable)};
-
-        // for each pde
-        for pde_index in 3..1024 {
-            let pde = &mut pd[pde_index];
-            // if the pde is present
-            if pde.is_flag(0) { // present bit
-                // get the page table
-                let mut pt = unsafe {&mut *(((2<<22) | (pde_index<<12)) as *mut VMTable)};
-
-                // attempt to free each pte
-                for pte_index in 0..1024 {
-                    let pte = &mut pt[pte_index];
-                    let virt = pde_index << 22 | pte_index << 12;
-                    pte.free(virt >= 0xD00000);
-                }
-
-                // free the page table
-                pde.free(true);
-            }
-        }
-
         // free the page directory
         Frame::free(self.page_dir >> 12);
     }
@@ -298,7 +297,7 @@ impl VMTable {
         let mut table: &mut VMTable = unsafe {
             // if VM is on, kmap this frame
             // otherwise use the paddr
-            let frame = if !CURRENT_PROCESS.is_null() {
+            let frame = if !CURRENT_PROCESS.is_null() && VMM_ON {
                 (*CURRENT_PROCESS).addr_space.kmap(paddr)
             } else {
                 &mut *(paddr as *mut Frame)
@@ -389,9 +388,9 @@ pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: 
                *CURRENT_PROCESS, fault_addr);
     }
 
-    //printf!("page fault {:X}\n", fault_addr);
+    printf!("page fault {:X}\n", fault_addr);
 
-    if !CURRENT_PROCESS.is_null() {
+    if !CURRENT_PROCESS.is_null() && VMM_ON {
         (*CURRENT_PROCESS).addr_space.map(Frame::alloc(), fault_addr);
     } else {
         panic!("Page fault with no current process");

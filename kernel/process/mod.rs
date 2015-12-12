@@ -16,6 +16,7 @@ use core::ops::Drop;
 use super::data_structures::ProcessQueue;
 
 use super::interrupts::{on, off};
+use super::interrupts::pit::JIFFIES;
 
 use super::machine::{self, context_switch};
 
@@ -220,7 +221,8 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
 
     // get next process from ready q
     // spawn a reaper when there are a few processes that have died
-    let mut next = if self::reaper::DEAD_COUNT >= 5 {
+    let mut next = if self::reaper::DEAD_COUNT >= 5 &&
+        JIFFIES % 75 == 0 && 1 == 3 {
         Process::new("reaper", self::reaper::run)
     } else {
         ready_queue::get_next()
@@ -231,13 +233,13 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
         next = IDLE_PROCESS;
     }
 
-    //bootlog!("{:?} [Switching]\n", *CURRENT_PROCESS);
-
     // switch address spaces
     (*next).addr_space.activate();
 
     // set the CURRENT_PROCESS
     CURRENT_PROCESS = next;
+
+    //bootlog!("{:?} [Switching]\n", *CURRENT_PROCESS);
 
     // context switch
     context_switch((*CURRENT_PROCESS).kcontext,
@@ -252,21 +254,24 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
 
 // Called by the current process to exit
 pub fn exit(code: usize) {
-    // Disable interrupts
-    off();
-
     unsafe {
-        if !CURRENT_PROCESS.is_null() {
-            (*CURRENT_PROCESS).set_state(State::TERMINATED);
-
-            // NOTE: need to print *before* adding to reaper q
-            printf!("{:?} [Exit 0x{:X}]\n",
-                    *CURRENT_PROCESS, code);
-
-            self::reaper::reaper_add(CURRENT_PROCESS);
-        } else {
+        if CURRENT_PROCESS.is_null() {
             panic!("Exiting with no current process!\n");
         }
+
+        (*CURRENT_PROCESS).set_state(State::TERMINATED);
+
+        // clean up address space
+        (*CURRENT_PROCESS).addr_space.clear();
+
+        // NOTE: need to print *before* adding to reaper q
+        printf!("{:?} [Exit 0x{:X}]\n",
+                *CURRENT_PROCESS, code);
+
+        // Disable interrupts
+        off();
+
+        self::reaper::reaper_add(CURRENT_PROCESS);
 
         // set current to None, so we will never run this again
         CURRENT_PROCESS = 0 as *mut Process;
