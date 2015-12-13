@@ -5,6 +5,8 @@ Implementation of a simple OS in Rust
 
 I had originally intended not to have any library code in my kernel at all, but this is not possible with Rust yet. As a result I am linking in `libcore` and `liballoc` which contain the heart of Rust functionality. Special thanks to Krzysztof for helping me get that set up!
 
+Website [here](https://mark-i-m.github.com/os1)
+
 ###Features so far
 * Heap allocation
 * Preemptive multitasking
