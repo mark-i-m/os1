@@ -29,12 +29,6 @@ pub use self::process::_proc_yield;
 pub use self::interrupts::pic::pic_irq;
 pub use self::memory::vmm_page_fault;
 
-// kernel constans
-const KHEAP_START: usize = (1 << 20); // 1M
-const KHEAP_END: usize = (1 << 22); // 4M
-const PHYS_MEM_START: usize = (1 << 22); // 4M
-const PHYS_MEM_END: usize = (1 << 23); // 8M
-
 // This is the entry point to the kernel. It is the first rust code that runs.
 #[no_mangle]
 pub fn kernel_main() {
@@ -51,18 +45,12 @@ pub fn kernel_main() {
     // TODO: tss
 
     // init heap and vm
-    memory::init(KHEAP_START, KHEAP_END,
-                 PHYS_MEM_START, PHYS_MEM_END);
+    memory::init();
 
     // init processes
-    process::init(); // this creates Process #0: init
-
+    process::init();
 
     // init interupts
-    /* NOTE
-      DO NOT USE interrupts::on()/off() BEFORE HERE
-      DO NOT USE printf!() BEFORE HERE; USE bootlog!()
-    */
     interrupts::init(1000 /* hz */);
 
     /////////////////////////////////////////////////////

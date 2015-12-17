@@ -18,7 +18,7 @@ pub fn run(this: &Process) -> usize {
     let mut w0 = Window::new(COLS, ROWS, (0, 0));
     let mut msg = Window::new(43, 4, (1,1));
 
-    unsafe { *(0xc00000 as *mut usize) = this.pid; }
+    unsafe { *(0xf00000 as *mut usize) = this.pid; }
 
     w0.set_bg_color(Color::LightBlue);
     w0.paint();
@@ -30,18 +30,15 @@ pub fn run(this: &Process) -> usize {
     msg.put_str("<-- If semaphores work correctly, then only this block \
                 should be red when all loop_procs finish running");
 
-    let mut i = 0;
-    while i < 206*3 {
+    for _ in 0..206*3 {
         ready_queue::make_ready(Process::new("loop_proc", super::user::run2));
         unsafe { s1.down(); }
 
         // test vm
-        if unsafe { *(0xc00000 as *mut usize) } != this.pid {
-            panic!("Oh no! *0xc00000 should be {} but is {}",
-                   this.pid, unsafe { *(0xc00000 as *mut usize) });
+        if unsafe { *(0xf00000 as *mut usize) } != this.pid {
+            panic!("Oh no! *0xf00000 should be {} but is {}",
+                   this.pid, unsafe { *(0xf00000 as *mut usize) });
         }
-
-        i += 1;
     }
 
     0
@@ -74,7 +71,13 @@ fn get_next((r,c): (usize, usize)) -> (usize, usize) {
 #[allow(unused_variables)]
 fn run2(this: &Process) -> usize {
 
-    unsafe { *(0xc00000 as *mut usize) = this.pid; }
+    unsafe { *(0xf00000 as *mut usize) = this.pid; }
+
+    // test vm
+    if unsafe { *(0xf00000 as *mut usize) } != this.pid {
+        panic!("Oh no! *0xf00000 should be {} but is {}",
+               this.pid, unsafe { *(0xf00000 as *mut usize) });
+    }
 
     unsafe { s2.down(); }
 
@@ -100,9 +103,9 @@ fn run2(this: &Process) -> usize {
     unsafe { s2.up(); }
 
     // test vm
-    if unsafe { *(0xc00000 as *mut usize) } != this.pid {
-        panic!("Oh no! *0xc00000 should be {} but is {}",
-               this.pid, unsafe { *(0xc00000 as *mut usize) });
+    if unsafe { *(0xf00000 as *mut usize) } != this.pid {
+        panic!("Oh no! *0xf00000 should be {} but is {}",
+               this.pid, unsafe { *(0xf00000 as *mut usize) });
     }
 
     unsafe { s1.up(); }

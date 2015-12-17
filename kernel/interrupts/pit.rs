@@ -17,7 +17,7 @@ pub fn init(pit_hz: usize) {
 
      unsafe {
          hz = FREQ / d;
-         printf!("PIT inited: requested {} hz, actual {} hz\n", pit_hz, hz);
+         bootlog!("pit inited - requested {} hz, actual {} hz\n", pit_hz, hz);
          pit_do_init(d);
      }
 }

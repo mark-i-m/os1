@@ -16,7 +16,6 @@ use core::ops::Drop;
 use super::data_structures::ProcessQueue;
 
 use super::interrupts::{on, off};
-use super::interrupts::pit::JIFFIES;
 
 use super::machine::{self, context_switch};
 
@@ -164,7 +163,10 @@ pub fn init() {
     // Create the idle process
     idle::init();
 
-    printf!("Processes inited\n");
+    // Create the reaper process
+    reaper::init();
+
+    printf!("processes inited\n");
 }
 
 // The entry point of all processes
@@ -203,7 +205,7 @@ pub fn proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
 //
 // To yield normally, call process::proc_yield()
 //
-// Interrupts should already be disabled here
+// NOTE: Interrupts should already be disabled here
 #[no_mangle]
 #[inline(never)]
 pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
@@ -220,25 +222,20 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     }
 
     // get next process from ready q
-    // every 50 jiffies, spawn a reaper process
-    let mut next = if JIFFIES % 50 == 0 {
-        Process::new("reaper", self::reaper::run)
-    } else {
-        ready_queue::get_next()
-    };
+    let mut next = ready_queue::get_next();
 
     // run the idle process when everyone is done
     if next.is_null() {
         next = IDLE_PROCESS;
     }
 
-    //bootlog!("{:?} [Switching]\n", *CURRENT_PROCESS);
-
     // switch address spaces
     (*next).addr_space.activate();
 
     // set the CURRENT_PROCESS
     CURRENT_PROCESS = next;
+
+    //bootlog!("{:?} [Switching]\n", *CURRENT_PROCESS);
 
     // context switch
     context_switch((*CURRENT_PROCESS).kcontext,
@@ -253,25 +250,23 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
 
 // Called by the current process to exit
 pub fn exit(code: usize) {
-    // Disable interrupts
-    off();
-
     unsafe {
-        if !CURRENT_PROCESS.is_null() {
-            // check if the init process is exiting
-            if (*CURRENT_PROCESS).pid == 0 {
-                //panic!("{:?} is exiting!\n", *CURRENT_PROCESS);
-            } else {
-                (*CURRENT_PROCESS).set_state(State::TERMINATED);
-                printf!("{:?} [Exit 0x{:X}]\n",
-                        *CURRENT_PROCESS, code);
-            }
-
-            // reaper
-            self::reaper::reaper_add(CURRENT_PROCESS);
-        } else {
+        if CURRENT_PROCESS.is_null() {
             panic!("Exiting with no current process!\n");
         }
+
+        (*CURRENT_PROCESS).set_state(State::TERMINATED);
+
+        // clean up address space
+        (*CURRENT_PROCESS).addr_space.clear();
+
+        // Disable interrupts
+        off();
+
+        // NOTE: need to print *before* adding to reaper q
+        bootlog!("{:?} [Exit 0x{:X}]\n", *CURRENT_PROCESS, code);
+
+        self::reaper::reaper_add(CURRENT_PROCESS);
 
         // set current to None, so we will never run this again
         CURRENT_PROCESS = 0 as *mut Process;

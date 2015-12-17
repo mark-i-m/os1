@@ -1,16 +1,18 @@
 // This module contains everything that has to do with memory
 
-pub use self::vm::vmm_page_fault;
-
-pub use self::vm::AddressSpace;
+pub use self::virtmem::{vmm_page_fault, AddressSpace};
 
 pub mod rust_alloc;
 
 mod heap;
-mod vm;
+mod physmem;
+mod virtmem;
+mod regionmap;
 
-pub fn init(heap_start: usize, heap_end: usize,
-            frames_start: usize, frames_end: usize) {
-    heap::init(heap_start, heap_end);
-    vm::init(frames_start, frames_end);
+pub fn init() {
+    // make the kernel heap 3MiB starting at 1MiB.
+    // make memory data structures take up the next 4MiB.
+    heap::init(1<<20, 3<<20);
+    physmem::init(4<<20);
+    virtmem::init();
 }

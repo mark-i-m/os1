@@ -53,7 +53,7 @@ pub fn init() {
         add_interrupt_handler(FIRST_IDT + 15, irq15);
     }
 
-    printf!("PIC inited\n");
+    bootlog!("pic inited\n");
 }
 
 // End of interrupt: send the next irq, but interrupts still disabled
