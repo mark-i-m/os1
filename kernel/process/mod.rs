@@ -16,7 +16,6 @@ use core::ops::Drop;
 use super::data_structures::ProcessQueue;
 
 use super::interrupts::{on, off};
-use super::interrupts::pit::JIFFIES;
 
 use super::machine::{self, context_switch};
 
@@ -164,6 +163,9 @@ pub fn init() {
     // Create the idle process
     idle::init();
 
+    // Create the reaper process
+    reaper::init();
+
     printf!("processes inited\n");
 }
 
@@ -203,7 +205,7 @@ pub fn proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
 //
 // To yield normally, call process::proc_yield()
 //
-// Interrupts should already be disabled here
+// NOTE: Interrupts should already be disabled here
 #[no_mangle]
 #[inline(never)]
 pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
@@ -220,13 +222,7 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     }
 
     // get next process from ready q
-    // spawn a reaper when there are a few processes that have died
-    let mut next = if self::reaper::DEAD_COUNT >= 5 &&
-        JIFFIES % 75 == 0 {
-        Process::new("reaper", self::reaper::run)
-    } else {
-        ready_queue::get_next()
-    };
+    let mut next = ready_queue::get_next();
 
     // run the idle process when everyone is done
     if next.is_null() {
@@ -264,12 +260,11 @@ pub fn exit(code: usize) {
         // clean up address space
         (*CURRENT_PROCESS).addr_space.clear();
 
-        // NOTE: need to print *before* adding to reaper q
-        printf!("{:?} [Exit 0x{:X}]\n",
-                *CURRENT_PROCESS, code);
-
         // Disable interrupts
         off();
+
+        // NOTE: need to print *before* adding to reaper q
+        bootlog!("{:?} [Exit 0x{:X}]\n", *CURRENT_PROCESS, code);
 
         self::reaper::reaper_add(CURRENT_PROCESS);
 

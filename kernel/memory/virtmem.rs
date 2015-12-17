@@ -82,24 +82,25 @@ impl AddressSpace {
     // NOTE: should only be called on the current address space
     // because it assumes that the PD is at 0x802000
     fn map(&mut self, phys: usize, virt: usize) {
-        off();
-
         //unsafe {
         //    bootlog!("{:?} [map {:x} -> {:x}]\n", *CURRENT_PROCESS, virt, phys);
         //}
-
-        // invalidate TLB entry
-        unsafe { invlpg(virt) };
 
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
         let mut pd = unsafe {&mut *(0x802000 as *mut VMTable)};
+        let pde = &mut pd[pde_index];
+
+
+        // invalidate TLB entry
+        unsafe { invlpg(virt) };
 
         // if pd entry is not already there
-        let pde = &mut pd[pde_index];
         if !pde.is_flag(0) { // present bit
             // no pd entry yet => create one
+
+            off();
 
             // set pde
             pde.set_read_write(true); // read/write
@@ -114,6 +115,8 @@ impl AddressSpace {
                 pt[p] = PagingEntry::new();
                 unsafe { invlpg((pde_index << 22) | (p << 12)) };
             }
+
+            on();
         }
 
         // follow pde to get pt
@@ -124,15 +127,17 @@ impl AddressSpace {
         if !pte.is_flag(0) { // present bit
             // no pt entry yet -> create one
 
+            off();
+
             // set pte
             pte.set_read_write(true); // read/write
             pte.set_privelege_level(false); // kernel only
             pte.set_caching(false); // write-back
             pte.set_address(phys); // point to frame
             pte.set_present(true); // present
-        }
 
-        on();
+            on();
+        }
     }
 
     // map the given paddr for temporary use by the kernel and return a mut reference to the frame
@@ -169,18 +174,23 @@ impl AddressSpace {
     fn unmap(&mut self, virt: usize) {
         // TODO: completely clear entries (not just P bit) unless paging out
 
-        off();
-
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
         let pd = unsafe {&mut *(0x802000 as *mut VMTable)};
 
         if pd[pde_index].is_flag(0) { // present bit
+            off();
+
             let mut pt = unsafe {&mut *(((2<<22) | (pde_index<<12)) as *mut VMTable)};
 
             // unmap and deallocate frame
             pt[pte_index].free(virt >= 0xD00000);
+
+            // invalidate TLB entry
+            unsafe { invlpg(virt) };
+
+            on();
 
             // if page table is now empty,
             // unmap and deallocate it
@@ -188,11 +198,6 @@ impl AddressSpace {
                 pd[pde_index].free(virt >= 0xC00000);
             }
         }
-
-        // invalidate TLB entry
-        unsafe { invlpg(virt) };
-
-        on();
     }
 
     pub fn activate(&mut self) {
@@ -231,6 +236,7 @@ impl Drop for AddressSpace {
 
 impl PagingEntry {
     // get a blank entry
+    #[inline(always)]
     const fn new() -> PagingEntry {
         PagingEntry {
             entry: 0,
@@ -239,33 +245,39 @@ impl PagingEntry {
 
     // common flags
 
+    #[inline(always)]
     fn set_present(&mut self, value: bool) {
         self.set_flag(0, value);
     }
 
     // true = read/write, false = read-only
+    #[inline(always)]
     fn set_read_write(&mut self, value: bool) {
         self.set_flag(1, value);
     }
 
     // true = all, false = kernel mode only
+    #[inline(always)]
     fn set_privelege_level(&mut self, value: bool) {
         self.set_flag(2, value);
     }
 
     // true = write-through, false = write-back
+    #[inline(always)]
     fn set_caching(&mut self, value: bool) {
         self.set_flag(3, value);
     }
 
     // general ops
 
+    #[inline(always)]
     fn set_flag(&mut self, index: u8, value: bool) {
         let mask = 1_usize << index;
         let entry = self.entry & !mask;
         self.entry = entry | if value {mask} else {0};
     }
 
+    #[inline(always)]
     fn set_address(&mut self, address: usize) {
         let addr = address & 0xFFFF_F000;
         let entry = self.entry & 0x0000_0FFF;
@@ -275,10 +287,12 @@ impl PagingEntry {
 
     // queries about the entry
 
+    #[inline(always)]
     fn is_flag(&self, index: u8) -> bool {
         ((self.entry >> index) & 1) == 1
     }
 
+    #[inline(always)]
     fn get_address(&self) -> usize {
         self.entry & 0xFFFF_F000
     }
@@ -308,8 +322,12 @@ impl VMTable {
         let mut table: &mut VMTable = unsafe {
             // if VM is on, kmap this frame
             // otherwise use the paddr
-            let frame = if !CURRENT_PROCESS.is_null() && VMM_ON {
-                (*CURRENT_PROCESS).addr_space.kmap(paddr)
+            let frame = if VMM_ON {
+                if !CURRENT_PROCESS.is_null() {
+                    (*CURRENT_PROCESS).addr_space.kmap(paddr)
+                } else {
+                    panic!("VMM_ON with no CURRENT_PROCESS!");
+                }
             } else {
                 &mut *(paddr as *mut Frame)
             };
@@ -401,10 +419,10 @@ pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: 
 
     //printf!("page fault {:X}\n", fault_addr);
 
-    if !CURRENT_PROCESS.is_null() && VMM_ON {
+    if !CURRENT_PROCESS.is_null() {
         (*CURRENT_PROCESS).addr_space.map(Frame::alloc(), fault_addr);
     } else {
-        panic!("Page fault with no current process");
+        panic!("Page fault @ 0x{:X} with no current process", fault_addr);
     }
 
     // memclr an alloced frame?
