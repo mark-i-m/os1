@@ -73,6 +73,12 @@ fn run2(this: &Process) -> usize {
 
     unsafe { *(0xf00000 as *mut usize) = this.pid; }
 
+    // test vm
+    if unsafe { *(0xf00000 as *mut usize) } != this.pid {
+        panic!("Oh no! *0xf00000 should be {} but is {}",
+               this.pid, unsafe { *(0xf00000 as *mut usize) });
+    }
+
     unsafe { s2.down(); }
 
     let mut w = Window::new(COLS,ROWS, (0,0));

@@ -57,7 +57,7 @@ impl AddressSpace {
         pd[2].set_present(true); // present
         pd[2].set_read_write(true); // read/write
         pd[2].set_privelege_level(false); // kernel only
-        pd[2].set_caching(false); // write-back
+        pd[2].set_caching(true); // write-through
         pd[2].set_address(pd_paddr); // PD paddr
 
         let a = AddressSpace {
@@ -84,6 +84,10 @@ impl AddressSpace {
     fn map(&mut self, phys: usize, virt: usize) {
         off();
 
+        //unsafe {
+        //    bootlog!("{:?} [map {:x} -> {:x}]\n", *CURRENT_PROCESS, virt, phys);
+        //}
+
         // invalidate TLB entry
         unsafe { invlpg(virt) };
 
@@ -98,11 +102,18 @@ impl AddressSpace {
             // no pd entry yet => create one
 
             // set pde
-            pde.set_present(true); // present
             pde.set_read_write(true); // read/write
             pde.set_privelege_level(false); // kernel only
             pde.set_caching(false); // write-back
             pde.set_address(Frame::alloc()); // alloc a new frame
+            pde.set_present(true); // present
+
+            // clear the pt
+            let mut pt = unsafe {&mut *(((2<<22) | (pde_index<<12)) as *mut VMTable)};
+            for p in 0..1024 {
+                pt[p] = PagingEntry::new();
+                unsafe { invlpg((pde_index << 22) | (p << 12)) };
+            }
         }
 
         // follow pde to get pt
@@ -114,11 +125,11 @@ impl AddressSpace {
             // no pt entry yet -> create one
 
             // set pte
-            pte.set_present(true); // present
             pte.set_read_write(true); // read/write
             pte.set_privelege_level(false); // kernel only
             pte.set_caching(false); // write-back
             pte.set_address(phys); // point to frame
+            pte.set_present(true); // present
         }
 
         on();
@@ -388,7 +399,7 @@ pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: 
                *CURRENT_PROCESS, fault_addr);
     }
 
-    printf!("page fault {:X}\n", fault_addr);
+    //printf!("page fault {:X}\n", fault_addr);
 
     if !CURRENT_PROCESS.is_null() && VMM_ON {
         (*CURRENT_PROCESS).addr_space.map(Frame::alloc(), fault_addr);
@@ -396,7 +407,11 @@ pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: 
         panic!("Page fault with no current process");
     }
 
-    // TODO: memclr an alloced frame?
+    // memclr an alloced frame?
+    let page = &mut *(fault_addr as *mut Frame);
+    for i in 0..1024 {
+        page[i] = 0;
+    }
 
-    printf!("page fault done {:X}\n", fault_addr);
+    //printf!("page fault done {:X}\n", fault_addr);
 }
