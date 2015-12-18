@@ -1,17 +1,13 @@
-// This file contains functions for push/pop to the ready queue
+//! A module for the ready queue
 
 use super::super::interrupts::{on, off};
 use super::{Process, State};
 use super::super::data_structures::{ProcessQueue};
 
-// points to the next process to run
+/// The ready queue. A queue containing all processes that are ready to be scheduled.
 pub static mut READY_QUEUE: ProcessQueue = ProcessQueue::new();
 
-// init the ready q
-pub fn init() {
-}
-
-// Add the process to the Ready queue
+/// Add the process to the ready queue
 pub fn make_ready(process: *mut Process) {
     // disable interrupts
     off();
@@ -26,8 +22,8 @@ pub fn make_ready(process: *mut Process) {
     on();
 }
 
-// Deque and return the next ready process
-// NOTE: returns null if there are no ready processes
+/// Unqueue and return the next ready process.
+/// NOTE: returns null if there are no ready processes
 pub fn get_next() -> *mut Process {
     unsafe {
         // disable interrupts

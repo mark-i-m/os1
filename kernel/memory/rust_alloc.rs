@@ -1,4 +1,4 @@
-//! This file contains the outside interface with the kernels memory allocator.
+//! This module contains the outside interface with the kernels memory allocator.
 //! rustc will look for these functions.
 //!
 //! The comments below are copied from the rust src code

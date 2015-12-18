@@ -1,4 +1,6 @@
-// Will eventually be a user process, but there is a long way to go
+//! A module for user processes
+// So far it just contains some test code
+
 use super::Process;
 use super::ready_queue;
 
@@ -6,14 +8,16 @@ use super::super::vga::window::{Window, Color};
 
 use super::super::data_structures::concurrency::{StaticSemaphore};
 
+// useful constants
 const ROWS: usize = 25;
 const COLS: usize = 80;
 
+// Some test semaphores
 static mut current: (usize, usize) = (0,0);
 static mut s1: StaticSemaphore = StaticSemaphore::new(1);
 static mut s2: StaticSemaphore = StaticSemaphore::new(1);
 
-#[allow(unused_variables)]
+// Some test routines
 pub fn run(this: &Process) -> usize {
     let mut w0 = Window::new(COLS, ROWS, (0, 0));
     let mut msg = Window::new(43, 4, (1,1));
@@ -68,7 +72,6 @@ fn get_next((r,c): (usize, usize)) -> (usize, usize) {
     }
 }
 
-#[allow(unused_variables)]
 fn run2(this: &Process) -> usize {
 
     unsafe { *(0xf00000 as *mut usize) = this.pid; }

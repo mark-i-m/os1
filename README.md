@@ -34,6 +34,8 @@ Website [here](https://mark-i-m.github.com/os1)
 * ```git submodule init && git submodule update```
 * ```make rungraphic```
 
+If you want better performance, rather than debuggability, compile with optimization level 3, rather than 0. This can be achieved by changing `common.mak`.
+
 ### To generate Rustdocs:
 
 Run this in the `kernel` directory

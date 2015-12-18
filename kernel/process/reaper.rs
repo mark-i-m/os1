@@ -1,4 +1,5 @@
-// Contains the reaper queue
+//! A module for the reaper process, a process which frees the resources
+//! of dead processes.
 
 use alloc::boxed::Box;
 
@@ -9,15 +10,15 @@ use super::super::data_structures::concurrency::StaticSemaphore;
 
 use super::super::interrupts::{on, off};
 
-// The reaper blocks onto this semaphore until enough have died
+/// The reaper blocks onto this semaphore until enough have died
 static mut REAPER_SEMAPHORE: StaticSemaphore = StaticSemaphore::new(0);
 
-// The reaper queue
+/// The reaper queue. A queue of dead processes
 static mut REAPER_QUEUE: ProcessQueue = ProcessQueue::new();
 
-// The reaper process routine:,
-// If there are dead processes, pop them from the
-// REAPER_QUEUE and free the process's resources.
+/// The reaper process routine:
+/// If there are dead processes, pop them from the
+/// REAPER_QUEUE and free their resources.
 #[allow(unused_variables)]
 pub fn run(this: &Process) -> usize {
     unsafe {
@@ -43,6 +44,8 @@ pub fn run(this: &Process) -> usize {
     0
 }
 
+/// Add a dead process to the reaper queue.
+/// NOTE: This should only be done for processes that will never run again
 pub fn reaper_add(dead_proc: *mut Process) {
     off();
     unsafe {
@@ -52,6 +55,7 @@ pub fn reaper_add(dead_proc: *mut Process) {
     on();
 }
 
+/// Create the reaper process and add it to the ready queue
 pub fn init() {
     ready_queue::make_ready(Process::new("reaper", self::run));
 }

@@ -1,4 +1,5 @@
 //! A module for virtual memory management
+//!
 //! The virtual address space of a process consists of all addresses for 0xD0_0000-0xFFFF_FFFF.
 //! When a page fault occurs (in kernel or user mode), if the faulting address is in this range,
 //! the fault is considered an error, and the process is killed. This is because the first 8MiB are
