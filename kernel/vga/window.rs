@@ -67,17 +67,17 @@ impl Window {
                 self.set_cursor((cr, cc));
             }
 
-            for ch in word.bytes() {
+            for ch in word.chars() {
                 // take char of special characters
                 match ch {
-                    0x10 => { // '\n'
+                    '\n' => {
                         // don't draw a new line, just move the cursor
                         cr += 1;
                         cc = 0;
                     },
                     _ => {
                         // draw char
-                        self.put_char(ch as char);
+                        self.put_char(ch);
 
                         // advance
                         if cc + 1 >= self.width {
