@@ -1,53 +1,47 @@
-### OS 1 ###
-============
+#OS 1
 
 Implementation of a simple OS in Rust
 
-I had originally intended not to have any library code in my kernel at all, but this is not possible with Rust yet. As a result I am linking in `libcore` and `liballoc` which contain the heart of Rust functionality. Special thanks to Krzysztof for helping me get that set up!
+There is a comprehensive website [here](https://mark-i-m.github.com/os1) that
+includes a .img file for those who want to just boot the OS, an explanation of
+the implementation, and Rustdocs of the code.
 
-Website [here](https://mark-i-m.github.com/os1)
+For those that want to build from source, instructions are below.
 
-###Features so far
-* Heap allocation
-* Preemptive multitasking
-* VGA buffer management
-* Reaper
-* Concurrency Control
-* Virtual Memory
-* User mode/system calls
-    - TSS
-    - Switch to user mode
-    - Fork
-
-###TODO
-* File system
-* Process resources
-    - Finish native semaphore implementation
+##Building
 
 ###Requirements
 
-* ```qemu```
-* ```gcc```
-* ```rust 1.6 (2015-11-08 nightly): curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly --date=2015-11-08```
+* `qemu`
+* `gcc`
+* Rust 1.6 (2015-11-08 nightly)
+
+..It needs to be nightly Rust, because the project uses unstable language features.
+..`curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly --date=2015-11-08`
 
 ###Build instructions
 
-* ```git clone https://github.com/mark-i-m/os1.git```
-* ```cd os1/```
-* ```git submodule init && git submodule update```
-* ```make rungraphic```
-
-If you want better performance, rather than debuggability, compile with optimization level 3, rather than 0. This can be achieved by changing `common.mak`.
+* `git clone https://github.com/mark-i-m/os1.git`
+* `cd os1/`
+* `git submodule init && git submodule update`
+* `make rungraphic`
 
 ### To generate Rustdocs:
 
-Run this in the `kernel` directory
-```
-rustdoc -o $DOC_OUTPUT --extern rlibc=../deps/librlibc.rlib --extern core=../deps/libcore.rlib --extern alloc=../deps/liballoc.rlib --target ../i686-unknown-elf.json -w html --no-defaults --passes strip-hidden --passes collapse-docs --passes unindent-comments lib.rs
+Run this in the `kernel` directory with `$DOC_OUTPUT` set to the directory where
+you want the output:
+
+```bash
+rustdoc -o $DOC_OUTPUT -w html \
+    --extern rlibc=../deps/librlibc.rlib \
+    --extern core=../deps/libcore.rlib \
+    --extern alloc=../deps/liballoc.rlib \
+    --target ../i686-unknown-elf.json \
+    --no-defaults --passes strip-hidden \
+    --passes collapse-docs --passes unindent-comments lib.rs
 ```
 
 Thanks to
-- Krzysztof Drewniak for build system and help
-- AG for bootloader code
+- Krzysztof Drewniak for build system
+- AG for original bootloader code
 - OSDev wiki for general helpfulness
-- [rustboot](http://github.com/charliesome/rustboot)
