@@ -1,9 +1,28 @@
-// A semaphore implementation based on the rust Mutex<T> type
+//! A semaphore implementation based on the rust Mutex<T> type
+//!
+//! There are two fundamental type defined herein.
+//! 1. `StaticSemaphore` is a semaphore implementation that can be used in
+//!    statics. It has a const constructor.
+//! 2. `Semaphore` is a much more Rustic semaphore. It returns an RAII
+//!    `SemaphoreGuard`, which automatically calls "up" when it goes out of
+//!    scope. This semaphore takes ownership of the data it is guarding, so that
+//!    Rust ownership and lifetime semantics can be used to guarantee safety of
+//!    the resource.
+//!
+//! ```
+//!  // wrap resource in a semaphore with initial count 3
+//!  let s = Semaphore::new(resource, 3);
+//!
+//!  {
+//!      // acquire
+//!      let guard = s.clone();
+//!  }
+//!  // guard dies => release
+//! ```
 
 use core::sync::atomic::{AtomicIsize, Ordering};
 use core::cell::UnsafeCell;
 use core::option::Option::Some;
-
 use core::ops::{Deref, DerefMut};
 
 use alloc::boxed::Box;
@@ -14,6 +33,7 @@ use super::super::super::process::{ready_queue, proc_yield};
 
 use super::super::super::interrupts::{on,off};
 
+/// A
 pub struct Semaphore<T> {
     // box the inner semaphore so it has a constant address
     // and can be safely moved

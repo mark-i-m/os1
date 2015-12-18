@@ -1,4 +1,4 @@
-// A module for concurrency control
+//! A module for concurrency primitives
 
 pub use self::semaphore::*;
 

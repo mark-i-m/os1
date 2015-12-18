@@ -128,33 +128,6 @@ proc_yield:
 
     ret
 
-    # pub fn save_kcontext()
-    .extern store_kcontext
-    .global save_kcontext
-save_kcontext:
-    // push all regs
-    pusha
-
-    // EDI          <= (new) ESP
-    // ESI
-    // EBP
-    // (orig.) ESP
-    // EBX
-    // EDX
-    // ECX
-    // EAX
-    //              <= (orig.) ESP
-
-    push %esp
-
-    call store_kcontext       // Save to context struct
-
-    // pop the stuff we pushed
-    pop %esp
-    popa
-
-    ret
-
     # context_switch(next_context: KContext, eflags: usize)
     .global context_switch
 context_switch:

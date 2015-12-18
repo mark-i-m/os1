@@ -1,4 +1,14 @@
+//! The os1 kernel is written and compiled as a library. It is then
+//! compiled and linked together with assembly files to produce a binary.
+//! The binary is written to the hard disk, which is then loaded.
+//!
+//! The kernel is compiled without any `libstd`. Only `libcore` and
+//! `liballoc` are used, since they provide core Rust functionality.
+
+// To use unstable features of Rust, we need to have nightly rustc
 #![feature(no_std,lang_items,alloc,core_str_ext,box_syntax,box_patterns,const_fn)]
+
+// Compile without libstd
 #![no_std]
 
 #![crate_type = "staticlib"]
@@ -29,7 +39,7 @@ pub use self::process::_proc_yield;
 pub use self::interrupts::pic::pic_irq;
 pub use self::memory::vmm_page_fault;
 
-// This is the entry point to the kernel. It is the first rust code that runs.
+/// This is the entry point to the kernel. It is the first rust code that runs.
 #[no_mangle]
 pub fn kernel_main() {
     // make sure interrupts are off
