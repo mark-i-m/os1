@@ -16,8 +16,9 @@ For those that want to build from source, instructions are below.
 * `gcc`
 * Rust 1.6 (2015-11-08 nightly)
 
-..It needs to be nightly Rust, because the project uses unstable language features.
-..`curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly --date=2015-11-08`
+  It needs to be nightly Rust, because the project uses unstable language features.
+
+  `curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly --date=2015-11-08`
 
 ###Build instructions
 
