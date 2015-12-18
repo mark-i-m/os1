@@ -20,7 +20,7 @@ static mut s2: StaticSemaphore = StaticSemaphore::new(1);
 // Some test routines
 pub fn run(this: &Process) -> usize {
     let mut w0 = Window::new(COLS, ROWS, (0, 0));
-    let mut msg = Window::new(43, 4, (1,1));
+    let mut msg = Window::new(60, 4, (1,1));
 
     unsafe { *(0xf00000 as *mut usize) = this.pid; }
 
@@ -32,7 +32,7 @@ pub fn run(this: &Process) -> usize {
     msg.set_fg(Color::Black);
 
     msg.put_str("<-- If semaphores work correctly, then only this block \
-                should be red when all loop_procs finish running");
+                should be red when all loop_procs finish running.");
 
     for _ in 0..206*3 {
         ready_queue::make_ready(Process::new("loop_proc", super::user::run2));
@@ -96,12 +96,12 @@ fn run2(this: &Process) -> usize {
     printf!("Erase ({},{}) ", prev.0, prev.1);
     w.set_bg(Color::LightBlue);
     w.set_cursor(prev);
-    w.put_str(" ");
+    w.put_char(' ');
 
     printf!("Draw ({},{})\n", me.0,me.1);
     w.set_bg(Color::Red);
     w.set_cursor(me);
-    w.put_str(" ");
+    w.put_char(' ');
 
     unsafe { s2.up(); }
 

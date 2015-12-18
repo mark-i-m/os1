@@ -54,24 +54,58 @@ impl Window {
         }
     }
 
-    /// Render the string at the cursor
+    /// Render the string at the cursor using word wrapping.
     pub fn put_str(&mut self, s: &str) {
-        use core::str::StrExt;
+        for word in s.split(" ") {
+            // word wrapping
+            let len = word.len();
+            let (mut cr, mut cc) = self.cursor;
 
-        for ch in s.bytes() {
-            // draw char
-            self.put_char(ch as char);
+            if cc + len >= self.width && len < self.width {
+                cr += 1;
+                cc = 0;
+                self.set_cursor((cr, cc));
+            }
 
-            // move cursor
-            let (cr, cc) = self.cursor;
-            let next_cursor = if (ch as char) == ('\n' as char) ||
-                cc + 1 >= self.width {
-                (cr + 1, 0)
-            } else {
-                (cr, cc + 1)
-            };
+            for ch in word.bytes() {
+                // take char of special characters
+                match ch {
+                    0x10 => { // '\n'
+                        // don't draw a new line, just move the cursor
+                        cr += 1;
+                        cc = 0;
+                    },
+                    _ => {
+                        // draw char
+                        self.put_char(ch as char);
 
-            self.set_cursor(next_cursor);
+                        // advance
+                        if cc + 1 >= self.width {
+                            cr += 1;
+                            cc = 0;
+                        } else {
+                            cc += 1;
+                        }
+                    }
+                }
+
+                // move cursor
+                self.set_cursor((cr, cc));
+            }
+
+            // draw a space after the word
+            if cc > 0 {
+                self.put_char(' ');
+
+                // advance
+                if cc + 1 >= self.width {
+                    cr += 1;
+                    cc = 0;
+                } else {
+                    cc += 1;
+                }
+                self.set_cursor((cr,cc));
+            }
         }
     }
 
@@ -86,7 +120,7 @@ impl Window {
     }
 
     /// Set the cursor position
-    pub fn set_cursor(& mut self, (crow, ccol): (usize, usize)) {
+    pub fn set_cursor(&mut self, (crow, ccol): (usize, usize)) {
         let (row,col) = self.pos;
 
         self.cursor = (crow, ccol);
