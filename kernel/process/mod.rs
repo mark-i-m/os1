@@ -248,7 +248,8 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     (*next).addr_space.activate();
 
     // switch stacks
-    esp0((*CURRENT_PROCESS).stack + STACK_SIZE*4);
+    // TODO: turn this on
+    //esp0((*CURRENT_PROCESS).stack + STACK_SIZE*4);
 
     // set the CURRENT_PROCESS
     CURRENT_PROCESS = next;
