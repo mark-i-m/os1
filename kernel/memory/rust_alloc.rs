@@ -1,3 +1,8 @@
+//! This file contains the outside interface with the kernels memory allocator.
+//! rustc will look for these functions.
+//!
+//! The comments below are copied from the rust src code
+
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
@@ -5,11 +10,6 @@
 
 use super::heap::{malloc, free, usable_size, print_stats};
 use super::super::interrupts::{on, off};
-
-// This file contains the outside interface with the kernels memory allocator.
-// rustc will look for these functions.
-//
-// The comments below are copied from the rust src code
 
 /// Return a pointer to `size` bytes of memory aligned to `align`.
 ///

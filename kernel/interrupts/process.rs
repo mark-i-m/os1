@@ -1,9 +1,9 @@
-// Submodule for cleanly turning interrupts on and off
+//! Module for cleanly turning interrupts on and off
 
 use super::super::process::{CURRENT_PROCESS};
 use super::super::machine::{cli, sti};
 
-// Turn interrupts on
+/// Turn interrupts on
 pub fn on() {
     unsafe {
         // Meaningless to enable interrupts w/o current proc
@@ -20,7 +20,7 @@ pub fn on() {
     }
 }
 
-// Turn interrupts off
+/// Turn interrupts off
 pub fn off() {
     unsafe {
         cli();
@@ -31,10 +31,9 @@ pub fn off() {
     }
 }
 
-// Helper methods for use in IRQ
-
-// Bookkeeping to start an irq
-// This should never happen if there is no current process
+/// Helper method for use in IRQ
+/// Bookkeeping to start an irq.
+/// This should never happen if there is no current process.
 pub fn start_irq() {
     unsafe {
         if !CURRENT_PROCESS.is_null() {
@@ -48,7 +47,8 @@ pub fn start_irq() {
     }
 }
 
-// Bookkeeping to end an irq
+/// Helper method for use in IRQ
+/// Bookkeeping to end an irq
 pub fn end_irq() {
     unsafe {
         if !CURRENT_PROCESS.is_null() {

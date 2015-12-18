@@ -34,6 +34,13 @@ Website [here](https://mark-i-m.github.com/os1)
 * ```git submodule init && git submodule update```
 * ```make rungraphic```
 
+### To generate Rustdocs:
+
+Run this in the `kernel` directory
+```
+rustdoc -o $DOC_OUTPUT --extern rlibc=../deps/librlibc.rlib --extern core=../deps/libcore.rlib --extern alloc=../deps/liballoc.rlib --target ../i686-unknown-elf.json -w html --no-defaults --passes strip-hidden --passes collapse-docs --passes unindent-comments lib.rs
+```
+
 Thanks to
 - Krzysztof Drewniak for build system and help
 - AG for bootloader code

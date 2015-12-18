@@ -1,4 +1,20 @@
-// Process address spaces
+//! A module for virtual memory management
+//! The virtual address space of a process consists of all addresses for 0xD0_0000-0xFFFF_FFFF.
+//! When a page fault occurs (in kernel or user mode), if the faulting address is in this range,
+//! the fault is considered an error, and the process is killed. This is because the first 8MiB are
+//! shared, direct-mapped memory and should never produce a page fault. The next 4MiB are mapped to
+//! the processes page directory, so if there is a fault in this range, it is fatal, since it means
+//! the paging structures have been corrupt. The 13MiB is claimed by the kernel for use by the kmap
+//! function, which temporarily maps a page meant to reside in another process's address space.
+//! This is needed for creating a new process. Luckly, with Rust, segfaults should be extremely
+//! rare.
+//!
+//! When a page fault occurs for a legal address, the fault handler checks the following cases:
+//!
+//! 1. Is the page paged out to disk? If so, swap it back in
+//! 2. Is the page marked present but read-only? If so, this page is COW, so clone it and mark the
+//!    new page read/write
+//! 3. Else, allocate a new frame a map the page to it
 
 use core::ops::{Index, IndexMut};
 
@@ -12,14 +28,16 @@ use super::super::interrupts::{add_trap_handler, on, off};
 
 use super::super::process::CURRENT_PROCESS;
 
-// shared PDEs direct mapping the first 8MiB
+/// Shared PDE #0: direct mapping the first 4MiB
 static mut PDE0: PagingEntry = PagingEntry::new();
+
+/// Shared PDE #1: direct mapping the second 4MiB
 static mut PDE1: PagingEntry = PagingEntry::new();
 
-// is VM on
+/// Is VM on?
 static mut VMM_ON: bool = false;
 
-// The address space of a single process
+/// The address space of a single process
 pub struct AddressSpace {
     // paddr of this addr space's PD
     page_dir: usize,
@@ -28,21 +46,26 @@ pub struct AddressSpace {
     kmap_index: u8,
 }
 
-// A single entry in a page directory or table
-// 31                 12  9       0
-// [                    000 flags  ]
+/// A single entry in a page directory or table
+/// ```
+/// 31                 12  9       0
+/// [                    000 flags  ]
+/// ```
 #[derive(Copy, Clone)]
 #[repr(C,packed)]
 struct PagingEntry {
     entry: usize,
 }
 
+/// An abstraction of page directories and page tables
 #[repr(C,packed)]
 struct VMTable {
     entries: [PagingEntry; 1024],
 }
 
 impl AddressSpace {
+    /// Create a new address space. Each address space has the first
+    /// 8MiB direct mapped. The next 4MiB is mapped to the page directory
     pub fn new() -> AddressSpace {
         // allocate a frame
         let (pd, pd_paddr) = VMTable::new();
@@ -78,9 +101,9 @@ impl AddressSpace {
         a
     }
 
-    // map the va to the pa in the address space
-    // NOTE: should only be called on the current address space
-    // because it assumes that the PD is at 0x802000
+    /// Map `virt` to `phys` in the address space.
+    /// NOTE: should only be called on the current address space
+    /// because it assumes that the PD is at 0x802000
     fn map(&mut self, phys: usize, virt: usize) {
         //unsafe {
         //    bootlog!("{:?} [map {:x} -> {:x}]\n", *CURRENT_PROCESS, virt, phys);
@@ -140,10 +163,10 @@ impl AddressSpace {
         }
     }
 
-    // map the given paddr for temporary use by the kernel and return a mut reference to the frame
-    // NOTE: should only be called on the current address space
-    // NOTE: noone should use more than 256 kmappings at a time
-    // because it assumes that the PD is at 0x802000
+    /// Map the given `paddr` for temporary use by the kernel and return a mut reference to the
+    /// frame.
+    /// NOTE: should only be called on the current address space because it assumes that the PD is
+    /// at 0x802000
     fn kmap(&mut self, paddr: usize) -> &mut Frame {
         // get next unmapped address
         let next = self.kmap_index;
@@ -168,9 +191,9 @@ impl AddressSpace {
         unsafe { &mut *(vaddr as *mut Frame) }
     }
 
-    // remove any mapping for this virtual address
-    // NOTE: should only be called on the current address space
-    // because it assumes that the PD is at 0x802000
+    /// Remove any mapping for this virtual address
+    /// NOTE: should only be called on the current address space because it assumes that the PD is
+    /// at 0x802000
     fn unmap(&mut self, virt: usize) {
         // TODO: completely clear entries (not just P bit) unless paging out
 
@@ -200,6 +223,7 @@ impl AddressSpace {
         }
     }
 
+    /// Activate the current address space and turn on VM if needed
     pub fn activate(&mut self) {
         off();
         unsafe {
@@ -209,8 +233,8 @@ impl AddressSpace {
         on();
     }
 
-    // remove all non-kernel mappings
-    // NOTE: must run while this address space is active
+    /// Remove all non-kernel mappings in this address space.
+    /// NOTE: must run while this address space is active
     pub fn clear(&mut self) {
         let pd = unsafe {&mut *(0x802000 as *mut VMTable)};
 
@@ -227,7 +251,8 @@ impl AddressSpace {
 }
 
 impl Drop for AddressSpace {
-    // NOTE: cannot run while the address space is active
+    /// Deallocate the page directory.
+    /// NOTE: cannot run while the address space is active
     fn drop(&mut self) {
         // free the page directory
         Frame::free(self.page_dir >> 12);
@@ -235,7 +260,7 @@ impl Drop for AddressSpace {
 }
 
 impl PagingEntry {
-    // get a blank entry
+    /// Get a blank entry
     #[inline(always)]
     const fn new() -> PagingEntry {
         PagingEntry {
@@ -245,24 +270,29 @@ impl PagingEntry {
 
     // common flags
 
+    /// Set the present bit.
+    /// true = present; false = not present
     #[inline(always)]
     fn set_present(&mut self, value: bool) {
         self.set_flag(0, value);
     }
 
-    // true = read/write, false = read-only
+    /// Set the read/write bit.
+    /// true = read/write, false = read-only
     #[inline(always)]
     fn set_read_write(&mut self, value: bool) {
         self.set_flag(1, value);
     }
 
-    // true = all, false = kernel mode only
+    /// Set the privelege level bit.
+    /// true = all, false = kernel mode only
     #[inline(always)]
     fn set_privelege_level(&mut self, value: bool) {
         self.set_flag(2, value);
     }
 
-    // true = write-through, false = write-back
+    /// Set caching bit.
+    /// true = write-through, false = write-back
     #[inline(always)]
     fn set_caching(&mut self, value: bool) {
         self.set_flag(3, value);
@@ -270,6 +300,8 @@ impl PagingEntry {
 
     // general ops
 
+    /// Set the `index`-th flag to `value`.
+    /// true = 1; false = 0
     #[inline(always)]
     fn set_flag(&mut self, index: u8, value: bool) {
         let mask = 1_usize << index;
@@ -277,6 +309,7 @@ impl PagingEntry {
         self.entry = entry | if value {mask} else {0};
     }
 
+    /// Set the upper 20 bits of the entry to the upper 20 bits of `address`
     #[inline(always)]
     fn set_address(&mut self, address: usize) {
         let addr = address & 0xFFFF_F000;
@@ -287,18 +320,19 @@ impl PagingEntry {
 
     // queries about the entry
 
+    /// Return true if the `index`-th bit is set
     #[inline(always)]
     fn is_flag(&self, index: u8) -> bool {
         ((self.entry >> index) & 1) == 1
     }
 
+    /// Return the upper 20-bits of the entry
     #[inline(always)]
     fn get_address(&self) -> usize {
         self.entry & 0xFFFF_F000
     }
 
-    // free frame pointed to if dealloc and mark this entry not present
-    // if it is not already so
+    /// Free the frame pointed to if `dealloc` and mark this entry not present.
     fn free(&mut self, dealloc: bool) {
         off();
         if self.is_flag(0) {
@@ -314,7 +348,8 @@ impl PagingEntry {
 }
 
 impl VMTable {
-    // returns a reference to a new VMTable and its paddr
+    /// Returns a reference to a new `VMTable` and its physical address.
+    /// The new table is kmapped if necessary, and is always cleared.
     fn new() -> (&'static mut VMTable, usize) {
         // allocate a frame
         let paddr = Frame::alloc();
@@ -344,6 +379,7 @@ impl VMTable {
     }
 }
 
+/// Make `VMTable` indexable
 impl Index<usize> for VMTable {
     type Output = PagingEntry;
 
@@ -353,6 +389,7 @@ impl Index<usize> for VMTable {
     }
 }
 
+/// Make `VMTable` indexable
 impl IndexMut<usize> for VMTable {
     fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut PagingEntry {
         unsafe { transmute::<&mut usize, &mut PagingEntry>(
@@ -360,6 +397,8 @@ impl IndexMut<usize> for VMTable {
     }
 }
 
+/// Initialize virtual memory management but do not turn on VM.
+/// This creates the two shared page tables that map the first 8MiB.
 pub fn init() {
     // create the first two PDEs
     unsafe {
@@ -406,7 +445,7 @@ pub fn init() {
     bootlog!("virt mem inited\n");
 }
 
-// handle for vmm for asm
+/// The Rust-side code of the page fault handler.
 #[no_mangle]
 pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: usize) {
     // segfault! should be very rare with rust
@@ -425,7 +464,7 @@ pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: 
         panic!("Page fault @ 0x{:X} with no current process", fault_addr);
     }
 
-    // memclr an alloced frame?
+    // memclr an alloced frame
     let page = &mut *(fault_addr as *mut Frame);
     for i in 0..1024 {
         page[i] = 0;

@@ -1,4 +1,4 @@
-// Physical memory management
+//! Physical memory management
 
 use core::ops::{Index, IndexMut};
 
@@ -6,44 +6,46 @@ use super::super::interrupts::{on, off};
 
 use super::regionmap::RegionMap;
 
-// array of frame info
+/// Array of `FrameInfo`. This is a pointer to the region of memory used
+/// to hold physical memory allocation metadata.
 static mut FRAME_INFO: *mut FrameInfoSection = 0 as *mut FrameInfoSection;
 
-// index of the first free frame in a LIFO list
-// 0 => empty list
+/// The index of the first free frame in a LIFO list.
+/// 0 => empty list
 static mut FREE_FRAMES: usize = 0;
 
-// A physical memory frame
+/// A physical memory frame
 #[repr(C, packed)]
 pub struct Frame {
     mem: [usize; 1024],
 }
 
-// should take up 4MiB on a 32-bit machine
-// there is one frame info for each frame, associated
-// by frame index
+/// Should take up 4MiB on a 32-bit machine.
+/// There is one frame info for each frame, associated by frame index
 #[repr(C, packed)]
 pub struct FrameInfoSection {
     arr: [FrameInfo; 1<<20],
 }
 
-// Frame info
-// When free
-// 31                 20           0
-// [nnnnnnnnnnnnnnnnnnnn           1]
-//  ^-- next free index            ^-- free bit
-//
-// When allocated
-// 31                           30 0
-// [ssssssssssssssssssssssssssssss 0]
-//  ^-- ptr to shared frame info   ^-- free bit
+/// Frame info
+/// ```
+/// When free
+/// 31                 20           0
+/// [nnnnnnnnnnnnnnnnnnnn           1]
+///  ^-- next free index            ^-- free bit
+///
+/// When allocated
+/// 31                           30 0
+/// [ssssssssssssssssssssssssssssss 0]
+///  ^-- ptr to shared frame info   ^-- free bit
+/// ```
 #[repr(C, packed)]
 pub struct FrameInfo {
     info: usize,
 }
 
 impl Frame {
-    // allocate a frame and return its physical address
+    /// Allocate a frame and return its physical address
     pub fn alloc() -> usize {
         let all_frames = unsafe {&mut *FRAME_INFO};
 
@@ -64,7 +66,7 @@ impl Frame {
         free << 12
     }
 
-    // free this frame
+    /// Free the frame with the given index
     pub fn free(index: usize) {
         let all_frames = unsafe {&mut *FRAME_INFO};
 
@@ -74,6 +76,7 @@ impl Frame {
     }
 }
 
+/// Make the words of a frame indexable
 impl Index<usize> for Frame {
     type Output = usize;
 
@@ -82,12 +85,14 @@ impl Index<usize> for Frame {
     }
 }
 
+/// Make the words of a frame indexable
 impl IndexMut<usize> for Frame {
     fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut usize {
         &mut self.mem[index]
     }
 }
 
+/// Make the `FrameInfoSection` indexable
 impl Index<usize> for FrameInfoSection {
     type Output = FrameInfo;
 
@@ -96,6 +101,7 @@ impl Index<usize> for FrameInfoSection {
     }
 }
 
+/// Make the `FrameInfoSection` indexable
 impl IndexMut<usize> for FrameInfoSection {
     fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut FrameInfo {
         &mut self.arr[index]
@@ -103,8 +109,8 @@ impl IndexMut<usize> for FrameInfoSection {
 }
 
 impl FrameInfo {
-    // allocate the frame referred to by this FrameInfo
-    // NOTE this should only be called on the first frame in the free list
+    /// Allocate the frame referred to by this `FrameInfo`.
+    /// NOTE: this should only be called on the first frame in the free list
     pub fn alloc(&mut self) {
         if self.get_index() != unsafe {FREE_FRAMES} {
             panic!("Attempt to alloc middle free frame {}", self.get_index());
@@ -123,7 +129,7 @@ impl FrameInfo {
         self.set_free(false);
     }
 
-    // free the frame referred to by this FrameInfo
+    /// Free the frame referred to by this FrameInfo
     pub fn free(&mut self) {
         // TODO: handle case of shared pages
 
@@ -141,28 +147,33 @@ impl FrameInfo {
         on();
     }
 
+    /// Get the index of the `Frame`
     pub fn get_index(&self) -> usize {
         let first = unsafe { FRAME_INFO as *const FrameInfoSection as usize };
         let addr = self as *const FrameInfo as usize;
         (addr - first) / 4
     }
 
+    /// Set the free bit of this `FrameInfo` to 1 if `free` is true; else 0
     fn set_free(&mut self, free: bool) {
         let base = self.info & !1;
         self.info = base | if free { 1 } else { 0 }
     }
 
+    /// Get the index of the next free frame
     fn get_next_free(&self) -> usize {
         self.info >> 12
     }
 
+    /// Set the index of the next free frame
     fn set_next_free(&mut self, next: usize) {
         let base = self.info & 0xFFF;
         self.info = (next << 12) | base;
     }
 }
 
-// init phys mem frames using the rest of physical memory
+/// Initialize physical memory frames using the rest of physical memory.
+/// This function detects all available physical memory.
 pub fn init(start: usize) {
     unsafe {
         // round start up to nearest page boundary

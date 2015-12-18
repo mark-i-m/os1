@@ -1,62 +1,79 @@
+//! This file contains the memory allocator used by the rust_alloc module
+//!
+//! ***INTERRUPTS MUST BE OFF BEFORE RUNNING ANYTHING IN THIS FILE!!!!
+//!
+//! The implementation in this file is a simple first-fit allocator.
+//!
+//! Invariants:
+//! * BLOCK_ALIGN = 4*size_of::<usize>()
+//! * All blocks will be a multiple of BLOCK_ALIGN
+//! * All blocks will be BLOCK_ALIGN-aligned
+//!
+//! Block structure:
+//! * size
+//! * forward pointer | free bits
+//! * backward pointer | 0x0
+//!   ...
+//! * size (last word)
+//!
+//! When a block is free, the first and last words should match and be equal to the size of the
+//! block. The forward pointer points to the head of the next free block. The backward pointer
+//! points to the head of the previous free block. Since all blocks are at least 16B aligned, at
+//! least the last 4 bits of all block addresses are 0. The last 4 bits of the forward pointer
+//! should be all 1s if the block is free.
+//!
+//! When a block is in use, the whole block is usable for the user. Thus,
+//! usable size and block size are equal.
+
 #![allow(dead_code)]
-// This file contains the memory allocator used by the rust_alloc module
-//
-// ***INTERRUPTS MUST BE OFF BEFORE RUNNING ANYTHING IN THIS FILE!!!!
-//
-// The implementation in this file is a simple first-fit allocator.
-//
-// Invariants:
-// * BLOCK_ALIGN = 4*size_of::<usize>()
-// * All blocks will be a multiple of BLOCK_ALIGN
-// * All blocks will be BLOCK_ALIGN-aligned
-//
-// Block structure:
-// * size
-// * forward pointer | free bits
-// * backward pointer | 0x0
-//   ...
-// * size (last word)
-//
-// When a block is free, the first and last words should match and be equal to the size of the
-// block. The forward pointer points to the head of the next free block. The backward pointer
-// points to the head of the previous free block. Since all blocks are at least 16B aligned, at
-// least the last 4 bits of all block addresses are 0. The last 4 bits of the forward pointer
-// should be all 1s if the block is free.
-//
-// When a block is in use, the whole block is usable for the user. Thus,
-// usable size and block size are equal.
 
 use core::mem::{size_of};
 
+/// A flag to turn on and off debugging output
 const DEBUG: bool = false;
 
+/// A const representing the minimum alignment of any block.
+/// It is effectively a const, but it has to be initialized at startup because `size_of` is
+/// non-const.
 static mut BLOCK_ALIGN: usize = 0;
 
-pub static mut START: usize = 0;
-pub static mut END: usize = 0;
+/// The start address of the kernel heap
+static mut START: usize = 0;
 
+/// The end address of the kernel heap. That is, the first address that is not in the heap.
+static mut END: usize = 0;
+
+/// A pointer to the first free heap block
 static mut free_list: *mut Block = 0 as *mut Block;
 
 // heap stats
+/// The number of successful mallocs (for stats purposes)
 static mut SUCC_MALLOCS: usize = 0;
+/// The number of unsuccessful mallocs (for stats purposes)
 static mut FAIL_MALLOCS: usize = 0;
+/// The number of successful frees (for stats purposes)
 static mut FREES:        usize = 0;
 
-// memory block
+/// A struct representing a heap block.
+///
+/// It is empty because, by nature, heap blocks are variable size. Rather thsn give the compiler
+/// a hard time, we can just a block fixed size and write methods that are aware of the situation.
+/// Then, we just need to cast an address into a block pointer. This is a very C-ish solution,
+/// but it makes life easy because a heap implementation usually has a lot of pointer arithmetic.
 struct Block;
 
 impl Block {
-    // returns the first word of the block
+    /// Returns the first word of the block, which will contain the size if this is a free block
     unsafe fn get_head(&self) -> usize {
         *(self as *const Block as *const usize)
     }
 
-    // sets the header to the given value
+    /// Sets the header to the given value
     unsafe fn set_head(&mut self, head: usize) {
         *(self as *mut Block as *mut usize) = head;
     }
 
-    // returns the last word of the block
+    /// Returns the last word of the block, which will contain the size if this is a free block
     unsafe fn get_foot(&self) -> usize {
         let ptr: *const u8 = self as *const Block as *const u8;
         let size = self.get_size() - size_of::<usize>();
@@ -69,7 +86,7 @@ impl Block {
         *(ptr.offset(size as isize) as *const usize)
     }
 
-    // sets the footer to the given value
+    /// Sets the footer to the given value
     unsafe fn set_foot(&mut self, foot: usize) {
         let ptr: *mut u8 = self as *mut Block as *mut u8;
         let size = self.get_size() - size_of::<usize>();
@@ -82,23 +99,24 @@ impl Block {
         *(ptr.offset(size as isize) as *mut usize) = foot;
     }
 
-    // gets the 4 free bits of the block
+    /// Gets the 4 free bits of the block
     unsafe fn get_free_bits(&self) -> u8 {
         (*(self as *const Block as *const usize).offset(1) & 0xF) as u8
     }
 
-    // set the forward pointer (but not the free bits)
+    /// Set the forward pointer (but not the free bits)
     unsafe fn set_next(&mut self, next: *mut Block) {
         *(self as *mut Block as *mut usize).offset(1) =
             ((next as usize) & !0xF) | (self.get_free_bits() as usize);
     }
 
-    // set the backward pointer
+    /// Set the backward pointer
     unsafe fn set_prev(&mut self, prev: *mut Block) {
         *(self as *mut Block as *mut usize).offset(2) = (prev as usize) & !0xF;
     }
 
-    // returns true if the block is a valid free block
+    /// Returns true if the block is a valid free block.
+    /// This method does a lot of sanity checiking
     pub unsafe fn is_free(&self) -> bool {
         // make sure the block addr is reasonable
         let self_usize = self as *const Block as usize;
@@ -141,29 +159,29 @@ impl Block {
         self.get_free_bits() == 0xF
     }
 
-    // set the free bits
+    /// Set the free bits
     pub unsafe fn mark_free(&mut self) {
         *(self as *mut Block as *mut usize).offset(1) |= 0xF;
     }
 
-    // clear the free bits
-    // the block should already be removed from the free list
+    /// Clear the free bits.
+    /// The block should already be removed from the free list
     pub unsafe fn mark_used(&mut self) {
         *(self as *mut Block as *mut usize).offset(1) &= !0xF; // bitwise !
     }
 
-    // return the size of the block (user-usable data size)
+    /// Return the size of the block (user-usable data size)
     pub unsafe fn get_size(&self) -> usize {
         self.get_head()
     }
 
-    // set the size of block
+    /// Set the size of block
     pub unsafe fn set_size(&mut self, size: usize) {
         self.set_head(size);
         self.set_foot(size);
     }
 
-    // returns the heap block immediately following this one
+    /// Returns the heap block immediately following this one
     pub unsafe fn get_contiguous_next(&self) -> *mut Block {
         let ptr: *const u8 = self as *const Block as *const u8;
         let size = self.get_size();
@@ -176,8 +194,8 @@ impl Block {
         ptr.offset(size as isize) as *mut Block
     }
 
-    // returns the heap block immediately preceding this one
-    // returns null if there is no valid previous block
+    /// Returns the heap block immediately preceding this one
+    /// or null if there is no valid previous block.
     pub unsafe fn get_contiguous_prev(&self) -> *mut Block {
         let prev_size_ptr = (self as *const Block as *const usize).offset(-1);
 
@@ -199,19 +217,17 @@ impl Block {
         ptr.offset(-(prev_size as isize)) as *mut Block
     }
 
-    // returns the forward ptr of the block
-    // (excluding the free bits)
+    /// Returns the forward ptr of the block (excluding the free bits)
     pub unsafe fn get_free_next(&self) -> *mut Block {
         (*(self as *const Block as *const usize).offset(1) & !0xF) as *mut Block
     }
 
-    // returns the backward ptr of the block
+    /// Returns the backward ptr of the block
     pub unsafe fn get_free_prev(&self) -> *mut Block {
         (*(self as *const Block as *const usize).offset(2) & !0xF) as *mut Block
     }
 
-    // remove from free list
-    // clear forward/backward pointers
+    /// Remove from free list. Clear forward/backward pointers
     pub unsafe fn remove(&mut self) {
         // make sure the block is free and valid
         if !self.is_free() {
@@ -237,7 +253,7 @@ impl Block {
         self.set_prev(0 as *mut Block);
     }
 
-    // add to head of free list
+    /// Add to head of free list
     pub unsafe fn insert(&mut self) {
         let old_head = free_list;
 
@@ -257,8 +273,8 @@ impl Block {
         }
     }
 
-    // merge with next
-    // removes the second block from the free list before merging
+    /// Merge this block with the next block.
+    /// Removes the second block from the free list before merging
     pub unsafe fn merge_with_next(&mut self) {
         // make sure both blocks are free and valid
         if !self.is_free() {
@@ -281,11 +297,11 @@ impl Block {
         self.set_size(new_size);
     }
 
-    // split the block so that it is the given size
-    // inserts the new block into the free list
-    // the block must be large enough to split (>= 2*BLOCK_ALIGN)
-    // the block must be free
-    // the new size must be a multiple of BLOCK_ALIGN
+    /// Split the block so that it is the given size.
+    /// Insert the new block into the free list.
+    /// The block must be large enough to split (`>= 2*BLOCK_ALIGN`).
+    /// The block must be free.
+    /// The new size must be a multiple of `BLOCK_ALIGN`.
     pub unsafe fn split(&mut self, size: usize) {
         // make sure the block is free and valid
         if !self.is_free() {
@@ -321,10 +337,10 @@ impl Block {
         (*new_block).insert();
     }
 
-    // returns true if this block matches the size and alignment
-    // returns the size it which the block should be split to obtain
-    //   an aligned block; the second return value is meaningless if
-    //   we return false.
+    /// Returns true if this block matches the size and alignment.
+    /// Returns the size at which the block should be split to obtain
+    /// an aligned block; the second return value is meaningless if
+    /// we return false.
     pub unsafe fn is_match(&self, size: usize, align: usize) -> (bool, usize) {
         let block_addr = self as *const Block as usize;
         let aligned = round_to_n(block_addr, align);
@@ -337,19 +353,19 @@ impl Block {
     }
 }
 
-// round up to the nearest multiple of BLOCK_ALIGN
+/// Round up to the nearest multiple of `BLOCK_ALIGN`
 fn round_to_block_align(size: usize) -> usize {
     unsafe {
         round_to_n(size, BLOCK_ALIGN)
     }
 }
 
-// n must be a power of 2
+/// Round the size to `n`. `n` must be a power of 2
 fn round_to_n(size: usize, n: usize) -> usize {
     if size % n == 0 { size } else { size - (size % n) + n }
 }
 
-// Init the heap
+/// Initialize the kernel heap
 pub fn init(start: usize, size: usize) {
     unsafe {
         // set BLOCK_ALIGN
@@ -530,7 +546,7 @@ pub fn print_stats() {
     }
 }
 
-// Helper methods to compute stats
+/// Helper method to compute stats
 unsafe fn get_block_stats() -> (usize, usize, usize) {
     // counters
     let mut num_free = 0;
@@ -547,6 +563,3 @@ unsafe fn get_block_stats() -> (usize, usize, usize) {
 
     (num_free, size_free, END - START - size_free)
 }
-
-
-

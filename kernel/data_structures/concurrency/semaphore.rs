@@ -1,24 +1,4 @@
 //! A semaphore implementation based on the rust Mutex<T> type
-//!
-//! There are two fundamental type defined herein.
-//! 1. `StaticSemaphore` is a semaphore implementation that can be used in
-//!    statics. It has a const constructor.
-//! 2. `Semaphore` is a much more Rustic semaphore. It returns an RAII
-//!    `SemaphoreGuard`, which automatically calls "up" when it goes out of
-//!    scope. This semaphore takes ownership of the data it is guarding, so that
-//!    Rust ownership and lifetime semantics can be used to guarantee safety of
-//!    the resource.
-//!
-//! ```
-//!  // wrap resource in a semaphore with initial count 3
-//!  let s = Semaphore::new(resource, 3);
-//!
-//!  {
-//!      // acquire
-//!      let guard = s.clone();
-//!  }
-//!  // guard dies => release
-//! ```
 
 use core::sync::atomic::{AtomicIsize, Ordering};
 use core::cell::UnsafeCell;
@@ -33,7 +13,22 @@ use super::super::super::process::{ready_queue, proc_yield};
 
 use super::super::super::interrupts::{on,off};
 
-/// A
+/// `Semaphore` is a much more Rustic semaphore. It returns an RAII
+/// `SemaphoreGuard`, which automatically calls "up" when it goes out of
+/// scope. This semaphore takes ownership of the data it is guarding, so that
+/// Rust ownership and lifetime semantics can be used to guarantee safety of
+/// the resource.
+///
+/// ```
+///  // wrap resource in a semaphore with initial count 3
+///  let s = Semaphore::new(resource, 3);
+///
+///  {
+///      // acquire
+///      let guard = s.clone();
+///  }
+///  // guard dies => release
+/// ```
 pub struct Semaphore<T> {
     // box the inner semaphore so it has a constant address
     // and can be safely moved
@@ -41,23 +36,24 @@ pub struct Semaphore<T> {
     data: UnsafeCell<T>,
 }
 
-// static semaphore that is not RAII
+/// `StaticSemaphore` is a semaphore implementation that can be used in
+/// statics. It has a const constructor.
 pub struct StaticSemaphore {
     count: AtomicIsize,
     queue: ProcessQueue,
 }
 
-// RAII native SemaphoreGuard
+/// RAII SemaphoreGuard
 pub struct SemaphoreGuard<'semaphore, T: 'semaphore> {
     semaphore: &'semaphore mut StaticSemaphore,
     data: &'semaphore UnsafeCell<T>,
 }
 
-
 unsafe impl<T: Send> Send for Semaphore<T> {}
 unsafe impl<T: Send> Sync for Semaphore<T> {}
 
 impl<T> Semaphore<T> {
+    /// Create a new semaphore with the the given count guarding the given value
     pub fn new(val: T, i: isize) -> Semaphore<T> {
         Semaphore {
             inner: box StaticSemaphore::new(i),
@@ -65,8 +61,8 @@ impl<T> Semaphore<T> {
         }
     }
 
-    // acquire
-    // returns an RAII guard, so no need for up()
+    /// Acquire.
+    /// returns an RAII guard, so no need for up()
     pub fn down<'semaphore>(&'semaphore mut self) -> SemaphoreGuard<'semaphore, T> {
         // acquire semaphore
         self.inner.down();
@@ -75,13 +71,14 @@ impl<T> Semaphore<T> {
 }
 
 impl<T> Drop for Semaphore<T> {
+    /// When the semaphore goes out of scope, it destroys the contents
     fn drop(&mut self) {
         self.inner.destroy();
     }
 }
 
-
 impl StaticSemaphore {
+    /// Create a new `StaticSemaphore` with the given count
     pub const fn new(i: isize) -> StaticSemaphore {
         StaticSemaphore {
             count: AtomicIsize::new(i),
@@ -89,7 +86,7 @@ impl StaticSemaphore {
         }
     }
 
-    // acquire
+    /// Acquire
     pub fn down(&mut self) {
         off();
         if self.count.fetch_sub(1, Ordering::AcqRel) <= 0 {
@@ -100,7 +97,7 @@ impl StaticSemaphore {
         on();
     }
 
-    // release
+    /// Release
     pub fn up(&mut self) {
         off();
         let next = self.queue.pop_head();
@@ -112,9 +109,9 @@ impl StaticSemaphore {
         on();
     }
 
-    // clean up
-    // cannot implement Drop here because we want to be able
-    // to create a static semaphore
+    /// Clean up.
+    /// Cannot implement Drop here because we want to be able
+    /// to create a static semaphore.
     pub fn destroy(&mut self) {
         if !self.queue.pop_head().is_null() {
             // TODO: intead, just kill the processes or do zombie detection
@@ -123,9 +120,9 @@ impl StaticSemaphore {
     }
 }
 
-
 impl<'semaphore, T> SemaphoreGuard<'semaphore, T> {
-    pub fn new(semaphore: &'semaphore mut StaticSemaphore,
+    /// Create a guard referring to the given semaphore and data
+    fn new(semaphore: &'semaphore mut StaticSemaphore,
                data: &'semaphore UnsafeCell<T>) -> SemaphoreGuard<'semaphore, T>{
         SemaphoreGuard {
             semaphore: semaphore,
@@ -135,11 +132,13 @@ impl<'semaphore, T> SemaphoreGuard<'semaphore, T> {
 }
 
 impl<'semaphore, T> Drop for SemaphoreGuard<'semaphore, T> {
+    /// `SemaphoreGuard` is RAII, so dropping the guard calls up
     fn drop(&mut self) {
         self.semaphore.up();
     }
 }
 
+/// Implement Deref and DerefMut to get deref coersions
 impl<'semaphore, T> Deref for SemaphoreGuard<'semaphore, T> {
     type Target = T;
 
@@ -148,6 +147,7 @@ impl<'semaphore, T> Deref for SemaphoreGuard<'semaphore, T> {
     }
 }
 
+/// Implement Deref and DerefMut to get deref coersions
 impl<'semaphore, T> DerefMut for SemaphoreGuard<'semaphore, T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.data.get() }
