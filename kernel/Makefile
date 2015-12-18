@@ -21,6 +21,8 @@ kernel: ${BOOTFILES} ${AFILES}
 runtext: all
 	qemu-system-x86_64 -nographic --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk $(QEMUEXTRA)
 
+rungraphic: RUSTOPT = -C opt-level=3
+rungraphic: ASOPT = -O3
 rungraphic: all
 	qemu-system-x86_64 --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk $(QEMUEXTRA)
 
