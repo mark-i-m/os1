@@ -24,12 +24,12 @@ pub fn run(this: &Process) -> usize {
 
     unsafe { *(0xf00000 as *mut usize) = this.pid; }
 
-    w0.set_bg_color(Color::LightBlue);
+    w0.set_bg(Color::LightBlue);
     w0.paint();
 
     msg.set_cursor((0,0));
-    msg.set_bg_color(Color::LightGray);
-    msg.set_fg_color(Color::Black);
+    msg.set_bg(Color::LightGray);
+    msg.set_fg(Color::Black);
 
     msg.put_str("<-- If semaphores work correctly, then only this block \
                 should be red when all loop_procs finish running");
@@ -94,12 +94,12 @@ fn run2(this: &Process) -> usize {
     }
 
     printf!("Erase ({},{}) ", prev.0, prev.1);
-    w.set_bg_color(Color::LightBlue);
+    w.set_bg(Color::LightBlue);
     w.set_cursor(prev);
     w.put_str(" ");
 
     printf!("Draw ({},{})\n", me.0,me.1);
-    w.set_bg_color(Color::Red);
+    w.set_bg(Color::Red);
     w.set_cursor(me);
     w.put_str(" ");
 
