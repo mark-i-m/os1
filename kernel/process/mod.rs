@@ -1,7 +1,4 @@
-// This is an implementation of simple cooperative processes
-//
-// TODO: kill
-// TODO: check killed
+//! A module for process management
 
 use alloc::boxed::Box;
 
@@ -16,7 +13,6 @@ use core::ops::Drop;
 use super::data_structures::ProcessQueue;
 
 use super::interrupts::{on, off};
-use super::interrupts::pit::JIFFIES;
 
 use super::machine::{self, context_switch};
 
@@ -26,10 +22,7 @@ use self::context::{KContext};
 
 use self::idle::IDLE_PROCESS;
 
-pub use self::current::{CURRENT_PROCESS};
-
 pub mod context;
-pub mod current;
 
 pub mod ready_queue;
 
@@ -38,54 +31,68 @@ mod idle;
 mod reaper;
 mod user;
 
-// constants
+/// Size of a kernel stack (number of words)
 const STACK_SIZE: usize = 2048;
 
-// next pid
+/// The next available PID
 static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
 
-// Process state
+/// The current running process if there is one
+pub static mut CURRENT_PROCESS: *mut Process = 0 as *mut Process;
+
+/// An enum representing the possible states of a process
 #[repr(C)]
 #[derive(Clone, Copy)]
 enum State {
+    /// Process is created, but not ready
     INIT,
+    /// Process is in the ready q
     READY,
+    /// Process is running (not on the ready q or blocked)
     RUNNING,
+    /// Process is blocked on a q
     BLOCKED,
+    /// Process has died
     TERMINATED,
 }
 
-// Process struct
+/// Represents a single process, its identity, resources, etc.
 pub struct Process {
-    // Name of the process; some string
+    /// Name of the process; not necessarily unique
     name: &'static str,
+
+    /// Unique 32-bit identifier
     pid: usize,
 
-    // This is the code of the process
+    /// The routine of the process
     run: fn(&Process) -> usize,
 
+    /// The current state of the process
     state: State,
 
-    // The kheap-allocated stack
-    // - this is a pointer to the stack, but *mut usize is not Send/Sync
-    // - this pointer is to the bottom of the stack, not the head
+    /// A pointer to the kheap-allocated stack space for this process's
+    /// kernel stack. This pointer is to the bottom of the stack, not the head.
     stack: usize,
 
-    // The saved kernel context for context switching
+    /// The saved kernel context for context switching
     kcontext: KContext,
 
-    // Address space
+    /// The virtual memory address space of the process
     pub addr_space: AddressSpace,
 
-    // Number of calls to interrupts::on() while this process was running
-    // Interrupts are on if disable_cnt == 0
+    /// Number of calls to interrupts::on() while this process was running
+    /// Interrupts are on if `disable_cnt == 0`
     pub disable_cnt: usize,
 
-    // A link to the next process to be scheduled
+    /// A link for use in process queues
     pub next_proc: *mut Process,
 }
 
 impl Process {
+    /// Create a new process with the given name and routine. Because processes
+    /// are a fundamental abstraction, they are too low level for me to use Rust well.
+    /// For this reason, a raw pointer is returned to the process, and it is the
+    /// job of the caller to arrange for the process to be reaped.
     pub fn new(name: &'static str, run: fn(&Process) -> usize) -> *mut Process {
 
         let mut p = Process {
@@ -105,6 +112,7 @@ impl Process {
         Box::into_raw(box p)
     }
 
+    /// A helper to get a kernel stack for this process
     fn get_stack(&mut self) {
         // TODO: fudge
         // Allocate a stack
@@ -126,12 +134,14 @@ impl Process {
         // printf!("stack for {:?} is at 0x{:x}\n", self, self.stack);
     }
 
+    /// Set the state of the process to `s`
     fn set_state(&mut self, s: State) {
         self.state = s;
     }
 }
 
 impl Drop for Process {
+    /// When the process is reaped, we must free its stack
     fn drop(&mut self) {
         unsafe {
             Box::from_raw(self.stack as *mut [usize; 2048]);
@@ -141,6 +151,7 @@ impl Drop for Process {
 }
 
 impl Debug for Process {
+    /// Allow processes to be printed elegantly in format strings
     fn fmt(&self, f: &mut Formatter) -> Result {
         write!(f, "Process #{} @ 0x{:x}: {}",
                self.pid, self as *const Process as usize, self.name)
@@ -148,26 +159,29 @@ impl Debug for Process {
 }
 
 impl PartialEq for Process {
+    /// Two processes are the same if they have the same PID
     fn eq(&self, other: &Process) -> bool {
         self.pid == other.pid
     }
 }
 
+/// Initialize the process subsystem.
+/// This creates the init, idle, and reaper processes, but does not
+/// start any of them yet.
 pub fn init() {
-    // Init ready q and current proc
-    current::init(); // THIS MUST BE FIRST
-    ready_queue::init();
-
     // Add the init process to the ready q
     ready_queue::make_ready(Process::new("init", self::init::run));
 
     // Create the idle process
     idle::init();
 
-    printf!("Processes inited\n");
+    // Create the reaper process
+    reaper::init();
+
+    printf!("processes inited\n");
 }
 
-// The entry point of all processes
+/// The entry point of all processes
 #[allow(private_no_mangle_fns)]
 #[no_mangle]
 fn start_proc() {
@@ -187,7 +201,12 @@ fn start_proc() {
     }
 }
 
-// A safe wrapper around machine::proc_yield
+/// A safe wrapper around machine::proc_yield.
+///
+/// This function is called when the current process wants to
+/// yield the rest of its quantum. The process can specify a
+/// `ProcessQueue` to yield onto, or if None is specified, it
+/// yields onto the ready queue.
 pub fn proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     unsafe {
         off();
@@ -196,14 +215,12 @@ pub fn proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     }
 }
 
-// Yield to the next process waiting
-//
-// This function is called by the current process to
-// yield to the next process on the ready q.
-//
-// To yield normally, call process::proc_yield()
-//
-// Interrupts should already be disabled here
+/// The unsafe function that does the actual work of choosing the
+/// next process and switching to it.
+///
+/// NOTE: Processes should not call this function directly; they
+/// should use `process::proc_yield` instead.
+/// NOTE: Interrupts should already be disabled here
 #[no_mangle]
 #[inline(never)]
 pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
@@ -220,19 +237,12 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     }
 
     // get next process from ready q
-    // every 50 jiffies, spawn a reaper process
-    let mut next = if JIFFIES % 50 == 0 {
-        Process::new("reaper", self::reaper::run)
-    } else {
-        ready_queue::get_next()
-    };
+    let mut next = ready_queue::get_next();
 
     // run the idle process when everyone is done
     if next.is_null() {
         next = IDLE_PROCESS;
     }
-
-    //bootlog!("{:?} [Switching]\n", *CURRENT_PROCESS);
 
     // switch address spaces
     (*next).addr_space.activate();
@@ -242,6 +252,8 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
 
     // set the CURRENT_PROCESS
     CURRENT_PROCESS = next;
+
+    //bootlog!("{:?} [Switching]\n", *CURRENT_PROCESS);
 
     // context switch
     context_switch((*CURRENT_PROCESS).kcontext,
@@ -254,27 +266,25 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     panic!("The impossible has happened!");
 }
 
-// Called by the current process to exit
+/// Called by the current process to exit with the given exit code
 pub fn exit(code: usize) {
-    // Disable interrupts
-    off();
-
     unsafe {
-        if !CURRENT_PROCESS.is_null() {
-            // check if the init process is exiting
-            if (*CURRENT_PROCESS).pid == 0 {
-                //panic!("{:?} is exiting!\n", *CURRENT_PROCESS);
-            } else {
-                (*CURRENT_PROCESS).set_state(State::TERMINATED);
-                printf!("{:?} [Exit 0x{:X}]\n",
-                        *CURRENT_PROCESS, code);
-            }
-
-            // reaper
-            self::reaper::reaper_add(CURRENT_PROCESS);
-        } else {
+        if CURRENT_PROCESS.is_null() {
             panic!("Exiting with no current process!\n");
         }
+
+        (*CURRENT_PROCESS).set_state(State::TERMINATED);
+
+        // clean up address space
+        (*CURRENT_PROCESS).addr_space.clear();
+
+        // Disable interrupts
+        off();
+
+        // NOTE: need to print *before* adding to reaper q
+        bootlog!("{:?} [Exit 0x{:X}]\n", *CURRENT_PROCESS, code);
+
+        self::reaper::reaper_add(CURRENT_PROCESS);
 
         // set current to None, so we will never run this again
         CURRENT_PROCESS = 0 as *mut Process;

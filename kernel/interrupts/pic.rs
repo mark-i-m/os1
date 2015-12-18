@@ -1,4 +1,4 @@
-// The programmable interrupt controller
+//! A module for programmable interrupt controller
 
 use core::option::Option::None;
 
@@ -6,13 +6,23 @@ use super::super::machine::*;
 
 use super::idt::add_interrupt_handler;
 
-const C1: u16 = 0x20;          /* command port for PIC1 */
-const D1: u16 = 0x21;          /* data port for PIC1 */
-const C2: u16 = 0xA0;          /* command port for PIC2 */
-const D2: u16 = 0xA1;          /* data port for PIC2 */
+/// Command port for PIC1
+const C1: u16 = 0x20;
 
+/// Data port for PIC1
+const D1: u16 = 0x21;
+
+/// Command port for PIC2
+const C2: u16 = 0xA0;
+
+
+/// Data port for PIC2
+const D2: u16 = 0xA1;
+
+/// First IRQ number allowed for registering handlers
 const FIRST_IDT: u8 = 0x30;
 
+/// Initialize the PIC, but leave interrupts disabled
 pub fn init() {
     unsafe {
         /* ICW1 */
@@ -53,10 +63,10 @@ pub fn init() {
         add_interrupt_handler(FIRST_IDT + 15, irq15);
     }
 
-    printf!("PIC inited\n");
+    bootlog!("pic inited\n");
 }
 
-// End of interrupt: send the next irq, but interrupts still disabled
+/// End of interrupt: send the next irq, but interrupts still disabled
 fn pic_eoi(irq: u8) {
     unsafe {
         if irq >= 8 {
@@ -68,7 +78,7 @@ fn pic_eoi(irq: u8) {
     }
 }
 
-// This is the code for the interrupt handler
+/// Rust-side IRQ handling code
 #[no_mangle]
 pub fn pic_irq(irq: usize) {
     // bookkeeping

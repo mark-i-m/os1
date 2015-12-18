@@ -1,20 +1,27 @@
-// This module contains everything that has to do with memory
+//! This module contains everything that has to do with memory
+//!
+//! 1. Kernel heap manager
+//! 2. Physical memory allocator
+//! 3. Virtual memory management
 
-pub use self::vm::vmm_page_fault;
-
-pub use self::vm::AddressSpace;
+pub use self::virtmem::{vmm_page_fault, AddressSpace};
 
 pub use self::tss::esp0;
 
 pub mod rust_alloc;
 
 mod heap;
-mod vm;
 mod tss;
+mod physmem;
+mod virtmem;
+mod regionmap;
 
-pub fn init(heap_start: usize, heap_end: usize,
-            frames_start: usize, frames_end: usize) {
+/// Initialize all memory subsystems
+pub fn init() {
+    // make the kernel heap 3MiB starting at 1MiB.
+    // make memory data structures take up the next 4MiB.
     tss::init();
-    heap::init(heap_start, heap_end);
-    vm::init(frames_start, frames_end);
+    heap::init(1<<20, 3<<20);
+    physmem::init(4<<20);
+    virtmem::init();
 }

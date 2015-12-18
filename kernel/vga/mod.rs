@@ -1,4 +1,5 @@
-// this module contains all code for drawing on the vga screen
+//! This module contains a primitive display driver for the kernel
+//! while in VGA mode.
 
 mod vga;
 pub mod window;

@@ -1,4 +1,4 @@
-// A module containing useful data structures
+//! A module containing useful data structures
 
 pub use self::proc_queue::ProcessQueue;
 
