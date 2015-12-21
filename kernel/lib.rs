@@ -12,7 +12,7 @@
 #![no_std]
 
 #![crate_type = "staticlib"]
-#![crate_name = "rustcode"]
+#![crate_name = "os1"]
 
 // use libcore
 #[macro_use]
@@ -32,6 +32,7 @@ mod memory;
 mod process;
 mod vga;
 mod interrupts;
+mod fs;
 
 // exported functions -- to use in asm functions
 pub use self::process::context::store_kcontext;
@@ -60,6 +61,8 @@ pub fn kernel_main() {
 
     // init interupts
     interrupts::init(1000 /* hz */);
+
+    // TODO: filesystem
 
     /////////////////////////////////////////////////////
     // Done initing stuff                              //

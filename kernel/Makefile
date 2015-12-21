@@ -1,11 +1,14 @@
 .PHONY: all clean
 
-.SECONDARY: kernel.img kernel.bin
+# rust libraries
+DEPDIR = ../lib
 
-DEPDIR = ../deps
-
+# run configuration
 QEMUEXTRA =
+KERNELDEBUG =
+KERNELSERIAL =
 
+# by default build, but do not run
 default: all
 
 all: kernel.img
@@ -13,21 +16,23 @@ all: kernel.img
 -include ../common.mak
 
 # kernel build
-kernel: ${BOOTFILES} ${AFILES}
-	${LD} --gc-sections -N -m elf_i386 -e start --section-start mbr=0x7c00 -Ttext=0x9000 -o kernel mbr.o --start-group ${AFILES} --end-group
+kernel: ${OFILES} ${AFILES}
+	${LD} --gc-sections -N -m elf_i386 -e start --section-start mbr=0x7c00 -Ttext=0x9000 -o kernel ${OFILES} --start-group ${AFILES} --end-group
 
-# DO NOT ENABLE KVM!!! For some reason it causes weird crashes...
 # kernel run
-runtext: all
-	qemu-system-x86_64 -nographic --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk $(QEMUEXTRA)
+# DO NOT ENABLE KVM!!! For some reason it causes weird crashes...
+run: all
+	qemu-system-x86_64 ${KERNELDEBUG} ${KERNELSERIAL} --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk ${QEMUEXTRA}
+
+runtext: KERNELSERIAL = -nographic
+runtext: run
 
 rungraphic: RUSTOPT = -C opt-level=3
 rungraphic: ASOPT = -O3
-rungraphic: all
-	qemu-system-x86_64 --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk $(QEMUEXTRA)
+rungraphic: run
 
-rundebug: clean all
-	qemu-system-x86_64 -s -S -nographic --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk $(QEMUEXTRA)
+rundebug: KERNELDEBUG = -s -S
+rundebug: clean runtext
 
 # kernel clean
 clean::

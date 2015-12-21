@@ -1,27 +1,19 @@
-.PHONY: all deps clean clean-all all-kernel
+.PHONY: all lib clean clean-all
 
 RUSTSRC = rust
 export RUSTSRC
 
-default: all
+default: rungraphic
 
-all: kernel user
-
-deps:
-	${MAKE} -C deps all
-
-kernel: deps
-	${MAKE} -C kernel all
-
-user: deps
-	#${MAKE} -C user all
+lib:
+	${MAKE} -C lib all
 
 clean:
 	${MAKE} -C kernel clean
 	${MAKE} -C user clean
 
 clean-all: clean
-	${MAKE} -C deps clean
+	${MAKE} -C lib clean
 
-run%: kernel
+run%: lib
 	${MAKE} -C kernel $@
