@@ -29,11 +29,10 @@ use super::super::interrupts::{add_trap_handler, on, off};
 
 use super::super::process::CURRENT_PROCESS;
 
-/// Shared PDE #0: direct mapping the first 4MiB
-static mut PDE0: PagingEntry = PagingEntry::new();
+use alloc::boxed::Box;
 
-/// Shared PDE #1: direct mapping the second 4MiB
-static mut PDE1: PagingEntry = PagingEntry::new();
+/// A list of shared PDEs direct mapping the beginning of memory
+static mut SHARED_PDES: *mut SharedPDEList = 0 as *mut SharedPDEList;
 
 /// Is VM on?
 static mut VMM_ON: bool = false;
@@ -64,6 +63,12 @@ struct VMTable {
     entries: [PagingEntry; 1024],
 }
 
+/// A data structure to keep track of shared PDEs
+struct SharedPDEList {
+    pde: PagingEntry,
+    next: Option<Box<SharedPDEList>>,
+}
+
 impl AddressSpace {
     /// Create a new address space. Each address space has the first
     /// 8MiB direct mapped. The next 4MiB is mapped to the page directory
@@ -71,10 +76,13 @@ impl AddressSpace {
         // allocate a frame
         let (pd, pd_paddr) = VMTable::new();
 
-        // copy the first two entries of the pd to direct map
-        // the first 8MiB
-        pd[0] = unsafe {PDE0};
-        pd[1] = unsafe {PDE1};
+        // copy the first entries of the pd to direct map
+        unsafe {
+            let shared_pdes = &*SHARED_PDES;
+            for i in 0..shared_pdes.length() {
+                pd[i] = shared_pdes[i].get_pde();
+            }
+        }
 
         // point the third PDE at the PD to map all page tables
         // so PD is at vaddr 0x802000
@@ -232,6 +240,11 @@ impl AddressSpace {
             VMM_ON = true;
         }
         on();
+    }
+
+    /// Share the given page with the process with PID `pid`
+    pub fn share_page(pid: usize, vaddr: usize) {
+        // TODO
     }
 
     /// Remove all non-kernel mappings in this address space.
@@ -398,52 +411,109 @@ impl IndexMut<usize> for VMTable {
     }
 }
 
+impl SharedPDEList {
+    /// Create `n` PDEs to direct map the memory start from the `i`th page
+    pub fn new(n: usize, i: usize) -> *mut SharedPDEList {
+        printf!("n: {}, i: {}\n", n, i);
+        unsafe {
+            // create the page table and pde
+            let mut pde = PagingEntry::new();
+
+            pde.set_present(true); // present
+            pde.set_read_write(true); // read/write
+            pde.set_privelege_level(false); // kernel only
+            pde.set_caching(false); // write-back
+            pde.set_address(Frame::alloc()); // alloc a new PT
+
+            // map direct map except page 0
+            let pt = &mut *(pde.get_address() as *mut VMTable);
+            for e in (if i == 0 {1} else {0})..1024 {
+                pt[e] = PagingEntry::new();
+                pt[e].set_present(true); // present
+                pt[e].set_read_write(true); // read/write
+                pt[e].set_privelege_level(false); // kernel only
+                pt[e].set_caching(false); // write-back
+                pt[e].set_address(((i<<10)+e) << 12); // PD paddr
+            }
+
+            Box::into_raw(box SharedPDEList {
+                pde: pde,
+                next: if n == 1 {
+                    None
+                } else {
+                    Some(Box::from_raw(SharedPDEList::new(n-1, i+1)))
+                }
+            })
+        }
+    }
+
+    pub fn length(&self) -> usize {
+        1 + if let Some(ref next) = self.next {
+            next.length()
+        } else {
+            0
+        }
+    }
+
+    pub fn get_pde(&self) -> PagingEntry {
+        self.pde
+    }
+}
+
+impl Index<usize> for SharedPDEList {
+    type Output = SharedPDEList;
+
+    fn index<'a>(&'a self, index: usize) -> &'a SharedPDEList {
+        if index == 0 {
+            self
+        } else {
+            if let Some(ref next) = self.next {
+                &next[index - 1]
+            } else {
+                panic!("Index out of bounds!");
+            }
+        }
+    }
+}
+
+impl IndexMut<usize> for SharedPDEList {
+    fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut SharedPDEList {
+        if index == 0 {
+            self
+        } else {
+            if let Some(ref mut next) = self.next {
+                &mut next[index - 1]
+            } else {
+                panic!("Index out of bounds!");
+            }
+        }
+    }
+}
+
 /// Initialize virtual memory management but do not turn on VM.
-/// This creates the two shared page tables that map the first 8MiB.
-pub fn init() {
-    // create the first two PDEs
+///
+/// This creates the shared page tables that map the first beginning of memory.
+/// It also registers the `page_fault_handler`.
+///
+/// All memory before `start` is direct mapped. The first 4MiB after `start are
+/// mapped to the page directory. The next MiB is reserved kernel memory.
+/// `start` must be 4MiB aligned.
+pub fn init(start: usize) {
+
+    if start % (4<<20) != 0 {
+        panic!("virt mem start must be 4MiB aligned");
+    }
+
+    // Create the shared PDEs
+    // Each PDE maps 4MiB (2^22)
     unsafe {
-        // PDE0
-        PDE0.set_present(true); // present
-        PDE0.set_read_write(true); // read/write
-        PDE0.set_privelege_level(false); // kernel only
-        PDE0.set_caching(false); // write-back
-        PDE0.set_address(Frame::alloc()); // alloc a new PT
-
-        // map first 4MiB except page 0
-        let pt0 = &mut *(PDE0.get_address() as *mut VMTable);
-        for i in 1..1024 {
-            pt0[i] = PagingEntry::new();
-            pt0[i].set_present(true); // present
-            pt0[i].set_read_write(true); // read/write
-            pt0[i].set_privelege_level(false); // kernel only
-            pt0[i].set_caching(false); // write-back
-            pt0[i].set_address(i << 12); // PD paddr
-        }
-
-        // PDE1
-        PDE1.set_present(true); // present
-        PDE1.set_read_write(true); // read/write
-        PDE1.set_privelege_level(false); // kernel only
-        PDE1.set_caching(false); // write-back
-        PDE1.set_address(Frame::alloc()); // alloc a new PT
-
-        // map second 4MiB
-        let pt1 = &mut *(PDE1.get_address() as *mut VMTable);
-        for i in 0..1024 {
-            pt1[i] = PagingEntry::new();
-            pt1[i].set_present(true); // present
-            pt1[i].set_read_write(true); // read/write
-            pt1[i].set_privelege_level(false); // kernel only
-            pt1[i].set_caching(false); // write-back
-            pt1[i].set_address((i+1024) << 12); // PD paddr
-        }
+        SHARED_PDES = SharedPDEList::new(start >> 22, 0);
     }
 
     // Register page fault handler
     add_trap_handler(14, page_fault_handler, 0);
 
-    bootlog!("virt mem inited\n");
+    bootlog!("virt mem inited - start addr: 0x{:X}\n", start);
 }
 
 /// The Rust-side code of the page fault handler.

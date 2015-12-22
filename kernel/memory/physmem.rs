@@ -175,6 +175,10 @@ impl FrameInfo {
 /// Initialize physical memory frames using the rest of physical memory.
 /// This function detects all available physical memory.
 pub fn init(start: usize) {
+    if start % 0x400000 != 0 {
+        panic!("phys mem start must be 4MiB aligned!");
+    }
+
     unsafe {
         // round start up to nearest page boundary
         FRAME_INFO = if start % 0x1000 == 0 {
@@ -198,5 +202,5 @@ pub fn init(start: usize) {
         num_frames += num;
     }
 
-    bootlog!("phys mem inited - {} frames\n", num_frames);
+    bootlog!("phys mem inited - metadata @ 0x{:X}, {} frames\n", start, num_frames);
 }

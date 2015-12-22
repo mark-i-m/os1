@@ -392,7 +392,7 @@ pub fn init(start: usize, size: usize) {
 
         free_list = first;
 
-        bootlog! ("heap inited - start addr: {:x}, end addr: {:x}, {} bytes\n",
+        bootlog! ("heap inited - start addr: 0x{:x}, end addr: 0x{:x}, {} bytes\n",
                  START, END, END - START);
     }
 }

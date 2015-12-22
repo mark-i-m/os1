@@ -17,11 +17,9 @@ mod virtmem;
 mod regionmap;
 
 /// Initialize all memory subsystems
-pub fn init() {
-    // make the kernel heap 3MiB starting at 1MiB.
-    // make memory data structures take up the next 4MiB.
+pub fn init(kheap_start: usize, kheap_size: usize) {
     tss::init();
-    heap::init(1<<20, 3<<20);
-    physmem::init(4<<20);
-    virtmem::init();
+    heap::init(kheap_start, kheap_size);
+    physmem::init(kheap_start + kheap_size);
+    virtmem::init(kheap_start + kheap_size + (4<<20));
 }
