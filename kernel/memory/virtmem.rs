@@ -34,6 +34,18 @@ use alloc::boxed::Box;
 /// A list of shared PDEs direct mapping the beginning of memory
 static mut SHARED_PDES: *mut SharedPDEList = 0 as *mut SharedPDEList;
 
+/// The number of shared PDEs (for convenience)
+static mut NUM_SHARED: usize = 0;
+
+/// The virtual address to which the PD is mapped
+static mut PD_ADDRESS: *mut VMTable = 0 as *mut VMTable;
+
+/// The beginning of kmap memory
+static mut KMAP_ADDRESS: usize = 0;
+
+/// The beginning of user memory
+static mut USER_ADDRESS: usize = 0;
+
 /// Is VM on?
 static mut VMM_ON: bool = false;
 
@@ -70,49 +82,39 @@ struct SharedPDEList {
 }
 
 impl AddressSpace {
-    /// Create a new address space. Each address space has the first
-    /// 8MiB direct mapped. The next 4MiB is mapped to the page directory
+    /// Create a new address space and set up the PD.
     pub fn new() -> AddressSpace {
         // allocate a frame
         let (pd, pd_paddr) = VMTable::new();
 
         // copy the first entries of the pd to direct map
-        unsafe {
-            let shared_pdes = &*SHARED_PDES;
-            for i in 0..shared_pdes.length() {
-                pd[i] = shared_pdes[i].get_pde();
-            }
+        let shared_pdes = unsafe { &*SHARED_PDES };
+
+        let num_shared = shared_pdes.length();
+
+        for i in 0..num_shared {
+            pd[i] = shared_pdes[i].get_pde();
         }
 
         // point the third PDE at the PD to map all page tables
-        // so PD is at vaddr 0x802000
-        pd[2].set_present(true); // present
-        pd[2].set_read_write(true); // read/write
-        pd[2].set_privelege_level(false); // kernel only
-        pd[2].set_caching(true); // write-through
-        pd[2].set_address(pd_paddr); // PD paddr
+        // so PD is at vaddr PD_ADDRESS
+        pd[num_shared].set_present(true); // present
+        pd[num_shared].set_read_write(true); // read/write
+        pd[num_shared].set_privelege_level(false); // kernel only
+        pd[num_shared].set_caching(true); // write-through
+        pd[num_shared].set_address(pd_paddr); // PD paddr
 
         let a = AddressSpace {
             page_dir: pd_paddr,
             kmap_index: 0,
         };
 
-        // if VM on
-        // clean up after kmap
-        // TODO: kunmap? we cannot do the below because this will
-        // also free the mapped frame, which we don't want
-        //unsafe {
-        //    if !CURRENT_PROCESS.is_null() && VMM_ON {
-        //        (*CURRENT_PROCESS).addr_space.unmap(pd as *mut VMTable as usize);
-        //    }
-        //}
-
         a
     }
 
     /// Map `virt` to `phys` in the address space.
     /// NOTE: should only be called on the current address space
-    /// because it assumes that the PD is at 0x802000
+    /// because it assumes that the PD is at PD_ADDRESS
     fn map(&mut self, phys: usize, virt: usize) {
         //unsafe {
         //    bootlog!("{:?} [map {:x} -> {:x}]\n", *CURRENT_PROCESS, virt, phys);
@@ -121,7 +123,7 @@ impl AddressSpace {
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
-        let mut pd = unsafe {&mut *(0x802000 as *mut VMTable)};
+        let mut pd = unsafe {&mut *PD_ADDRESS};
         let pde = &mut pd[pde_index];
 
 
@@ -142,7 +144,7 @@ impl AddressSpace {
             pde.set_present(true); // present
 
             // clear the pt
-            let mut pt = unsafe {&mut *(((2<<22) | (pde_index<<12)) as *mut VMTable)};
+            let mut pt = unsafe {&mut *(((NUM_SHARED<<22) | (pde_index<<12)) as *mut VMTable)};
             for p in 0..1024 {
                 pt[p] = PagingEntry::new();
                 unsafe { invlpg((pde_index << 22) | (p << 12)) };
@@ -152,7 +154,7 @@ impl AddressSpace {
         }
 
         // follow pde to get pt
-        let mut pt = unsafe {&mut *(((2<<22) | (pde_index<<12)) as *mut VMTable)};
+        let mut pt = unsafe {&mut *(((NUM_SHARED<<22) | (pde_index<<12)) as *mut VMTable)};
         let pte = &mut pt[pte_index];
 
         // if pt entry is not already there
@@ -175,7 +177,7 @@ impl AddressSpace {
     /// Map the given `paddr` for temporary use by the kernel and return a mut reference to the
     /// frame.
     /// NOTE: should only be called on the current address space because it assumes that the PD is
-    /// at 0x802000
+    /// at PD_ADDRESS
     fn kmap(&mut self, paddr: usize) -> &mut Frame {
         // get next unmapped address
         let next = self.kmap_index;
@@ -184,7 +186,7 @@ impl AddressSpace {
         if next == 255 {
             // unmap all if we have run out
             for i in 0..256 {
-                self.unmap(0xC00000 + i * 0x1000);
+                self.unmap(unsafe { KMAP_ADDRESS } + i * 0x1000);
             }
             self.kmap_index = 0;
         } else {
@@ -192,7 +194,7 @@ impl AddressSpace {
         }
 
         // get associated address
-        let vaddr = 0xC00000 + (next as usize) * 0x1000;
+        let vaddr = unsafe { KMAP_ADDRESS } + (next as usize) * 0x1000;
 
         // map the frame
         self.map(paddr, vaddr);
@@ -202,22 +204,22 @@ impl AddressSpace {
 
     /// Remove any mapping for this virtual address
     /// NOTE: should only be called on the current address space because it assumes that the PD is
-    /// at 0x802000
+    /// at PD_ADDRESS
     fn unmap(&mut self, virt: usize) {
         // TODO: completely clear entries (not just P bit) unless paging out
 
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
-        let pd = unsafe {&mut *(0x802000 as *mut VMTable)};
+        let pd = unsafe {&mut *PD_ADDRESS};
 
         if pd[pde_index].is_flag(0) { // present bit
             off();
 
-            let mut pt = unsafe {&mut *(((2<<22) | (pde_index<<12)) as *mut VMTable)};
+            let mut pt = unsafe {&mut *(((NUM_SHARED<<22) | (pde_index<<12)) as *mut VMTable)};
 
             // unmap and deallocate frame
-            pt[pte_index].free(virt >= 0xD00000);
+            pt[pte_index].free(virt >= unsafe { USER_ADDRESS });
 
             // invalidate TLB entry
             unsafe { invlpg(virt) };
@@ -227,7 +229,7 @@ impl AddressSpace {
             // if page table is now empty,
             // unmap and deallocate it
             if (0..1024).all(|i| !pt[i].is_flag(0)) {
-                pd[pde_index].free(virt >= 0xC00000);
+                pd[pde_index].free(virt >= unsafe { KMAP_ADDRESS });
             }
         }
     }
@@ -250,11 +252,11 @@ impl AddressSpace {
     /// Remove all non-kernel mappings in this address space.
     /// NOTE: must run while this address space is active
     pub fn clear(&mut self) {
-        let pd = unsafe {&mut *(0x802000 as *mut VMTable)};
+        let pd = unsafe {&mut *PD_ADDRESS};
 
         // for each present PDE, remove all
         // mappings associated with it
-        for pde_index in 3..1024 {
+        for pde_index in (unsafe { NUM_SHARED } + 1)..1024 {
             if pd[pde_index].is_flag(0) { // present bit
                 for pte_index in 0..1024 {
                     self.unmap((pde_index << 22) | (pte_index << 12));
@@ -508,6 +510,10 @@ pub fn init(start: usize) {
     // Each PDE maps 4MiB (2^22)
     unsafe {
         SHARED_PDES = SharedPDEList::new(start >> 22, 0);
+        NUM_SHARED = (*SHARED_PDES).length();
+        PD_ADDRESS = ((NUM_SHARED<<22) | (NUM_SHARED<<12)) as *mut VMTable;
+        KMAP_ADDRESS = (NUM_SHARED+1) << 22;
+        USER_ADDRESS = ((NUM_SHARED+1) << 22) + (1<<20);
     }
 
     // Register page fault handler
