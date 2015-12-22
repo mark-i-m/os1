@@ -32,7 +32,7 @@ pub fn run(this: &Process) -> usize {
     msg.set_fg(Color::Black);
 
     msg.put_str("<-- If semaphores work correctly, then only this block \
-                should be red when all loop_procs finish running.\n\nYay :)");
+                should be red when all loop_procs finish running.");
 
     for _ in 0..206*3 {
         ready_queue::make_ready(Process::new("loop_proc", super::user::run2));
@@ -44,6 +44,8 @@ pub fn run(this: &Process) -> usize {
                    this.pid, unsafe { *(0xf00000 as *mut usize) });
         }
     }
+
+    msg.put_str("\n\nYay :)");
 
     0
 }
