@@ -20,7 +20,7 @@ For those that want to build from source, instructions are below.
 
   `curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly --date=2015-11-08`
 
-###Build instructions
+###To build:
 
 * `git clone https://github.com/mark-i-m/os1.git`
 * `cd os1/`
@@ -42,7 +42,8 @@ rustdoc -o $DOC_OUTPUT -w html \
     --passes collapse-docs --passes unindent-comments lib.rs
 ```
 
-Thanks to
+##Thanks to
+
 - Krzysztof Drewniak for build system
 - AG for original bootloader code
 - OSDev wiki for general helpfulness
