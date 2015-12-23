@@ -62,7 +62,6 @@ struct SharedPDEList {
 impl SharedPDEList {
     /// Create `n` PDEs to direct map the memory start from the `i`th page
     pub fn new(n: usize, i: usize) -> *mut SharedPDEList {
-        printf!("n: {}, i: {}\n", n, i);
         unsafe {
             // create the page table and pde
             let mut pde = PagingEntry::new();
