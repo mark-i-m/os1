@@ -4,9 +4,9 @@
 use alloc::boxed::Box;
 
 use super::{Process, ready_queue};
+use super::proc_queue::ProcessQueue;
 
-use super::super::data_structures::ProcessQueue;
-use super::super::data_structures::concurrency::StaticSemaphore;
+use super::super::concurrency::StaticSemaphore;
 
 use super::super::interrupts::{on, off};
 

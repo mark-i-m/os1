@@ -10,8 +10,6 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 
 use core::ops::Drop;
 
-use super::data_structures::ProcessQueue;
-
 use super::interrupts::{on, off};
 
 use super::machine::{self, context_switch};
@@ -22,9 +20,13 @@ use self::context::{KContext};
 
 use self::idle::IDLE_PROCESS;
 
+use self::proc_queue::ProcessQueue;
+
 pub mod context;
 
 pub mod ready_queue;
+
+pub mod proc_queue;
 
 mod init;
 mod idle;

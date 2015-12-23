@@ -26,14 +26,14 @@ mod debug;
 mod bare_bones;
 
 #[macro_use]
-mod data_structures;
+mod concurrency;
+mod fs;
+mod interrupts;
+mod ipc;
 mod machine;
 mod memory;
 mod process;
 mod vga;
-mod interrupts;
-mod fs;
-mod ipc;
 
 // exported functions -- to use in asm functions
 pub use self::process::context::store_kcontext;

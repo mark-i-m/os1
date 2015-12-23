@@ -2,7 +2,7 @@
 
 use super::super::interrupts::{on, off};
 use super::{Process, State};
-use super::super::data_structures::{ProcessQueue};
+use super::proc_queue::{ProcessQueue};
 
 /// The ready queue. A queue containing all processes that are ready to be scheduled.
 pub static mut READY_QUEUE: ProcessQueue = ProcessQueue::new();

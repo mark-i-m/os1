@@ -7,11 +7,10 @@ use core::ops::{Deref, DerefMut};
 
 use alloc::boxed::Box;
 
-use super::super::ProcessQueue;
+use super::super::process::{ready_queue, proc_yield};
+use super::super::process::proc_queue::ProcessQueue;
 
-use super::super::super::process::{ready_queue, proc_yield};
-
-use super::super::super::interrupts::{on,off};
+use super::super::interrupts::{on,off};
 
 /// `Semaphore` is a much more Rustic semaphore. It returns an RAII
 /// `SemaphoreGuard`, which automatically calls "up" when it goes out of

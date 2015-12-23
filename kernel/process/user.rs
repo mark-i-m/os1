@@ -6,7 +6,7 @@ use super::ready_queue;
 
 use super::super::vga::window::{Window, Color};
 
-use super::super::data_structures::concurrency::{StaticSemaphore};
+use super::super::concurrency::{StaticSemaphore};
 
 // useful constants
 const ROWS: usize = 25;
