@@ -28,6 +28,8 @@ pub mod ready_queue;
 
 pub mod proc_queue;
 
+pub mod proc_table;
+
 mod init;
 mod idle;
 mod reaper;
