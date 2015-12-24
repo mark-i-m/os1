@@ -4,6 +4,8 @@
 use super::Process;
 use super::ready_queue;
 
+use super::proc_table::PROCESS_TABLE;
+
 use super::super::vga::window::{Window, Color};
 
 use super::super::concurrency::{StaticSemaphore};
@@ -111,6 +113,21 @@ fn run2(this: &Process) -> usize {
     if unsafe { *(0xF000_0000 as *mut usize) } != this.pid {
         panic!("Oh no! *0xF000_0000 should be {} but is {}",
                this.pid, unsafe { *(0xF000_0000 as *mut usize) });
+    }
+
+    // test process table
+    unsafe {
+        let me = if let Some(p) = PROCESS_TABLE.get(this.pid) {
+            p
+        } else {
+            panic!("Oh no! me = None, but should be 0x{:X}", 
+                   this as *const Process as usize);
+        };
+
+        if (me as *const Process) != (this as *const Process) {
+            panic!("Oh no! me = 0x{:X}, but should be 0x{:X}", 
+                   me as usize, this as *const Process as usize);
+        }
     }
 
     unsafe { s1.up(); }
