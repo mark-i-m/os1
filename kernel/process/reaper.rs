@@ -4,7 +4,10 @@
 use alloc::boxed::Box;
 
 use super::{Process, ready_queue};
+
 use super::proc_queue::ProcessQueue;
+
+use super::proc_table::PROCESS_TABLE;
 
 use super::super::concurrency::StaticSemaphore;
 
@@ -33,6 +36,8 @@ pub fn run(this: &Process) -> usize {
                 off();
                 let dead_proc: *mut Process = REAPER_QUEUE.pop_head();
                 on();
+
+                PROCESS_TABLE.remove((*dead_proc).pid);
 
                 printf!("{:?} [Reaping]\n", *dead_proc);
                 Box::from_raw(dead_proc);

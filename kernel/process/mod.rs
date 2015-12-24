@@ -22,6 +22,8 @@ use self::idle::IDLE_PROCESS;
 
 use self::proc_queue::ProcessQueue;
 
+use self::proc_table::PROCESS_TABLE;
+
 pub mod context;
 
 pub mod ready_queue;
@@ -98,7 +100,6 @@ impl Process {
     /// For this reason, a raw pointer is returned to the process, and it is the
     /// job of the caller to arrange for the process to be reaped.
     pub fn new(name: &'static str, run: fn(&Process) -> usize) -> *mut Process {
-
         let mut p = Process {
             name: name,
             pid: NEXT_ID.fetch_add(1, Ordering::Relaxed),
@@ -113,7 +114,13 @@ impl Process {
 
         p.get_stack();
 
-        Box::into_raw(box p)
+        let process = Box::into_raw(box p);
+
+        unsafe {
+            PROCESS_TABLE.push(process);
+        }
+
+        process
     }
 
     /// A helper to get a kernel stack for this process
