@@ -6,7 +6,13 @@
 //! `liballoc` are used, since they provide core Rust functionality.
 
 // To use unstable features of Rust, we need to have nightly rustc
-#![feature(no_std,lang_items,alloc,core_str_ext,box_syntax,box_patterns,const_fn)]
+#![feature(no_std,
+           lang_items,
+           alloc,
+           box_syntax,
+           const_fn,
+           core_str_ext,
+          )]
 
 // Compile without libstd
 #![no_std]
@@ -26,6 +32,8 @@ mod debug;
 mod bare_bones;
 
 #[macro_use]
+mod vec;
+mod linked_list;
 mod concurrency;
 mod fs;
 mod interrupts;

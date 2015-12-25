@@ -4,10 +4,6 @@
 
 use core::fmt::{Write,Error};
 
-use core::result::Result;
-
-use core::str::StrExt;
-
 use machine::{inb, outb};
 
 /// Port to output to serial console
