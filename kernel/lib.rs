@@ -10,8 +10,11 @@
            lang_items,
            alloc,
            box_syntax,
+           box_patterns,
            const_fn,
            core_str_ext,
+           dropck_parametricity,
+           ptr_as_ref,
           )]
 
 // Compile without libstd
