@@ -10,11 +10,11 @@ DD = dd
 
 # Choose options
 # If kernel.img is > 64K, the BIOS will not load it, so if it is crashing, use -O1, not -O0
-RUSTOPT = -C opt-level=0
-ASOPT = -O0
+RUSTOPT = -C opt-level=0 -g 
+ASOPT = -O0 -g 
 
-RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} -g ${RUSTOPT} -Z no-landing-pads
-ASFLAGS += -m32 -g ${ASOPT}
+RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${DEPDIR} ${RUSTOPT} -Z no-landing-pads
+ASFLAGS += -m32 ${ASOPT}
 
 # Lists of files
 RUSTFILES = $(shell find -name '*.rs')

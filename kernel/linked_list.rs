@@ -20,7 +20,11 @@ struct Link<T> {
 impl<T> LinkedList<T> {
     /// Create a new empty List
     pub fn new() -> LinkedList<T> {
-        // TODO
+        LinkedList {
+            head: 0 as *mut Link<T>,
+            tail: 0 as *mut Link<T>,
+            size: 0,
+        }
     }
 
     /// Push to the end of the list
@@ -29,18 +33,18 @@ impl<T> LinkedList<T> {
     }
 
     /// Pop and return tail of list
-    pub fn pop_back(&mut self) -> T {
-        // TODO
+    pub fn pop_back(&mut self) -> Option<T> {
+        None
     }
 
     /// Return an immutable reference to the tail
-    pub fn back(&self) -> &T {
-        // TODO
+    pub fn back(&self) -> Option<&T> {
+        None
     }
 
     /// Return a mutable reference to the tail
-    pub fn back_mut(&mut self) -> &mut T {
-        // TODO
+    pub fn back_mut(&mut self) -> Option<&mut T> {
+        None
     }
 
     /// Push to the front of the list
@@ -49,23 +53,23 @@ impl<T> LinkedList<T> {
     }
 
     /// Pop and return head of list
-    pub fn pop_front(&mut self) -> T {
-        // TODO
+    pub fn pop_front(&mut self) -> Option<T> {
+        None
     }
 
     /// Return an immutable reference to the head
-    pub fn front(&self) -> &T {
-        // TODO
+    pub fn front(&self) -> Option<&T> {
+        None
     }
 
     /// Return a mutable reference to the head
-    pub fn front_mut(&mut self) -> &mut T {
-        // TODO
+    pub fn front_mut(&mut self) -> Option<&mut T> {
+        None
     }
 
     /// Return the number of elements
     pub fn size(&self) -> usize {
-        self.len
+        self.size
     }
 }
 
@@ -85,7 +89,7 @@ impl<T> Drop for LinkedList<T> {
     }
 }
 
-impl<T> Drop for List<T> {
+impl<T> Drop for Link<T> {
     fn drop(&mut self) {
         // TODO
     }
