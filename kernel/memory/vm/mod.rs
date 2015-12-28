@@ -22,20 +22,18 @@ mod addr_space;
 
 pub use self::addr_space::{AddressSpace, vmm_page_fault};
 
-use alloc::boxed::Box;
-
-use core::ops::{Index, IndexMut};
-
 use super::super::machine::page_fault_handler;
 
-use super::physmem::Frame;
-
 use super::super::interrupts::{add_trap_handler};
+
+use super::super::static_linked_list::StaticLinkedList;
+
+use super::physmem::Frame;
 
 use self::structs::{VMTable, PagingEntry};
 
 /// A list of shared PDEs direct mapping the beginning of memory
-static mut SHARED_PDES: *mut SharedPDEList = 0 as *mut SharedPDEList;
+static mut SHARED_PDES: StaticLinkedList<PagingEntry> = StaticLinkedList::new();
 
 /// The number of shared PDEs (for convenience)
 static mut NUM_SHARED: usize = 0;
@@ -52,88 +50,33 @@ static mut USER_ADDRESS: usize = 0;
 /// Is VM on?
 static mut VMM_ON: bool = false;
 
-/// A data structure to keep track of shared PDEs
-struct SharedPDEList {
-    pde: PagingEntry,
-    next: Option<Box<SharedPDEList>>,
-}
+/// Create `n` PDEs to direct map the memory start from the `i`th page.
+/// unsafe because it deals with raw pointers and static muts.
+unsafe fn init_shared_pdes(n: usize, mut i: usize) {
+    for _ in 0..n {
+        // create the page table and pde
+        let mut pde = PagingEntry::new();
 
+        pde.set_present(true); // present
+        pde.set_read_write(true); // read/write
+        pde.set_privelege_level(false); // kernel only
+        pde.set_caching(false); // write-back
+        pde.set_address(Frame::alloc()); // alloc a new PT
 
-impl SharedPDEList {
-    /// Create `n` PDEs to direct map the memory start from the `i`th page
-    pub fn new(n: usize, i: usize) -> *mut SharedPDEList {
-        unsafe {
-            // create the page table and pde
-            let mut pde = PagingEntry::new();
-
-            pde.set_present(true); // present
-            pde.set_read_write(true); // read/write
-            pde.set_privelege_level(false); // kernel only
-            pde.set_caching(false); // write-back
-            pde.set_address(Frame::alloc()); // alloc a new PT
-
-            // map direct map except page 0
-            let pt = &mut *(pde.get_address() as *mut VMTable);
-            for e in (if i == 0 {1} else {0})..1024 {
-                pt[e] = PagingEntry::new();
-                pt[e].set_present(true); // present
-                pt[e].set_read_write(true); // read/write
-                pt[e].set_privelege_level(false); // kernel only
-                pt[e].set_caching(false); // write-back
-                pt[e].set_address(((i<<10)+e) << 12); // PD paddr
-            }
-
-            Box::into_raw(box SharedPDEList {
-                pde: pde,
-                next: if n == 1 {
-                    None
-                } else {
-                    Some(Box::from_raw(SharedPDEList::new(n-1, i+1)))
-                }
-            })
+        // map direct map except page 0
+        let pt = &mut *(pde.get_address() as *mut VMTable);
+        for e in (if i == 0 {1} else {0})..1024 {
+            pt[e] = PagingEntry::new();
+            pt[e].set_present(true); // present
+            pt[e].set_read_write(true); // read/write
+            pt[e].set_privelege_level(false); // kernel only
+            pt[e].set_caching(false); // write-back
+            pt[e].set_address(((i<<10)+e) << 12); // PD paddr
         }
-    }
 
-    pub fn length(&self) -> usize {
-        1 + if let Some(ref next) = self.next {
-            next.length()
-        } else {
-            0
-        }
-    }
+        SHARED_PDES.push_back(pde);
 
-    pub fn get_pde(&self) -> PagingEntry {
-        self.pde
-    }
-}
-
-impl Index<usize> for SharedPDEList {
-    type Output = SharedPDEList;
-
-    fn index<'a>(&'a self, index: usize) -> &'a SharedPDEList {
-        if index == 0 {
-            self
-        } else {
-            if let Some(ref next) = self.next {
-                &next[index - 1]
-            } else {
-                panic!("Index out of bounds!");
-            }
-        }
-    }
-}
-
-impl IndexMut<usize> for SharedPDEList {
-    fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut SharedPDEList {
-        if index == 0 {
-            self
-        } else {
-            if let Some(ref mut next) = self.next {
-                &mut next[index - 1]
-            } else {
-                panic!("Index out of bounds!");
-            }
-        }
+        i += 1;
     }
 }
 
@@ -154,8 +97,8 @@ pub fn init(start: usize) {
     // Create the shared PDEs
     // Each PDE maps 4MiB (2^22)
     unsafe {
-        SHARED_PDES = SharedPDEList::new(start >> 22, 0);
-        NUM_SHARED = (*SHARED_PDES).length();
+        init_shared_pdes(start >> 22, 0);
+        NUM_SHARED = SHARED_PDES.len();
         PD_ADDRESS = ((NUM_SHARED<<22) | (NUM_SHARED<<12)) as *mut VMTable;
         KMAP_ADDRESS = (NUM_SHARED+1) << 22;
         USER_ADDRESS = ((NUM_SHARED+1) << 22) + (1<<20);

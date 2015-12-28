@@ -28,21 +28,23 @@ impl AddressSpace {
         let (pd, pd_paddr) = VMTable::new();
 
         // copy the first entries of the pd to direct map
-        let shared_pdes = unsafe { &*SHARED_PDES };
-
-        let num_shared = shared_pdes.length();
-
-        for i in 0..num_shared {
-            pd[i] = shared_pdes[i].get_pde();
+        unsafe {
+            let mut i = 0;
+            for pde in &SHARED_PDES {
+                pd[i] = pde.clone();
+                i += 1;
+            }
         }
 
         // point the third PDE at the PD to map all page tables
         // so PD is at vaddr PD_ADDRESS
-        pd[num_shared].set_present(true); // present
-        pd[num_shared].set_read_write(true); // read/write
-        pd[num_shared].set_privelege_level(false); // kernel only
-        pd[num_shared].set_caching(true); // write-through
-        pd[num_shared].set_address(pd_paddr); // PD paddr
+        unsafe {
+            pd[NUM_SHARED].set_present(true); // present
+            pd[NUM_SHARED].set_read_write(true); // read/write
+            pd[NUM_SHARED].set_privelege_level(false); // kernel only
+            pd[NUM_SHARED].set_caching(true); // write-through
+            pd[NUM_SHARED].set_address(pd_paddr); // PD paddr
+        }
 
         let a = AddressSpace {
             page_dir: pd_paddr,
