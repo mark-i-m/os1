@@ -55,7 +55,7 @@ impl<T> Vec<T> {
     }
 
     /// Return the number of elements
-    pub fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.len
     }
 }
@@ -65,7 +65,7 @@ impl<T> Index<usize> for Vec<T> {
 
     fn index<'a>(&'a self, index: usize) -> &'a T {
         if index >= self.len {
-            panic!("Out of bounds!");
+            panic!("Out of bounds! {} out of {}", index, self.len);
         }
 
         unsafe {
@@ -77,7 +77,7 @@ impl<T> Index<usize> for Vec<T> {
 impl<T> IndexMut<usize> for Vec<T> {
     fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut T {
         if index >= self.len {
-            panic!("Out of bounds!");
+            panic!("Out of bounds! {} out of {}", index, self.len);
         }
 
         unsafe {

@@ -5,7 +5,7 @@
 
 use core::iter::Iterator;
 
-use alloc::boxed::Box;
+use super::super::vec::Vec;
 
 use super::physmem::Frame;
 
@@ -31,100 +31,60 @@ struct Region {
     start: usize,
     end: usize,
     usable: bool,
-    next: Option<Box<Region>>,
 }
 
 /// Represents a map of memory regions
 pub struct RegionMap {
-    list: Box<Region>,
+    list: Vec<Region>,
     index: usize,
 }
 
+/// Find the length and type of the most restrictive
+/// mapping for `addr` based on the E820 BIOS call
+fn find(addr: usize) -> Option<(usize, usize)> {
+    let mut most = 0;
+    let mut length = 0;
+    let mut region_start = 0;
+    for i in 0..(memory_map_count as usize) {
+        let start = memory_map[i].base_l as usize;
+        let end = if memory_map[i].base_l == 0 {
+            (memory_map[i].base_l + memory_map[i].length_l) - 1
+        } else {
+            (memory_map[i].base_l - 1) + memory_map[i].length_l
+        } as usize;
+        let region_type = memory_map[i].region_type as usize;
+
+        if start <= addr && addr <= end && region_type > most {
+            length = end - start;
+            most = region_type;
+            region_start = start;
+            if most > 1 { break; }
+        }
+    }
+
+    if most == 0 { // not found
+        None
+    } else {
+        Some((length+1-(addr-region_start), most))
+    }
+}
+
+/// Find the beginning address of the next region of memory
+/// based on the E820 BIOS call
+fn find_next(addr: usize) -> usize {
+    let mut least = 0xFFFF_FFFF;
+    for i in 0..(memory_map_count as usize) {
+        let start = memory_map[i].base_l as usize;
+
+        if addr < start && start < least {
+            least = start;
+        }
+    }
+
+    least - 1
+}
+
 impl Region {
-    /// Recursively create regions and return a chain
-    /// that stretches from `start` to the end of the 32-bit addr space.
-    /// Each iteration is O(n), but it doesn't matter much because n < 2*20
-    pub fn new(start: usize) -> Region {
-        if let Some((length,region_type)) = Region::find(start) {
-            // avoid overflow and underflow
-            let end = if start == 0 {
-                (start + length) - 1
-            } else {
-                (start - 1) + length
-            };
-            //bootlog!("--{:x},{:x}==\n",start, length);
-
-            Region {
-                start: start,
-                end: end,
-                usable: region_type == 1,
-                next: if end < 0xFFFF_FFFF {
-                    Some(box Region::new(end + 1))
-                } else {
-                    None
-                },
-            }
-        } else {
-            let end = Region::find_next(start);
-            //bootlog!("--{:x},{:x}==\n",start, end - start + 1);
-            Region {
-                start: start,
-                end: end,
-                usable: false,
-                next: if end < 0xFFFF_FFFF {
-                    Some(box Region::new(end + 1))
-                } else {
-                    None
-                },
-            }
-        }
-    }
-
-    /// Find the length and type of the most restrictive
-    /// mapping for `addr` based on the E820 BIOS call
-    fn find(addr: usize) -> Option<(usize, usize)> {
-        let mut most = 0;
-        let mut length = 0;
-        let mut region_start = 0;
-        for i in 0..(memory_map_count as usize) {
-            let start = memory_map[i].base_l as usize;
-            let end = if memory_map[i].base_l == 0 {
-                (memory_map[i].base_l + memory_map[i].length_l) - 1
-            } else {
-                (memory_map[i].base_l - 1) + memory_map[i].length_l
-            } as usize;
-            let region_type = memory_map[i].region_type as usize;
-
-            if start <= addr && addr <= end && region_type > most {
-                length = end - start;
-                most = region_type;
-                region_start = start;
-                if most > 1 { break; }
-            }
-        }
-
-        if most == 0 { // not found
-            None
-        } else {
-            Some((length+1-(addr-region_start), most))
-        }
-    }
-
-    /// Find the beginning address of the next region of memory
-    /// based on the E820 BIOS call
-    fn find_next(addr: usize) -> usize {
-        let mut least = 0xFFFF_FFFF;
-        for i in 0..(memory_map_count as usize) {
-            let start = memory_map[i].base_l as usize;
-
-            if addr < start && start < least {
-                least = start;
-            }
-        }
-
-        least - 1
-    }
-
     /// Recursively print mappings. Used for debugging
     #[allow(dead_code)]
     pub fn dump(&self) {
@@ -133,21 +93,67 @@ impl Region {
                  self.end,
                  if self.usable { "usable" } else { "reserved" }
                 );
-        if let Some(ref next) = self.next {
-            next.dump();
-        }
     }
 }
 
 impl RegionMap {
     /// Produce a map of all memory after start.
     /// This is a 32-bit OS, so we only have to deal with 4GB
-    pub fn new(start: *mut Frame) -> RegionMap {
+    pub fn new(start_frame: *mut Frame) -> RegionMap {
         // starting at start, check if there is an available
         // memory region and add a mapping for it.
+
+        let mut start = start_frame as usize;
+
+        let mut rlist = Vec::new();
+
+        loop {
+            let mut end = 0;
+
+            let region = if let Some((length,region_type)) = find(start) {
+                // avoid overflow and underflow
+                end = if start == 0 {
+                    (start + length) - 1
+                } else {
+                    (start - 1) + length
+                };
+                //bootlog!("--{:x},{:x}==\n",start, length);
+
+                Region {
+                    start: start,
+                    end: end,
+                    usable: region_type == 1,
+                }
+            } else {
+                end = find_next(start);
+                //bootlog!("--{:x},{:x}==\n",start, end - start + 1);
+
+                Region {
+                    start: start,
+                    end: end,
+                    usable: false,
+                }
+            };
+
+            rlist.push(region);
+
+            if end < 0xFFFF_FFFF {
+                start = end + 1;
+            } else {
+                break;
+            }
+        }
+
         RegionMap {
-            list: box Region::new(start as usize),
+            list: rlist,
             index: 0,
+        }
+    }
+
+    /// Print out the memory map for debugging purposes
+    pub fn dump(&self) {
+        for i in 0..self.list.len() {
+            self.list[i].dump();
         }
     }
 }
@@ -156,44 +162,37 @@ impl RegionMap {
 impl Iterator for RegionMap {
     type Item = (usize, usize);
 
-    // Returns the index of the next avail frame and number of available frames OR None if there aren't any more
+    /// Returns the index of the next avail frame and number of
+    /// available frames OR None if there aren't any more.
     fn next(&mut self) -> Option<(usize, usize)> {
-        // find the current region
-        let mut region = &self.list;
-        for _ in 0..self.index {
-            region = if let Some(ref r) = region.next {
-                r
-            } else {
-                // end of list
-                return None;
-            }
+        // start and end region indices
+        let mut start = self.index;
+        let mut end = 0;
+
+        // find the next usable region
+        while start < self.list.len() && !self.list[start].usable {
+            start += 1;
         }
 
-        // find the first useable region
-        while !region.usable {
-            if let Some(ref r) = region.next {
-                region = r;
-                self.index += 1;
-            } else {
-                // No more useable regions
-                return None;
-            }
+        // end of list
+        if start == self.list.len() {
+            return None;
         }
 
-        // round up to get first page aligned address in the region
-        let f_start = (region.start + 0xFFF) & !0xFFF;
+        // find as many contiguous usable regions as possible
+        end = start + 1;
 
-        // go to the end or the next reserved region
-        while let Some(ref r) = region.next {
-            self.index += 1;
-
-            if r.usable {
-                region = r;
-            } else {
-                break;
-            }
+        while end < self.list.len() && self.list[end].usable {
+            end += 1;
         }
 
-        Some((f_start >> 12, (region.end - f_start + 1) >> 12))
+        // update index
+        self.index = end;
+
+        // generate bounds
+        let f_start = self.list[start].start;
+        let f_end = self.list[end-1].end;
+
+        Some((f_start >> 12, (f_end - f_start + 1) >> 12))
     }
 }
