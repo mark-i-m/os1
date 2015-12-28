@@ -6,6 +6,8 @@ use super::super::super::machine::{invlpg, vmm_on};
 
 use super::super::super::process::CURRENT_PROCESS;
 
+use super::super::super::process::proc_table::PROCESS_TABLE;
+
 use super::super::physmem::Frame;
 
 use super::{SHARED_PDES, NUM_SHARED, PD_ADDRESS, KMAP_ADDRESS, USER_ADDRESS, VMM_ON};
@@ -14,11 +16,16 @@ use super::structs::{VMTable, PagingEntry};
 
 /// The address space of a single process
 pub struct AddressSpace {
-    // paddr of this addr space's PD
+    /// paddr of this addr space's PD
     page_dir: usize,
 
-    // the index of the first un-kmapped page
+    /// the index of the first un-kmapped page
     kmap_index: u8,
+
+    /// list of page-share requests
+    ///
+    /// Format: `(PID, paddr)`
+    share_req: StaticLinkedList<(usize, usize)>,
 }
 
 impl AddressSpace {
@@ -186,9 +193,27 @@ impl AddressSpace {
         on();
     }
 
-    /// Share the given page with the process with PID `pid`
-    pub fn share_page(pid: usize, vaddr: usize) {
-        // TODO
+    /// Send a page-share request to the process with PID `pid` for
+    /// the frame mapped to `vaddr` in this address space.
+    ///
+    /// Returns true if the request succeeded, and false if there was
+    /// an error (e.g. the process has already died).
+    ///
+    /// NOTE: this has to run while the addresss space is active.
+    pub fn request_share(pid: usize, vaddr: usize) -> bool {
+        // TODO: get the paddr of this vaddr
+        // TODO: get the process and check that it is alive
+        // TODO: add to its addr_space::share_req list
+    }
+
+    /// Creates a mapping in this process's address space for the
+    /// first page-share request from the process with the given `PID`,
+    /// then return the virtual address of the new page.
+    /// This is O(n) in the number of requests, but the number of requests
+    /// should not be that big, so it is OK.
+    pub fn accept_share(pid: usize) -> usize {
+        // TODO: find the right request
+        // TODO: Create the mapping and mark frame shared
     }
 
     /// Remove all non-kernel mappings in this address space.
