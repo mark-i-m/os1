@@ -9,14 +9,15 @@
 // except according to those terms.
 
 //! A doubly-linked list with owned nodes modified slightly from the std library.
+//! This version can be used in statics and has a const constructor.
 //!
-//! The `LinkedList` allows pushing and popping elements at either end and is thus
+//! The `StaticLinkedList` allows pushing and popping elements at either end and is thus
 //! efficiently usable as a double-ended queue.
 
-// LinkedList is constructed like a singly-linked list over the field `next`.
+// StaticLinkedList is constructed like a singly-linked list over the field `next`.
 // including the last link being None; each Node owns its `next` field.
 //
-// Backlinks over LinkedList::prev are raw pointers that form a full chain in
+// Backlinks over StaticLinkedList::prev are raw pointers that form a full chain in
 // the reverse direction.
 
 #![allow(dead_code)]
@@ -30,13 +31,13 @@ use core::mem;
 use core::ptr;
 
 /// A doubly-linked list.
-pub struct LinkedList<T> {
+pub struct StaticLinkedList<T> {
     length: usize,
     list_head: Link<T>,
     list_tail: Rawlink<Node<T>>,
 }
 
-type Link<T> = Option<Box<Node<T>>>;
+type Link<T> = Option<*mut Node<T>>;
 
 struct Rawlink<T> {
     p: *mut T,
@@ -52,7 +53,7 @@ struct Node<T> {
     value: T,
 }
 
-/// An iterator over references to the items of a `LinkedList`.
+/// An iterator over references to the items of a `StaticLinkedList`.
 pub struct Iter<'a, T: 'a> {
     head: &'a Link<T>,
     tail: Rawlink<Node<T>>,
@@ -63,31 +64,31 @@ pub struct Iter<'a, T: 'a> {
 impl<'a, T> Clone for Iter<'a, T> {
     fn clone(&self) -> Iter<'a, T> {
         Iter {
-            head: self.head.clone(),
+            head: self.head,
             tail: self.tail,
             nelem: self.nelem,
         }
     }
 }
 
-/// An iterator over mutable references to the items of a `LinkedList`.
+/// An iterator over mutable references to the items of a `StaticLinkedList`.
 pub struct IterMut<'a, T: 'a> {
-    list: &'a mut LinkedList<T>,
+    list: &'a mut StaticLinkedList<T>,
     head: Rawlink<Node<T>>,
     tail: Rawlink<Node<T>>,
     nelem: usize,
 }
 
-/// An iterator over mutable references to the items of a `LinkedList`.
+/// An iterator over mutable references to the items of a `StaticLinkedList`.
 #[derive(Clone)]
 pub struct IntoIter<T> {
-    list: LinkedList<T>,
+    list: StaticLinkedList<T>,
 }
 
 /// Rawlink is a type like Option<T> but for holding a raw pointer
 impl<T> Rawlink<T> {
     /// Like Option::None for Rawlink
-    fn none() -> Rawlink<T> {
+    const fn none() -> Rawlink<T> {
         Rawlink { p: ptr::null_mut() }
     }
 
@@ -126,7 +127,7 @@ impl<'a, T> From<&'a mut Link<T>> for Rawlink<Node<T>> {
     fn from(node: &'a mut Link<T>) -> Self {
         match node.as_mut() {
             None => Rawlink::none(),
-            Some(ptr) => Rawlink::some(ptr),
+            Some(ptr) => Rawlink::some(unsafe {&mut **ptr}),
         }
     }
 }
@@ -154,18 +155,18 @@ impl<T> Node<T> {
     fn set_next(&mut self, mut next: Box<Node<T>>) {
         debug_assert!(self.next.is_none());
         next.prev = Rawlink::some(self);
-        self.next = Some(next);
+        self.next = Some(Box::into_raw(next));
     }
 }
 
 /// Clear the .prev field on `next`, then return `Some(next)`
 fn link_no_prev<T>(mut next: Box<Node<T>>) -> Link<T> {
     next.prev = Rawlink::none();
-    Some(next)
+    Some(Box::into_raw(next))
 }
 
 // private methods
-impl<T> LinkedList<T> {
+impl<T> StaticLinkedList<T> {
     /// Add a Node first in the list
     #[inline]
     fn push_front_node(&mut self, mut new_head: Box<Node<T>>) {
@@ -176,9 +177,12 @@ impl<T> LinkedList<T> {
             }
             Some(ref mut head) => {
                 new_head.prev = Rawlink::none();
-                head.prev = Rawlink::some(&mut *new_head);
-                mem::swap(head, &mut new_head);
-                head.next = Some(new_head);
+                new_head.next = Some(*head);
+                unsafe {
+                    let mut nh = Box::into_raw(new_head);
+                    (**head).prev = Rawlink::some(&mut *nh);
+                    mem::swap(head, &mut nh);
+                }
             }
         }
         self.length += 1;
@@ -186,11 +190,11 @@ impl<T> LinkedList<T> {
 
     /// Remove the first Node and return it, or None if the list is empty
     #[inline]
-    fn pop_front_node(&mut self) -> Option<Box<Node<T>>> {
-        self.list_head.take().map(|mut front_node| {
+    fn pop_front_node(&mut self) -> Link<T> {
+        self.list_head.take().map(|front_node| {
             self.length -= 1;
-            match front_node.next.take() {
-                Some(node) => self.list_head = link_no_prev(node),
+            match unsafe { (*front_node).next.take() } {
+                Some(node) => unsafe {self.list_head = link_no_prev(Box::from_raw(node))},
                 None => self.list_tail = Rawlink::none(),
             }
             front_node
@@ -212,7 +216,7 @@ impl<T> LinkedList<T> {
 
     /// Remove the last Node and return it, or None if the list is empty
     #[inline]
-    fn pop_back_node(&mut self) -> Option<Box<Node<T>>> {
+    fn pop_back_node(&mut self) -> Link<T> {
         unsafe {
             self.list_tail.resolve_mut().and_then(|tail| {
                 self.length -= 1;
@@ -226,18 +230,18 @@ impl<T> LinkedList<T> {
     }
 }
 
-impl<T> Default for LinkedList<T> {
+impl<T> Default for StaticLinkedList<T> {
     #[inline]
-    fn default() -> LinkedList<T> {
-        LinkedList::new()
+    fn default() -> StaticLinkedList<T> {
+        StaticLinkedList::new()
     }
 }
 
-impl<T> LinkedList<T> {
-    /// Creates an empty `LinkedList`.
+impl<T> StaticLinkedList<T> {
+    /// Creates an empty `StaticLinkedList`.
     #[inline]
-    pub fn new() -> LinkedList<T> {
-        LinkedList {
+    pub const fn new() -> StaticLinkedList<T> {
+        StaticLinkedList {
             list_head: None,
             list_tail: Rawlink::none(),
             length: 0,
@@ -254,10 +258,10 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut a = LinkedList::new();
-    /// let mut b = LinkedList::new();
+    /// let mut a = StaticLinkedList::new();
+    /// let mut b = StaticLinkedList::new();
     /// a.push_back(1);
     /// a.push_back(2);
     /// b.push_back(3);
@@ -270,7 +274,7 @@ impl<T> LinkedList<T> {
     /// }
     /// println!("{}", b.len()); // prints 0
     /// ```
-    pub fn append(&mut self, other: &mut LinkedList<T>) {
+    pub fn append(&mut self, other: &mut StaticLinkedList<T>) {
         match unsafe { self.list_tail.resolve_mut() } {
             None => {
                 self.length = other.length;
@@ -284,7 +288,7 @@ impl<T> LinkedList<T> {
                 match other.list_head.take() {
                     None => return,
                     Some(node) => {
-                        tail.set_next(node);
+                        unsafe{tail.set_next(Box::from_raw(node));}
                         self.list_tail = o_tail;
                         self.length += o_length;
                     }
@@ -315,16 +319,16 @@ impl<T> LinkedList<T> {
         }
     }
 
-    /// Returns `true` if the `LinkedList` is empty.
+    /// Returns `true` if the `StaticLinkedList` is empty.
     ///
     /// This operation should compute in O(1) time.
     ///
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut dl = LinkedList::new();
+    /// let mut dl = StaticLinkedList::new();
     /// assert!(dl.is_empty());
     ///
     /// dl.push_front("foo");
@@ -335,16 +339,16 @@ impl<T> LinkedList<T> {
         self.list_head.is_none()
     }
 
-    /// Returns the length of the `LinkedList`.
+    /// Returns the length of the `StaticLinkedList`.
     ///
     /// This operation should compute in O(1) time.
     ///
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut dl = LinkedList::new();
+    /// let mut dl = StaticLinkedList::new();
     ///
     /// dl.push_front(2);
     /// assert_eq!(dl.len(), 1);
@@ -361,16 +365,16 @@ impl<T> LinkedList<T> {
         self.length
     }
 
-    /// Removes all elements from the `LinkedList`.
+    /// Removes all elements from the `StaticLinkedList`.
     ///
     /// This operation should compute in O(n) time.
     ///
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut dl = LinkedList::new();
+    /// let mut dl = StaticLinkedList::new();
     ///
     /// dl.push_front(2);
     /// dl.push_front(1);
@@ -384,7 +388,7 @@ impl<T> LinkedList<T> {
     /// ```
     #[inline]
     pub fn clear(&mut self) {
-        *self = LinkedList::new()
+        *self = StaticLinkedList::new()
     }
 
     /// Provides a reference to the front element, or `None` if the list is
@@ -393,9 +397,9 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut dl = LinkedList::new();
+    /// let mut dl = StaticLinkedList::new();
     /// assert_eq!(dl.front(), None);
     ///
     /// dl.push_front(1);
@@ -404,7 +408,7 @@ impl<T> LinkedList<T> {
     /// ```
     #[inline]
     pub fn front(&self) -> Option<&T> {
-        self.list_head.as_ref().map(|head| &head.value)
+        self.list_head.as_ref().map(|head| unsafe {&(**head).value})
     }
 
     /// Provides a mutable reference to the front element, or `None` if the list
@@ -413,9 +417,9 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut dl = LinkedList::new();
+    /// let mut dl = StaticLinkedList::new();
     /// assert_eq!(dl.front(), None);
     ///
     /// dl.push_front(1);
@@ -430,7 +434,7 @@ impl<T> LinkedList<T> {
     /// ```
     #[inline]
     pub fn front_mut(&mut self) -> Option<&mut T> {
-        self.list_head.as_mut().map(|head| &mut head.value)
+        self.list_head.as_ref().map(|head| unsafe {&mut (**head).value})
     }
 
     /// Provides a reference to the back element, or `None` if the list is
@@ -439,9 +443,9 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut dl = LinkedList::new();
+    /// let mut dl = StaticLinkedList::new();
     /// assert_eq!(dl.back(), None);
     ///
     /// dl.push_back(1);
@@ -459,9 +463,9 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut dl = LinkedList::new();
+    /// let mut dl = StaticLinkedList::new();
     /// assert_eq!(dl.back(), None);
     ///
     /// dl.push_back(1);
@@ -486,9 +490,9 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut dl = LinkedList::new();
+    /// let mut dl = StaticLinkedList::new();
     ///
     /// dl.push_front(2);
     /// assert_eq!(dl.front().unwrap(), &2);
@@ -509,9 +513,9 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut d = LinkedList::new();
+    /// let mut d = StaticLinkedList::new();
     /// assert_eq!(d.pop_front(), None);
     ///
     /// d.push_front(1);
@@ -523,7 +527,12 @@ impl<T> LinkedList<T> {
     /// ```
     ///
     pub fn pop_front(&mut self) -> Option<T> {
-        self.pop_front_node().map(|box Node { value, .. }| value)
+        self.pop_front_node().map(|ptr| {
+            unsafe {
+                let box Node { value, .. } = Box::from_raw(ptr);
+                value
+            }
+        })
     }
 
     /// Appends an element to the back of a list
@@ -531,9 +540,9 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut d = LinkedList::new();
+    /// let mut d = StaticLinkedList::new();
     /// d.push_back(1);
     /// d.push_back(3);
     /// assert_eq!(3, *d.back().unwrap());
@@ -548,16 +557,21 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut d = LinkedList::new();
+    /// let mut d = StaticLinkedList::new();
     /// assert_eq!(d.pop_back(), None);
     /// d.push_back(1);
     /// d.push_back(3);
     /// assert_eq!(d.pop_back(), Some(3));
     /// ```
     pub fn pop_back(&mut self) -> Option<T> {
-        self.pop_back_node().map(|box Node { value, .. }| value)
+        self.pop_back_node().map(|ptr| {
+            unsafe {
+                let box Node { value, .. } = Box::from_raw(ptr);
+                value
+            }
+        })
     }
 
     /// Splits the list into two at the given index. Returns everything after the given index,
@@ -572,9 +586,9 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut d = LinkedList::new();
+    /// let mut d = StaticLinkedList::new();
     ///
     /// d.push_front(1);
     /// d.push_front(2);
@@ -585,13 +599,13 @@ impl<T> LinkedList<T> {
     /// assert_eq!(splitted.pop_front(), Some(1));
     /// assert_eq!(splitted.pop_front(), None);
     /// ```
-    pub fn split_off(&mut self, at: usize) -> LinkedList<T> {
+    pub fn split_off(&mut self, at: usize) -> StaticLinkedList<T> {
         let len = self.len();
         assert!(at <= len, "Cannot split off at a nonexistent index");
         if at == 0 {
-            return mem::replace(self, LinkedList::new());
+            return mem::replace(self, StaticLinkedList::new());
         } else if at == len {
-            return LinkedList::new();
+            return StaticLinkedList::new();
         }
 
         // Below, we iterate towards the `i-1`th node, either from the start or the end,
@@ -616,17 +630,17 @@ impl<T> LinkedList<T> {
 
         // The split node is the new tail node of the first part and owns
         // the head of the second part.
-        let mut second_part_head;
+        let second_part_head;
 
         unsafe {
             second_part_head = split_node.resolve_mut().unwrap().next.take();
             match second_part_head {
                 None => {}
-                Some(ref mut head) => head.prev = Rawlink::none(),
+                Some(mut head) => (*head).prev = Rawlink::none(),
             }
         }
 
-        let second_part = LinkedList {
+        let second_part = StaticLinkedList {
             list_head: second_part_head,
             list_tail: self.list_tail,
             length: len - at,
@@ -640,19 +654,19 @@ impl<T> LinkedList<T> {
     }
 }
 
-impl<T> Drop for LinkedList<T> {
-    #[unsafe_destructor_blind_to_params]
-    fn drop(&mut self) {
-        // Dissolve the linked_list in a loop.
-        // Just dropping the list_head can lead to stack exhaustion
-        // when length is >> 1_000_000
-        while let Some(mut head_) = self.list_head.take() {
-            self.list_head = head_.next.take();
-        }
-        self.length = 0;
-        self.list_tail = Rawlink::none();
-    }
-}
+//impl<T> Drop for StaticLinkedList<T> {
+//    #[unsafe_destructor_blind_to_params]
+//    fn drop(&mut self) {
+//        // Dissolve the linked_list in a loop.
+//        // Just dropping the list_head can lead to stack exhaustion
+//        // when length is >> 1_000_000
+//        while let Some(mut head_) = self.list_head.take() {
+//            self.list_head = head_.next.take();
+//        }
+//        self.length = 0;
+//        self.list_tail = Rawlink::none();
+//    }
+//}
 
 impl<'a, A> Iterator for Iter<'a, A> {
     type Item = &'a A;
@@ -663,9 +677,11 @@ impl<'a, A> Iterator for Iter<'a, A> {
             return None;
         }
         self.head.as_ref().map(|head| {
-            self.nelem -= 1;
-            self.head = &head.next;
-            &head.value
+            unsafe {
+                self.nelem -= 1;
+                self.head = &(**head).next;
+                &(**head).value
+            }
         })
     }
 
@@ -750,7 +766,7 @@ impl<'a, A> IterMut<'a, A> {
                     Some(prev) => prev,
                 };
                 let node_own = prev_node.next.take().unwrap();
-                ins_node.set_next(node_own);
+                unsafe {ins_node.set_next(Box::from_raw(node_own));}
                 prev_node.set_next(ins_node);
                 self.list.length += 1;
             }
@@ -767,9 +783,9 @@ impl<'a, A> IterMut<'a, A> {
     /// ```
     /// #![feature(linked_list_extras)]
     ///
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut list: LinkedList<_> = vec![1, 3, 4].into_iter().collect();
+    /// let mut list: StaticLinkedList<_> = vec![1, 3, 4].into_iter().collect();
     ///
     /// {
     ///     let mut it = list.iter_mut();
@@ -794,9 +810,9 @@ impl<'a, A> IterMut<'a, A> {
     /// ```
     /// #![feature(linked_list_extras)]
     ///
-    /// use std::collections::LinkedList;
+    /// use std::collections::StaticLinkedList;
     ///
-    /// let mut list: LinkedList<_> = vec![1, 2, 3].into_iter().collect();
+    /// let mut list: StaticLinkedList<_> = vec![1, 2, 3].into_iter().collect();
     ///
     /// let mut it = list.iter_mut();
     /// assert_eq!(it.next().unwrap(), &1);
@@ -836,15 +852,15 @@ impl<A> DoubleEndedIterator for IntoIter<A> {
 
 impl<A> ExactSizeIterator for IntoIter<A> {}
 
-impl<A> FromIterator<A> for LinkedList<A> {
-    fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> LinkedList<A> {
-        let mut ret = LinkedList::new();
+impl<A> FromIterator<A> for StaticLinkedList<A> {
+    fn from_iter<T: IntoIterator<Item = A>>(iter: T) -> StaticLinkedList<A> {
+        let mut ret = StaticLinkedList::new();
         ret.extend(iter);
         ret
     }
 }
 
-impl<T> IntoIterator for LinkedList<T> {
+impl<T> IntoIterator for StaticLinkedList<T> {
     type Item = T;
     type IntoIter = IntoIter<T>;
 
@@ -855,7 +871,7 @@ impl<T> IntoIterator for LinkedList<T> {
     }
 }
 
-impl<'a, T> IntoIterator for &'a LinkedList<T> {
+impl<'a, T> IntoIterator for &'a StaticLinkedList<T> {
     type Item = &'a T;
     type IntoIter = Iter<'a, T>;
 
@@ -864,7 +880,7 @@ impl<'a, T> IntoIterator for &'a LinkedList<T> {
     }
 }
 
-impl<'a, T> IntoIterator for &'a mut LinkedList<T> {
+impl<'a, T> IntoIterator for &'a mut StaticLinkedList<T> {
     type Item = &'a mut T;
     type IntoIter = IterMut<'a, T>;
 
@@ -873,7 +889,7 @@ impl<'a, T> IntoIterator for &'a mut LinkedList<T> {
     }
 }
 
-impl<A> Extend<A> for LinkedList<A> {
+impl<A> Extend<A> for StaticLinkedList<A> {
     fn extend<T: IntoIterator<Item = A>>(&mut self, iter: T) {
         for elt in iter {
             self.push_back(elt);
@@ -881,50 +897,50 @@ impl<A> Extend<A> for LinkedList<A> {
     }
 }
 
-impl<'a, T: 'a + Copy> Extend<&'a T> for LinkedList<T> {
+impl<'a, T: 'a + Copy> Extend<&'a T> for StaticLinkedList<T> {
     fn extend<I: IntoIterator<Item = &'a T>>(&mut self, iter: I) {
         self.extend(iter.into_iter().cloned());
     }
 }
 
-impl<A: PartialEq> PartialEq for LinkedList<A> {
-    fn eq(&self, other: &LinkedList<A>) -> bool {
+impl<A: PartialEq> PartialEq for StaticLinkedList<A> {
+    fn eq(&self, other: &StaticLinkedList<A>) -> bool {
         self.len() == other.len() && self.iter().eq(other.iter())
     }
 
-    fn ne(&self, other: &LinkedList<A>) -> bool {
+    fn ne(&self, other: &StaticLinkedList<A>) -> bool {
         self.len() != other.len() || self.iter().ne(other.iter())
     }
 }
 
-impl<A: Eq> Eq for LinkedList<A> {}
+impl<A: Eq> Eq for StaticLinkedList<A> {}
 
-impl<A: PartialOrd> PartialOrd for LinkedList<A> {
-    fn partial_cmp(&self, other: &LinkedList<A>) -> Option<Ordering> {
+impl<A: PartialOrd> PartialOrd for StaticLinkedList<A> {
+    fn partial_cmp(&self, other: &StaticLinkedList<A>) -> Option<Ordering> {
         self.iter().partial_cmp(other.iter())
     }
 }
 
-impl<A: Ord> Ord for LinkedList<A> {
+impl<A: Ord> Ord for StaticLinkedList<A> {
     #[inline]
-    fn cmp(&self, other: &LinkedList<A>) -> Ordering {
+    fn cmp(&self, other: &StaticLinkedList<A>) -> Ordering {
         self.iter().cmp(other.iter())
     }
 }
 
-impl<A: Clone> Clone for LinkedList<A> {
-    fn clone(&self) -> LinkedList<A> {
+impl<A: Clone> Clone for StaticLinkedList<A> {
+    fn clone(&self) -> StaticLinkedList<A> {
         self.iter().cloned().collect()
     }
 }
 
-impl<A: fmt::Debug> fmt::Debug for LinkedList<A> {
+impl<A: fmt::Debug> fmt::Debug for StaticLinkedList<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_list().entries(self.iter()).finish()
     }
 }
 
-impl<A: Hash> Hash for LinkedList<A> {
+impl<A: Hash> Hash for StaticLinkedList<A> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.len().hash(state);
         for elt in self {
@@ -942,14 +958,14 @@ mod tests {
     use std::thread;
     use std::vec::Vec;
 
-    use super::{LinkedList, Node};
+    use super::{StaticLinkedList, Node};
 
     #[cfg(test)]
-    fn list_from<T: Clone>(v: &[T]) -> LinkedList<T> {
+    fn list_from<T: Clone>(v: &[T]) -> StaticLinkedList<T> {
         v.iter().cloned().collect()
     }
 
-    pub fn check_links<T>(list: &LinkedList<T>) {
+    pub fn check_links<T>(list: &StaticLinkedList<T>) {
         let mut len = 0;
         let mut last_ptr: Option<&Node<T>> = None;
         let mut node_ptr: &Node<T>;
@@ -988,8 +1004,8 @@ mod tests {
     fn test_append() {
         // Empty to empty
         {
-            let mut m = LinkedList::<i32>::new();
-            let mut n = LinkedList::new();
+            let mut m = StaticLinkedList::<i32>::new();
+            let mut n = StaticLinkedList::new();
             m.append(&mut n);
             check_links(&m);
             assert_eq!(m.len(), 0);
@@ -997,8 +1013,8 @@ mod tests {
         }
         // Non-empty to empty
         {
-            let mut m = LinkedList::new();
-            let mut n = LinkedList::new();
+            let mut m = StaticLinkedList::new();
+            let mut n = StaticLinkedList::new();
             n.push_back(2);
             m.append(&mut n);
             check_links(&m);
@@ -1009,8 +1025,8 @@ mod tests {
         }
         // Empty to non-empty
         {
-            let mut m = LinkedList::new();
-            let mut n = LinkedList::new();
+            let mut m = StaticLinkedList::new();
+            let mut n = StaticLinkedList::new();
             m.push_back(2);
             m.append(&mut n);
             check_links(&m);
@@ -1099,7 +1115,7 @@ mod tests {
         // its nodes.
         //
         // https://github.com/rust-lang/rust/issues/26021
-        let mut v1 = LinkedList::new();
+        let mut v1 = StaticLinkedList::new();
         v1.push_front(1u8);
         v1.push_front(1u8);
         v1.push_front(1u8);
@@ -1113,7 +1129,7 @@ mod tests {
 
     #[test]
     fn test_split_off() {
-        let mut v1 = LinkedList::new();
+        let mut v1 = StaticLinkedList::new();
         v1.push_front(1u8);
         v1.push_front(1u8);
         v1.push_front(1u8);
@@ -1133,7 +1149,7 @@ mod tests {
 
     #[cfg(test)]
     fn fuzz_test(sz: i32) {
-        let mut m: LinkedList<_> = LinkedList::new();
+        let mut m: StaticLinkedList<_> = StaticLinkedList::new();
         let mut v = vec![];
         for i in 0..sz {
             check_links(&m);

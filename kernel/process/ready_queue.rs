@@ -1,8 +1,8 @@
 //! A module for the ready queue
 
 use super::super::interrupts::{on, off};
-use super::{Process, State};
-use super::proc_queue::{ProcessQueue};
+
+use super::{Process, State, ProcessQueue};
 
 /// The ready queue. A queue containing all processes that are ready to be scheduled.
 pub static mut READY_QUEUE: ProcessQueue = ProcessQueue::new();
@@ -15,7 +15,7 @@ pub fn make_ready(process: *mut Process) {
     unsafe {
         //bootlog!("{:?} [Ready]\n", *process);
         (*process).set_state(State::READY);
-        READY_QUEUE.push_tail(process);
+        READY_QUEUE.push_back(process);
     }
 
     // enable interrupts
@@ -29,11 +29,15 @@ pub fn get_next() -> *mut Process {
         // disable interrupts
         off();
 
-        let ret = READY_QUEUE.pop_head();
+        let ret = READY_QUEUE.pop_front();
 
         // enable interrupts
         on();
 
-        ret
+        if let Some(next) = ret {
+            next
+        } else {
+            0 as *mut Process
+        }
     }
 }

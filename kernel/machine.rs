@@ -5,7 +5,7 @@
 
 use core::option::Option;
 
-use process::proc_queue::ProcessQueue;
+use process::ProcessQueue;
 
 #[allow(improper_ctypes)]
 #[allow(dead_code)]

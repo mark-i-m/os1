@@ -1,5 +1,7 @@
 //! A simple vector implementation
 
+#![allow(dead_code)]
+
 use alloc::raw_vec::RawVec;
 
 use core::ops::{Index, IndexMut};

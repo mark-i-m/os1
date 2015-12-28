@@ -7,8 +7,7 @@ use core::ops::{Deref, DerefMut};
 
 use alloc::boxed::Box;
 
-use super::super::process::{ready_queue, proc_yield};
-use super::super::process::proc_queue::ProcessQueue;
+use super::super::process::{ready_queue, proc_yield, ProcessQueue};
 
 use super::super::interrupts::{on,off};
 
@@ -99,11 +98,10 @@ impl StaticSemaphore {
     /// Release
     pub fn up(&mut self) {
         off();
-        let next = self.queue.pop_head();
-        if next.is_null() {
-            self.count.fetch_add(1,Ordering::AcqRel);
-        } else {
+        if let Some(next) = self.queue.pop_front() {
             ready_queue::make_ready(next);
+        } else {
+            self.count.fetch_add(1,Ordering::AcqRel);
         }
         on();
     }
@@ -112,7 +110,7 @@ impl StaticSemaphore {
     /// Cannot implement Drop here because we want to be able
     /// to create a static semaphore.
     pub fn destroy(&mut self) {
-        if !self.queue.pop_head().is_null() {
+        if let Some(next) = self.queue.pop_front() {
             // TODO: intead, just kill the processes or do zombie detection
             panic!("Semaphore destroyed with processes waiting!");
         }

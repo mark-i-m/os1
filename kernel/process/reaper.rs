@@ -3,9 +3,7 @@
 
 use alloc::boxed::Box;
 
-use super::{Process, ready_queue};
-
-use super::proc_queue::ProcessQueue;
+use super::{Process, ready_queue, ProcessQueue};
 
 use super::proc_table::PROCESS_TABLE;
 
@@ -34,14 +32,18 @@ pub fn run(this: &Process) -> usize {
             // reap the 10 processes
             for _ in 0..10 {
                 off();
-                let dead_proc: *mut Process = REAPER_QUEUE.pop_head();
+                let dead_proc = REAPER_QUEUE.pop_front();
                 on();
 
-                PROCESS_TABLE.remove((*dead_proc).pid);
+                if let Some(dead) = dead_proc {
+                    PROCESS_TABLE.remove((*dead).pid);
 
-                printf!("{:?} [Reaping]\n", *dead_proc);
-                Box::from_raw(dead_proc);
-                // let the box go out of scope to dealloc
+                    printf!("{:?} [Reaping]\n", *dead);
+                    Box::from_raw(dead);
+                    // let the box go out of scope to dealloc
+                } else {
+                    panic!("This should never happen!");
+                }
             }
         }
     }
@@ -54,7 +56,7 @@ pub fn run(this: &Process) -> usize {
 pub fn reaper_add(dead_proc: *mut Process) {
     off();
     unsafe {
-        REAPER_QUEUE.push_tail(dead_proc);
+        REAPER_QUEUE.push_back(dead_proc);
         REAPER_SEMAPHORE.up();
     }
     on();

@@ -37,6 +37,7 @@ mod bare_bones;
 #[macro_use]
 mod vec;
 mod linked_list;
+mod static_linked_list;
 mod concurrency;
 mod fs;
 mod interrupts;

@@ -10,6 +10,8 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 
 use core::ops::Drop;
 
+use super::static_linked_list::StaticLinkedList;
+
 use super::interrupts::{on, off};
 
 use super::machine::{self, context_switch};
@@ -20,15 +22,11 @@ use self::context::{KContext};
 
 use self::idle::IDLE_PROCESS;
 
-use self::proc_queue::ProcessQueue;
-
 use self::proc_table::PROCESS_TABLE;
 
 pub mod context;
 
 pub mod ready_queue;
-
-pub mod proc_queue;
 
 pub mod proc_table;
 
@@ -45,6 +43,9 @@ static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
 
 /// The current running process if there is one
 pub static mut CURRENT_PROCESS: *mut Process = 0 as *mut Process;
+
+/// Type alias for a queue of Processes
+pub type ProcessQueue = StaticLinkedList<*mut Process>;
 
 /// An enum representing the possible states of a process
 #[repr(C)]
@@ -89,9 +90,6 @@ pub struct Process {
     /// Number of calls to interrupts::on() while this process was running
     /// Interrupts are on if `disable_cnt == 0`
     pub disable_cnt: usize,
-
-    /// A link for use in process queues
-    pub next_proc: *mut Process,
 }
 
 impl Process {
@@ -109,7 +107,6 @@ impl Process {
             kcontext: KContext::new(),
             addr_space: AddressSpace::new(),
             disable_cnt: 0,
-            next_proc: 0 as *mut Process,
         };
 
         p.get_stack();
@@ -239,7 +236,7 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     if !CURRENT_PROCESS.is_null() {
         if let Some(queue) = q {
             (*CURRENT_PROCESS).set_state(State::BLOCKED);
-            queue.push_tail(CURRENT_PROCESS);
+            queue.push_back(CURRENT_PROCESS);
         } else {
             ready_queue::make_ready(CURRENT_PROCESS);
         }
