@@ -85,7 +85,7 @@ fn find_next(addr: usize) -> usize {
 }
 
 impl Region {
-    /// Recursively print mappings. Used for debugging
+    /// Print this region for debugging purposes
     #[allow(dead_code)]
     pub fn dump(&self) {
         bootlog!("0x{:08X} - 0x{:08X} : {}\n",
@@ -108,7 +108,7 @@ impl RegionMap {
         let mut rlist = Vec::new();
 
         loop {
-            let mut end = 0;
+            let end;
 
             let region = if let Some((length,region_type)) = find(start) {
                 // avoid overflow and underflow
@@ -151,6 +151,7 @@ impl RegionMap {
     }
 
     /// Print out the memory map for debugging purposes
+    #[allow(dead_code)]
     pub fn dump(&self) {
         for i in 0..self.list.len() {
             self.list[i].dump();
@@ -167,7 +168,7 @@ impl Iterator for RegionMap {
     fn next(&mut self) -> Option<(usize, usize)> {
         // start and end region indices
         let mut start = self.index;
-        let mut end = 0;
+        let mut end;
 
         // find the next usable region
         while start < self.list.len() && !self.list[start].usable {
