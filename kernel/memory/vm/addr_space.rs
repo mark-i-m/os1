@@ -1,17 +1,13 @@
 //! A module process address spaces
 
+use super::super::super::concurrency::StaticSemaphore;
 use super::super::super::interrupts::{on, off};
-
 use super::super::super::machine::{invlpg, vmm_on};
-
-use super::super::super::process::CURRENT_PROCESS;
-
+use super::super::super::process::{CURRENT_PROCESS, State};
 use super::super::super::process::proc_table::PROCESS_TABLE;
-
+use super::super::super::static_linked_list::StaticLinkedList;
 use super::super::physmem::Frame;
-
 use super::{SHARED_PDES, NUM_SHARED, PD_ADDRESS, KMAP_ADDRESS, USER_ADDRESS, VMM_ON};
-
 use super::structs::{VMTable, PagingEntry};
 
 /// The address space of a single process
@@ -26,6 +22,12 @@ pub struct AddressSpace {
     ///
     /// Format: `(PID, paddr)`
     share_req: StaticLinkedList<(usize, usize)>,
+
+    /// a lock for the address space
+    ///
+    /// NOTE: to prevent deadlocks, *ALWAYS* acquire
+    /// this lock before locks on frames.
+    lock: StaticSemaphore,
 }
 
 impl AddressSpace {
@@ -56,6 +58,8 @@ impl AddressSpace {
         let a = AddressSpace {
             page_dir: pd_paddr,
             kmap_index: 0,
+            share_req: StaticLinkedList::new(),
+            lock: StaticSemaphore::new(1),
         };
 
         a
@@ -72,9 +76,10 @@ impl AddressSpace {
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
+        self.lock.down();
+
         let mut pd = unsafe {&mut *PD_ADDRESS};
         let pde = &mut pd[pde_index];
-
 
         // invalidate TLB entry
         unsafe { invlpg(virt) };
@@ -121,6 +126,8 @@ impl AddressSpace {
 
             on();
         }
+
+        self.lock.up();
     }
 
     /// Map the given `paddr` for temporary use by the kernel and return a mut reference to the
@@ -155,12 +162,12 @@ impl AddressSpace {
     /// NOTE: should only be called on the current address space because it assumes that the PD is
     /// at PD_ADDRESS
     pub fn unmap(&mut self, virt: usize) {
-        // TODO: completely clear entries (not just P bit) unless paging out
-
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
         let pd = unsafe {&mut *PD_ADDRESS};
+
+        self.lock.down();
 
         if pd[pde_index].is_flag(0) { // present bit
             off();
@@ -181,6 +188,38 @@ impl AddressSpace {
                 pd[pde_index].free(virt >= unsafe { KMAP_ADDRESS });
             }
         }
+
+        self.lock.up();
+    }
+
+    /// Returns the current physical address mapped to the given virtual address
+    /// or None if it is not mapped.
+    ///
+    /// NOTE: this has to run while the addresss space is active.
+    pub fn v_to_p(&mut self, virt: usize) -> Option<usize> {
+        let pde_index = virt >> 22;
+        let pte_index = (virt & 0x003F_F000) >> 12;
+
+        let pd = unsafe {&mut *PD_ADDRESS};
+
+        self.lock.down();
+
+        let ret = if pd[pde_index].is_flag(0) { // present bit
+            let mut pt = unsafe {&mut *(((NUM_SHARED<<22) | (pde_index<<12)) as *mut VMTable)};
+            let pte = &pt[pte_index];
+
+            if pte.is_flag(0) {
+                Some(pt[pte_index].get_address())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        self.lock.up();
+
+        ret
     }
 
     /// Activate the current address space and turn on VM if needed
@@ -200,20 +239,68 @@ impl AddressSpace {
     /// an error (e.g. the process has already died).
     ///
     /// NOTE: this has to run while the addresss space is active.
-    pub fn request_share(pid: usize, vaddr: usize) -> bool {
-        // TODO: get the paddr of this vaddr
-        // TODO: get the process and check that it is alive
-        // TODO: add to its addr_space::share_req list
+    pub fn request_share(&mut self, pid: usize, vaddr: usize) -> bool {
+        // NOTE: need to lock all memory data structures here...
+        self.lock.down();
+
+        // get the process and check that it is alive
+        let ret = unsafe { if let Some(p) = PROCESS_TABLE.get(pid) {
+            match (*p).get_state() {
+                State::TERMINATED => false,
+                _ => {
+                    // get the paddr of this vaddr
+                    if let Some(paddr) = self.v_to_p(vaddr) {
+                        // add to its addr_space::share_req list
+                        (*p).addr_space.share_req.push_back(((*CURRENT_PROCESS).get_pid(), paddr));
+                        true
+                    } else {
+                        false
+                    }
+                }
+            }
+        } else {
+            false
+        }};
+
+        self.lock.up();
+
+        ret
     }
 
     /// Creates a mapping in this process's address space for the
-    /// first page-share request from the process with the given `PID`,
-    /// then return the virtual address of the new page.
-    /// This is O(n) in the number of requests, but the number of requests
-    /// should not be that big, so it is OK.
-    pub fn accept_share(pid: usize) -> usize {
-        // TODO: find the right request
-        // TODO: Create the mapping and mark frame shared
+    /// first page-share request from the process with the given `PID`
+    /// to the given page. Returns true if success; false otherwise.
+    pub fn accept_share(&mut self, pid: usize, vaddr: usize) -> bool {
+        // find and remove the right request
+        let mut i = 0;
+        for req in &self.share_req {
+            let (req_pid, _) = *req;
+            if req_pid == pid {
+                break;
+            }
+            i += 1;
+        }
+
+        // none found
+        if i == self.share_req.len() {
+            return false;
+        }
+
+        // lock the list here
+        off();
+        let tail = &mut self.share_req.split_off(i);
+        let paddr = if let Some((_, pa)) = self.share_req.pop_back() {
+            pa
+        } else {
+            panic!("What?");
+        };
+        self.share_req.append(tail);
+        on();
+
+        // make a mapping
+        self.map(paddr, vaddr);
+
+        true
     }
 
     /// Remove all non-kernel mappings in this address space.

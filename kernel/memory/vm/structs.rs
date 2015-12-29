@@ -110,8 +110,18 @@ impl PagingEntry {
                 Frame::free(self.get_address() >> 12);
             }
 
-            // mark this entry not present
-            self.set_present(false);
+            // clear the entry
+            self.set_flag(0, false);
+            self.set_flag(1, false);
+            self.set_flag(2, false);
+            self.set_flag(3, false);
+            self.set_flag(4, false);
+            self.set_flag(5, false);
+            self.set_flag(6, false);
+            self.set_flag(7, false);
+            self.set_flag(8, false);
+            self.set_flag(9, false);
+            self.set_address(0);
         }
         on();
     }

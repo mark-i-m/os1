@@ -50,7 +50,7 @@ pub type ProcessQueue = StaticLinkedList<*mut Process>;
 /// An enum representing the possible states of a process
 #[repr(C)]
 #[derive(Clone, Copy)]
-enum State {
+pub enum State {
     /// Process is created, but not ready
     INIT,
     /// Process is in the ready q
@@ -145,6 +145,14 @@ impl Process {
     /// Set the state of the process to `s`
     fn set_state(&mut self, s: State) {
         self.state = s;
+    }
+
+    pub fn get_state(&self) -> State {
+        self.state
+    }
+
+    pub fn get_pid(&self) -> usize {
+        self.pid
     }
 }
 

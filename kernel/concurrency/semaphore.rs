@@ -75,6 +75,7 @@ impl<T> Drop for Semaphore<T> {
     }
 }
 
+// TODO: make StaticSemaphore use an unsafe cell, so it can be used immutably
 impl StaticSemaphore {
     /// Create a new `StaticSemaphore` with the given count
     pub const fn new(i: isize) -> StaticSemaphore {
