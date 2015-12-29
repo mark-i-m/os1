@@ -258,7 +258,7 @@ impl<T> StaticLinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut a = StaticLinkedList::new();
     /// let mut b = StaticLinkedList::new();
@@ -326,7 +326,7 @@ impl<T> StaticLinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut dl = StaticLinkedList::new();
     /// assert!(dl.is_empty());
@@ -346,7 +346,7 @@ impl<T> StaticLinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut dl = StaticLinkedList::new();
     ///
@@ -372,7 +372,7 @@ impl<T> StaticLinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut dl = StaticLinkedList::new();
     ///
@@ -397,7 +397,7 @@ impl<T> StaticLinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut dl = StaticLinkedList::new();
     /// assert_eq!(dl.front(), None);
@@ -417,7 +417,7 @@ impl<T> StaticLinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut dl = StaticLinkedList::new();
     /// assert_eq!(dl.front(), None);
@@ -443,7 +443,7 @@ impl<T> StaticLinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut dl = StaticLinkedList::new();
     /// assert_eq!(dl.back(), None);
@@ -463,7 +463,7 @@ impl<T> StaticLinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut dl = StaticLinkedList::new();
     /// assert_eq!(dl.back(), None);
@@ -490,7 +490,7 @@ impl<T> StaticLinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut dl = StaticLinkedList::new();
     ///
@@ -513,7 +513,7 @@ impl<T> StaticLinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut d = StaticLinkedList::new();
     /// assert_eq!(d.pop_front(), None);
@@ -540,7 +540,7 @@ impl<T> StaticLinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut d = StaticLinkedList::new();
     /// d.push_back(1);
@@ -557,7 +557,7 @@ impl<T> StaticLinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut d = StaticLinkedList::new();
     /// assert_eq!(d.pop_back(), None);
@@ -586,7 +586,7 @@ impl<T> StaticLinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut d = StaticLinkedList::new();
     ///
@@ -651,6 +651,37 @@ impl<T> StaticLinkedList<T> {
         self.length = at;
 
         second_part
+    }
+
+    /// Removes the element at the given index and returns it.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `at > len`.
+    ///
+    /// This operation should compute in O(n) time.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use static_linked_list::StaticLinkedList;
+    ///
+    /// let mut d = StaticLinkedList::new();
+    ///
+    /// d.push_front(1);
+    /// d.push_front(2);
+    /// d.push_front(3);
+    ///
+    /// let ele = d.remove(1);
+    ///
+    /// assert_eq!(ele, 2);
+    /// assert_eq!(d.len(), 2);
+    /// ```
+    pub fn remove(&mut self, at: usize) -> T {
+        let tail = &mut self.split_off(at);
+        let ele = self.pop_back().unwrap();
+        self.append(tail);
+        ele
     }
 }
 
@@ -783,7 +814,7 @@ impl<'a, A> IterMut<'a, A> {
     /// ```
     /// #![feature(linked_list_extras)]
     ///
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut list: StaticLinkedList<_> = vec![1, 3, 4].into_iter().collect();
     ///
@@ -810,7 +841,7 @@ impl<'a, A> IterMut<'a, A> {
     /// ```
     /// #![feature(linked_list_extras)]
     ///
-    /// use std::collections::StaticLinkedList;
+    /// use static_linked_list::StaticLinkedList;
     ///
     /// let mut list: StaticLinkedList<_> = vec![1, 2, 3].into_iter().collect();
     ///

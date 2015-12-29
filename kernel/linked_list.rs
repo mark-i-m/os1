@@ -254,7 +254,7 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut a = LinkedList::new();
     /// let mut b = LinkedList::new();
@@ -322,7 +322,7 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut dl = LinkedList::new();
     /// assert!(dl.is_empty());
@@ -342,7 +342,7 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut dl = LinkedList::new();
     ///
@@ -368,7 +368,7 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut dl = LinkedList::new();
     ///
@@ -393,7 +393,7 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut dl = LinkedList::new();
     /// assert_eq!(dl.front(), None);
@@ -413,7 +413,7 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut dl = LinkedList::new();
     /// assert_eq!(dl.front(), None);
@@ -439,7 +439,7 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut dl = LinkedList::new();
     /// assert_eq!(dl.back(), None);
@@ -459,7 +459,7 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut dl = LinkedList::new();
     /// assert_eq!(dl.back(), None);
@@ -486,7 +486,7 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut dl = LinkedList::new();
     ///
@@ -509,7 +509,7 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut d = LinkedList::new();
     /// assert_eq!(d.pop_front(), None);
@@ -531,7 +531,7 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut d = LinkedList::new();
     /// d.push_back(1);
@@ -548,7 +548,7 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut d = LinkedList::new();
     /// assert_eq!(d.pop_back(), None);
@@ -572,7 +572,7 @@ impl<T> LinkedList<T> {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut d = LinkedList::new();
     ///
@@ -767,7 +767,7 @@ impl<'a, A> IterMut<'a, A> {
     /// ```
     /// #![feature(linked_list_extras)]
     ///
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut list: LinkedList<_> = vec![1, 3, 4].into_iter().collect();
     ///
@@ -794,7 +794,7 @@ impl<'a, A> IterMut<'a, A> {
     /// ```
     /// #![feature(linked_list_extras)]
     ///
-    /// use std::collections::LinkedList;
+    /// use linked_list::LinkedList;
     ///
     /// let mut list: LinkedList<_> = vec![1, 2, 3].into_iter().collect();
     ///
