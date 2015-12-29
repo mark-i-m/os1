@@ -1,9 +1,11 @@
 //! Physical memory management
 
+use alloc::boxed::Box;
+
 use core::ops::{Index, IndexMut};
 
 use super::super::interrupts::{on, off};
-
+use super::super::static_linked_list::StaticLinkedList;
 use super::regionmap::RegionMap;
 
 /// Array of `FrameInfo`. This is a pointer to the region of memory used
@@ -37,11 +39,23 @@ pub struct FrameInfoSection {
 /// When allocated
 /// 31                           30 0
 /// [ssssssssssssssssssssssssssssss 0]
-///  ^-- ptr to shared frame info   ^-- free bit
+///  ^-- ptr to shared frame info  ^^-- free bit
+///                                |
+///                                +-- PD bit
 /// ```
 #[repr(C, packed)]
 pub struct FrameInfo {
     info: usize,
+}
+
+/// A struct to keep track of information related to shared
+/// physical frames.
+pub struct SharedFrameInfo {
+    /// needs to be at least 4B aligned
+    pad: u32,
+
+    /// list of sharers: (pid, vaddr)
+    list: StaticLinkedList<(usize, usize)>,
 }
 
 impl Frame {
@@ -72,6 +86,27 @@ impl Frame {
 
         off();
         all_frames[index].free();
+        on();
+    }
+
+    /// Add the given pid as a sharer of this frame. 
+    pub fn share(pid: usize, vaddr: usize, paddr: usize) {
+        let all_frames = unsafe {&mut *FRAME_INFO};
+        let index = paddr >> 12;
+
+        off();
+        let frame = &mut all_frames[index];
+        let sfi = if frame.has_shared_info() {
+            frame.get_shared_info().unwrap()
+        } else {
+            let mut sfi = box SharedFrameInfo::new();
+            let raw_sfi = Box::into_raw(sfi);
+            frame.set_shared_info(raw_sfi);
+            unsafe { &mut *raw_sfi }
+        };
+
+        sfi.list.push_back((pid, vaddr));
+
         on();
     }
 }
@@ -169,6 +204,48 @@ impl FrameInfo {
     fn set_next_free(&mut self, next: usize) {
         let base = self.info & 0xFFF;
         self.info = (next << 12) | base;
+    }
+
+    /// Returns true if this frame has shared frame info.
+    ///
+    /// NOTE: this does not mean the frame is shared yet.
+    fn has_shared_info(&self) -> bool {
+        self.get_shared_info().is_some()
+    }
+
+    /// Get the `SharedFrameInfo` of this frame
+    fn get_shared_info(&self) -> Option<&mut SharedFrameInfo> {
+        let addr = self.info & !3;
+        let ptr = addr as *mut SharedFrameInfo;
+
+        if ptr.is_null() {
+            None
+        } else {
+            unsafe {
+                Some(&mut *ptr)
+            }
+        }
+    }
+
+    /// Set the `SharedFrameInfo` of this frame
+    fn set_shared_info(&mut self, sfi: *mut SharedFrameInfo) {
+        if let Some(_) = self.get_shared_info() {
+            panic!("Attempt to overwrite shared frame info!");
+        }
+
+        let addr = (sfi as usize) & !3;
+        let base = self.info & 3;
+
+        self.info = addr | base;
+    }
+}
+
+impl SharedFrameInfo {
+    fn new() -> SharedFrameInfo {
+        SharedFrameInfo {
+            pad: 0,
+            list: StaticLinkedList::new(),
+        }
     }
 }
 

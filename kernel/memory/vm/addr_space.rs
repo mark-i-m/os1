@@ -252,6 +252,9 @@ impl AddressSpace {
                     if let Some(paddr) = self.v_to_p(vaddr) {
                         // add to its addr_space::share_req list
                         (*p).addr_space.share_req.push_back(((*CURRENT_PROCESS).get_pid(), paddr));
+
+                        // mark the frame shared
+                        Frame::share((*CURRENT_PROCESS).get_pid(), vaddr, paddr);
                         true
                     } else {
                         false
@@ -271,6 +274,8 @@ impl AddressSpace {
     /// first page-share request from the process with the given `PID`
     /// to the given page. Returns true if success; false otherwise.
     pub fn accept_share(&mut self, pid: usize, vaddr: usize) -> bool {
+        self.lock.down();
+
         // find and remove the right request
         let mut i = 0;
         for req in &self.share_req {
@@ -287,7 +292,6 @@ impl AddressSpace {
         }
 
         // lock the list here
-        off();
         let tail = &mut self.share_req.split_off(i);
         let paddr = if let Some((_, pa)) = self.share_req.pop_back() {
             pa
@@ -295,10 +299,12 @@ impl AddressSpace {
             panic!("What?");
         };
         self.share_req.append(tail);
-        on();
 
         // make a mapping
+        unsafe { Frame::share((*CURRENT_PROCESS).get_pid(), vaddr, paddr); }
         self.map(paddr, vaddr);
+
+        self.lock.up();
 
         true
     }

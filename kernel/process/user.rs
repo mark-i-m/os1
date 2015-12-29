@@ -8,7 +8,7 @@ use super::proc_table::PROCESS_TABLE;
 
 use super::super::vga::window::{Window, Color};
 
-use super::super::concurrency::{StaticSemaphore};
+use super::super::concurrency::{Semaphore, StaticSemaphore};
 
 // useful constants
 const ROWS: usize = 25;
@@ -22,13 +22,18 @@ static mut s2: StaticSemaphore = StaticSemaphore::new(1);
 // Some test routines
 pub fn run(this: &Process) -> usize {
     let mut w0 = Window::new(COLS, ROWS, (0, 0));
-    let mut msg = Window::new(60, 4, (1,1));
+    let mut msg_sem = unsafe {
+        let s = 0xD000_0000 as *mut Semaphore<Window>;
+        *s = Semaphore::new(Window::new(60, 4, (1,1)), 1);
+        &mut *s
+    };
 
     unsafe { *(0xF000_0000 as *mut usize) = this.pid; }
 
     w0.set_bg(Color::LightBlue);
     w0.paint();
 
+    let mut msg = msg_sem.down();
     msg.set_cursor((0,0));
     msg.set_bg(Color::LightGray);
     msg.set_fg(Color::Black);
@@ -37,7 +42,7 @@ pub fn run(this: &Process) -> usize {
                 should be red when all loop_procs finish running.");
 
     for _ in 0..206*3 {
-        ready_queue::make_ready(Process::new("loop_proc", super::user::run2));
+        ready_queue::make_ready(Process::new("loop_proc", self::run2));
         unsafe { s1.down(); }
 
         // test vm
@@ -47,7 +52,18 @@ pub fn run(this: &Process) -> usize {
         }
     }
 
-    msg.put_str("\n\nYay :)");
+    msg.put_str("\n\nYay! :)");
+
+    msg.put_str("\n\nNow test semaphores... ");
+
+    unsafe {
+        // create another process
+        let p = Process::new("semaphore_test", self::run3);
+        ready_queue::make_ready(p);
+
+        // share the semaphore
+        (*p).addr_space.request_share(this.pid, 0xD000_0000);
+    }
 
     0
 }
@@ -131,6 +147,32 @@ fn run2(this: &Process) -> usize {
     }
 
     unsafe { s1.up(); }
+
+    0
+}
+
+fn run3(this: &Process) -> usize {
+    unsafe {
+        let me = &mut *if let Some(p) = PROCESS_TABLE.get(this.pid) {
+            p
+        } else {
+            panic!("Oh no! me = None, but should be 0x{:X}", 
+                   this as *const Process as usize);
+        };
+
+        // accept share from the parent process
+        while !me.addr_space.accept_share(3, 0xF000_0000) { }
+
+        let mut msg_sem = unsafe {
+            let s = 0xF000_0000 as *mut Semaphore<Window>;
+            *s = Semaphore::new(Window::new(60, 4, (1,1)), 1);
+            &mut *s
+        };
+
+        let mut msg = msg_sem.down();
+
+        msg.put_str("Success! :D");
+    }
 
     0
 }
