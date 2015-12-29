@@ -133,15 +133,10 @@ fn run2(this: &Process) -> usize {
 
     // test process table
     unsafe {
-        let me = if let Some(p) = PROCESS_TABLE.get(this.pid) {
-            p
-        } else {
-            panic!("Oh no! me = None, but should be 0x{:X}", 
-                   this as *const Process as usize);
-        };
+        let me = PROCESS_TABLE.get(this.pid).expect("Oh no! expected Some(process)!");
 
         if (me as *const Process) != (this as *const Process) {
-            panic!("Oh no! me = 0x{:X}, but should be 0x{:X}", 
+            panic!("Oh no! me = 0x{:X}, but should be 0x{:X}",
                    me as usize, this as *const Process as usize);
         }
     }
@@ -153,17 +148,12 @@ fn run2(this: &Process) -> usize {
 
 fn run3(this: &Process) -> usize {
     unsafe {
-        let me = &mut *if let Some(p) = PROCESS_TABLE.get(this.pid) {
-            p
-        } else {
-            panic!("Oh no! me = None, but should be 0x{:X}", 
-                   this as *const Process as usize);
-        };
+        let me = &mut *PROCESS_TABLE.get(this.pid).expect("Oh no! expected Some(process)!");
 
         // accept share from the parent process
         while !me.addr_space.accept_share(3, 0xF000_0000) { }
 
-        let mut msg_sem = unsafe {
+        let mut msg_sem = {
             let s = 0xF000_0000 as *mut Semaphore<Window>;
             *s = Semaphore::new(Window::new(60, 4, (1,1)), 1);
             &mut *s

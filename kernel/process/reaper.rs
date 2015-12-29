@@ -32,18 +32,14 @@ pub fn run(this: &Process) -> usize {
             // reap the 10 processes
             for _ in 0..10 {
                 off();
-                let dead_proc = REAPER_QUEUE.pop_front();
+                let dead_proc = REAPER_QUEUE.pop_front().unwrap();
                 on();
 
-                if let Some(dead) = dead_proc {
-                    PROCESS_TABLE.remove((*dead).pid);
+                PROCESS_TABLE.remove((*dead_proc).pid);
 
-                    printf!("{:?} [Reaping]\n", *dead);
-                    Box::from_raw(dead);
-                    // let the box go out of scope to dealloc
-                } else {
-                    panic!("This should never happen!");
-                }
+                printf!("{:?} [Reaping]\n", *dead_proc);
+                Box::from_raw(dead_proc);
+                // let the box go out of scope to dealloc
             }
         }
     }

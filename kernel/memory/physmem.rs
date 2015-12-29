@@ -50,6 +50,7 @@ pub struct FrameInfo {
 
 /// A struct to keep track of information related to shared
 /// physical frames.
+#[allow(dead_code)]
 pub struct SharedFrameInfo {
     /// needs to be at least 4B aligned
     pad: u32,
@@ -89,7 +90,7 @@ impl Frame {
         on();
     }
 
-    /// Add the given pid as a sharer of this frame. 
+    /// Add the given pid as a sharer of this frame.
     pub fn share(pid: usize, vaddr: usize, paddr: usize) {
         let all_frames = unsafe {&mut *FRAME_INFO};
         let index = paddr >> 12;
@@ -99,8 +100,7 @@ impl Frame {
         let sfi = if frame.has_shared_info() {
             frame.get_shared_info().unwrap()
         } else {
-            let mut sfi = box SharedFrameInfo::new();
-            let raw_sfi = Box::into_raw(sfi);
+            let raw_sfi = Box::into_raw(box SharedFrameInfo::new());
             frame.set_shared_info(raw_sfi);
             unsafe { &mut *raw_sfi }
         };
@@ -165,8 +165,9 @@ impl FrameInfo {
     }
 
     /// Free the frame referred to by this FrameInfo
+    /// if this is the last sharere.
     pub fn free(&mut self) {
-        // TODO: handle case of shared pages
+        // TODO: remove shared page info for this process
 
         // mark free
         self.set_free(true);
@@ -229,7 +230,7 @@ impl FrameInfo {
 
     /// Set the `SharedFrameInfo` of this frame
     fn set_shared_info(&mut self, sfi: *mut SharedFrameInfo) {
-        if let Some(_) = self.get_shared_info() {
+        if self.get_shared_info().is_some() {
             panic!("Attempt to overwrite shared frame info!");
         }
 

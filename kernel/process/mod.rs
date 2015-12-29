@@ -2,7 +2,6 @@
 
 use alloc::boxed::Box;
 
-use core::option::Option::{self, Some, None};
 use core::fmt::{Debug, Formatter, Result};
 use core::cmp::PartialEq;
 

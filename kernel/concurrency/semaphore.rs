@@ -2,7 +2,6 @@
 
 use core::sync::atomic::{AtomicIsize, Ordering};
 use core::cell::UnsafeCell;
-use core::option::Option::Some;
 use core::ops::{Deref, DerefMut};
 
 use alloc::boxed::Box;
@@ -111,7 +110,7 @@ impl StaticSemaphore {
     /// Cannot implement Drop here because we want to be able
     /// to create a static semaphore.
     pub fn destroy(&mut self) {
-        if let Some(_) = self.queue.pop_front() {
+        if self.queue.len() > 0 {
             // TODO: intead, just kill the processes or do zombie detection
             panic!("Semaphore destroyed with processes waiting!");
         }

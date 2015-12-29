@@ -205,7 +205,7 @@ impl AddressSpace {
         self.lock.down();
 
         let ret = if pd[pde_index].is_flag(0) { // present bit
-            let mut pt = unsafe {&mut *(((NUM_SHARED<<22) | (pde_index<<12)) as *mut VMTable)};
+            let pt = unsafe {&mut *(((NUM_SHARED<<22) | (pde_index<<12)) as *mut VMTable)};
             let pte = &pt[pte_index];
 
             if pte.is_flag(0) {
@@ -292,13 +292,7 @@ impl AddressSpace {
         }
 
         // lock the list here
-        let tail = &mut self.share_req.split_off(i);
-        let paddr = if let Some((_, pa)) = self.share_req.pop_back() {
-            pa
-        } else {
-            panic!("What?");
-        };
-        self.share_req.append(tail);
+        let (_, paddr) = self.share_req.remove(i);
 
         // make a mapping
         unsafe { Frame::share((*CURRENT_PROCESS).get_pid(), vaddr, paddr); }
