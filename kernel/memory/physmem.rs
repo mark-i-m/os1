@@ -5,6 +5,7 @@ use alloc::boxed::Box;
 use core::ops::{Index, IndexMut};
 
 use super::super::interrupts::{on, off};
+use super::super::process::CURRENT_PROCESS;
 use super::super::static_linked_list::StaticLinkedList;
 use super::regionmap::RegionMap;
 
@@ -165,22 +166,38 @@ impl FrameInfo {
     }
 
     /// Free the frame referred to by this FrameInfo
-    /// if this is the last sharere.
+    /// if this is the last sharere; otherwise, just remove this
+    /// process's `SharedFrameInfo`.
     pub fn free(&mut self) {
-        // TODO: remove shared page info for this process
-
-        // mark free
-        self.set_free(true);
-
-        // add to free list
-        off();
-
-        unsafe {
-            self.set_next_free(FREE_FRAMES);
-            FREE_FRAMES = self.get_index();
+        // remove shared page info for this process
+        let pid = unsafe { (*CURRENT_PROCESS).get_pid() };
+        if self.has_shared_info() {
+            let sfi_list = &mut self
+                .get_shared_info()
+                .unwrap()
+                .list;
+            let i = sfi_list
+                .iter()
+                .position(|&(req_pid, _)| req_pid == pid)
+                .expect("Attempt to free shared page which this process is not sharing!");
+            let sfi = sfi_list.remove(i);
         }
 
-        on();
+        // if there is only one "sharer" left, free the page
+        if !self.has_shared_info() {
+            // mark free
+            self.set_free(true);
+
+            // add to free list
+            off();
+
+            unsafe {
+                self.set_next_free(FREE_FRAMES);
+                FREE_FRAMES = self.get_index();
+            }
+
+            on();
+        }
     }
 
     /// Get the index of the `Frame`

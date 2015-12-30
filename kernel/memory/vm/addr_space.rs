@@ -65,10 +65,12 @@ impl AddressSpace {
         a
     }
 
-    /// Map `virt` to `phys` in the address space.
+    /// Map `virt` to `phys` in the address space. The method first
+    /// tries to acquire the address space lock if `lock` is true.
+    ///
     /// NOTE: should only be called on the current address space
     /// because it assumes that the PD is at PD_ADDRESS
-    pub fn map(&mut self, phys: usize, virt: usize) {
+    pub fn map(&mut self, phys: usize, virt: usize, lock: bool) {
         //unsafe {
         //    bootlog!("{:?} [map {:x} -> {:x}]\n", *CURRENT_PROCESS, virt, phys);
         //}
@@ -76,7 +78,9 @@ impl AddressSpace {
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
-        self.lock.down();
+        if lock {
+            self.lock.down();
+        }
 
         let mut pd = unsafe {&mut *PD_ADDRESS};
         let pde = &mut pd[pde_index];
@@ -127,7 +131,9 @@ impl AddressSpace {
             on();
         }
 
-        self.lock.up();
+        if lock {
+            self.lock.up();
+        }
     }
 
     /// Map the given `paddr` for temporary use by the kernel and return a mut reference to the
@@ -153,7 +159,7 @@ impl AddressSpace {
         let vaddr = unsafe { KMAP_ADDRESS } + (next as usize) * 0x1000;
 
         // map the frame
-        self.map(paddr, vaddr);
+        self.map(paddr, vaddr, true);
 
         unsafe { &mut *(vaddr as *mut Frame) }
     }
@@ -277,26 +283,19 @@ impl AddressSpace {
         self.lock.down();
 
         // find and remove the right request
-        let mut i = 0;
-        for req in &self.share_req {
-            let (req_pid, _) = *req;
-            if req_pid == pid {
-                break;
-            }
-            i += 1;
-        }
-
-        // none found
-        if i == self.share_req.len() {
-            return false;
-        }
+        let i = if let Some(i) = self.share_req
+            .iter().position(|&(req_pid, _)| req_pid == pid) {
+                i
+            } else {
+                return false;
+            };
 
         // lock the list here
         let (_, paddr) = self.share_req.remove(i);
 
         // make a mapping
         unsafe { Frame::share((*CURRENT_PROCESS).get_pid(), vaddr, paddr); }
-        self.map(paddr, vaddr);
+        self.map(paddr, vaddr, false);
 
         self.lock.up();
 
@@ -343,7 +342,7 @@ pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: 
     //printf!("page fault {:X}\n", fault_addr);
 
     if !CURRENT_PROCESS.is_null() {
-        (*CURRENT_PROCESS).addr_space.map(Frame::alloc(), fault_addr);
+        (*CURRENT_PROCESS).addr_space.map(Frame::alloc(), fault_addr, true);
     } else {
         panic!("Page fault @ 0x{:X} with no current process", fault_addr);
     }
