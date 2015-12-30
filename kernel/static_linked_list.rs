@@ -679,7 +679,7 @@ impl<T> StaticLinkedList<T> {
     /// ```
     pub fn remove(&mut self, at: usize) -> T {
         let tail = &mut self.split_off(at);
-        let ele = self.pop_back().unwrap();
+        let ele = tail.pop_front().unwrap();
         self.append(tail);
         ele
     }

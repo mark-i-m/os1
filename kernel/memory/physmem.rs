@@ -99,7 +99,7 @@ impl Frame {
         off();
         let frame = &mut all_frames[index];
         let sfi = if frame.has_shared_info() {
-            frame.get_shared_info().unwrap()
+            frame.get_shared_info().expect("No shared frame info!")
         } else {
             let raw_sfi = Box::into_raw(box SharedFrameInfo::new());
             frame.set_shared_info(raw_sfi);
@@ -176,13 +176,13 @@ impl FrameInfo {
         if self.has_shared_info() {
             let sfi_list = &mut self
                 .get_shared_info()
-                .unwrap()
+                .expect("No shared frame info to free")
                 .list;
             let i = sfi_list
                 .iter()
                 .position(|&(req_pid, _)| req_pid == pid)
                 .expect("Attempt to free shared page which this process is not sharing!");
-            let sfi = sfi_list.remove(i);
+            let _ = sfi_list.remove(i);
 
             // if no more sharers, drop the shared info
             if sfi_list.is_empty() {

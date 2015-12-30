@@ -164,7 +164,7 @@ impl AddressSpace {
         unsafe { &mut *(vaddr as *mut Frame) }
     }
 
-    /// Remove any mapping for this virtual address The method first tries to acquire the address
+    /// Remove any mapping for this virtual address. The method first tries to acquire the address
     /// space lock if `lock` is true.
     ///
     /// NOTE: should only be called on the current address space because it assumes that the PD is
@@ -213,16 +213,19 @@ impl AddressSpace {
     }
 
     /// Returns the current physical address mapped to the given virtual address
-    /// or None if it is not mapped.
+    /// or None if it is not mapped. The method first tries to acquire the address
+    /// space lock if `lock` is true.
     ///
     /// NOTE: this has to run while the addresss space is active.
-    pub fn v_to_p(&mut self, virt: usize) -> Option<usize> {
+    pub fn v_to_p(&mut self, virt: usize, lock: bool) -> Option<usize> {
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
         let pd = unsafe {&mut *PD_ADDRESS};
 
-        self.lock.down();
+        if lock {
+            self.lock.down();
+        }
 
         let ret = if pd[pde_index].is_flag(0) { // present bit
             let pt = unsafe {&mut *(((NUM_SHARED<<22) | (pde_index<<12)) as *mut VMTable)};
@@ -237,7 +240,9 @@ impl AddressSpace {
             None
         };
 
-        self.lock.up();
+        if lock {
+            self.lock.up();
+        }
 
         ret
     }
@@ -260,34 +265,49 @@ impl AddressSpace {
     ///
     /// NOTE: this has to run while the addresss space is active.
     pub fn request_share(&mut self, pid: usize, vaddr: usize) -> bool {
-        // NOTE: need to lock all memory data structures here...
-        self.lock.down();
+
+        // cannot share with self!
+        unsafe {
+            if pid == (*CURRENT_PROCESS).get_pid() {
+                return false;
+            }
+        }
+
+        printf!("Request share to {} at {:X}\n", pid, vaddr);
 
         // get the process and check that it is alive
-        let ret = unsafe { if let Some(p) = PROCESS_TABLE.get(pid) {
+        unsafe { if let Some(p) = PROCESS_TABLE.get(pid) {
             match (*p).get_state() {
                 State::TERMINATED => false,
                 _ => {
+
+                    let addr_space = &mut (*p).addr_space;
+
+                    // lock the other process first
+                    addr_space.lock.down();
+                    self.lock.down();
+
                     // get the paddr of this vaddr
-                    if let Some(paddr) = self.v_to_p(vaddr) {
+                    let ret = if let Some(paddr) = self.v_to_p(vaddr, false) {
                         // add to its addr_space::share_req list
-                        (*p).addr_space.share_req.push_back(((*CURRENT_PROCESS).get_pid(), paddr));
+                        addr_space.share_req.push_back(((*CURRENT_PROCESS).get_pid(), paddr));
 
                         // mark the frame shared
                         Frame::share((*CURRENT_PROCESS).get_pid(), vaddr, paddr);
                         true
                     } else {
                         false
-                    }
+                    };
+
+                    self.lock.up();
+                    addr_space.lock.up();
+
+                    ret
                 }
             }
         } else {
             false
-        }};
-
-        self.lock.up();
-
-        ret
+        }}
     }
 
     /// Creates a mapping in this process's address space for the

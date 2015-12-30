@@ -12,6 +12,7 @@ use super::proc_table::PROCESS_TABLE;
 // useful constants
 const ROWS: usize = 25;
 const COLS: usize = 80;
+const NUM_LOOP: usize = (ROWS*2 + COLS*2 - 4) * 3;
 
 // Some test semaphores
 static mut current: (usize, usize) = (0,0);
@@ -40,7 +41,7 @@ pub fn run(this: &Process) -> usize {
     msg.put_str("<-- If semaphores work correctly, then only this block \
                 should be red when all loop_procs finish running.");
 
-    for i in 0..206*3 {
+    for _ in 0..NUM_LOOP {
         ready_queue::make_ready(Process::new("loop_proc", self::run2));
         unsafe { s1.down(); }
 
@@ -53,17 +54,21 @@ pub fn run(this: &Process) -> usize {
 
     msg.put_str("\n\nYay! :)");
 
+    // test semaphores
+    unsafe {
+        // create another process
+        let p = Process::new("semaphore_test", self::run3);
+
+        // share the semaphore
+        let me = &mut *PROCESS_TABLE.get(this.pid).expect("Oh no! expected Some(process)!");
+        if !me.addr_space.request_share(this.pid + NUM_LOOP + 1, 0xD000_0000) {
+            panic!("Share request failed!");
+        }
+
+        ready_queue::make_ready(p);
+    }
+
     msg.put_str("\n\nNow test semaphores... ");
-
-    // TODO: uncomment again
-    //unsafe {
-    //    // create another process
-    //    let p = Process::new("semaphore_test", self::run3);
-    //    ready_queue::make_ready(p);
-
-    //    // share the semaphore
-    //    (*p).addr_space.request_share(this.pid, 0xD000_0000);
-    //}
 
     0
 }
@@ -151,7 +156,9 @@ fn run3(this: &Process) -> usize {
         let me = &mut *PROCESS_TABLE.get(this.pid).expect("Oh no! expected Some(process)!");
 
         // accept share from the parent process
-        while !me.addr_space.accept_share(3, 0xF000_0000) { }
+        if !me.addr_space.accept_share(3, 0xF000_0000) {
+            panic!("Share accept failed");
+        }
 
         let mut msg_sem = {
             let s = 0xF000_0000 as *mut Semaphore<Window>;
