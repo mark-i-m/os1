@@ -20,6 +20,6 @@ pub fn init() {
 pub fn run(this: &Process) -> usize {
     loop{
         super::proc_yield(None);
-        printf!("idle\n");
+        panic!("idle");
     }
 }

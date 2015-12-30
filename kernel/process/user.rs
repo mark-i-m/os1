@@ -1,14 +1,13 @@
 //! A module for user processes
 // So far it just contains some test code
 
-use super::Process;
-use super::ready_queue;
-
-use super::proc_table::PROCESS_TABLE;
-
-use super::super::vga::window::{Window, Color};
+use core::ptr;
 
 use super::super::concurrency::{Semaphore, StaticSemaphore};
+use super::super::vga::window::{Window, Color};
+use super::Process;
+use super::ready_queue;
+use super::proc_table::PROCESS_TABLE;
 
 // useful constants
 const ROWS: usize = 25;
@@ -24,7 +23,7 @@ pub fn run(this: &Process) -> usize {
     let mut w0 = Window::new(COLS, ROWS, (0, 0));
     let mut msg_sem = unsafe {
         let s = 0xD000_0000 as *mut Semaphore<Window>;
-        *s = Semaphore::new(Window::new(60, 4, (1,1)), 1);
+        ptr::write(s, Semaphore::new(Window::new(60, 7, (1,1)), 1));
         &mut *s
     };
 
@@ -41,7 +40,7 @@ pub fn run(this: &Process) -> usize {
     msg.put_str("<-- If semaphores work correctly, then only this block \
                 should be red when all loop_procs finish running.");
 
-    for _ in 0..206*3 {
+    for i in 0..206*3 {
         ready_queue::make_ready(Process::new("loop_proc", self::run2));
         unsafe { s1.down(); }
 
@@ -56,14 +55,15 @@ pub fn run(this: &Process) -> usize {
 
     msg.put_str("\n\nNow test semaphores... ");
 
-    unsafe {
-        // create another process
-        let p = Process::new("semaphore_test", self::run3);
-        ready_queue::make_ready(p);
+    // TODO: uncomment again
+    //unsafe {
+    //    // create another process
+    //    let p = Process::new("semaphore_test", self::run3);
+    //    ready_queue::make_ready(p);
 
-        // share the semaphore
-        (*p).addr_space.request_share(this.pid, 0xD000_0000);
-    }
+    //    // share the semaphore
+    //    (*p).addr_space.request_share(this.pid, 0xD000_0000);
+    //}
 
     0
 }

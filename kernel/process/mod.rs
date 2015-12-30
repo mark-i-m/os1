@@ -243,6 +243,7 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     if !CURRENT_PROCESS.is_null() {
         if let Some(queue) = q {
             (*CURRENT_PROCESS).set_state(State::BLOCKED);
+            //bootlog!("{:?} [Blocking]\n", *CURRENT_PROCESS);
             queue.push_back(CURRENT_PROCESS);
         } else {
             ready_queue::make_ready(CURRENT_PROCESS);

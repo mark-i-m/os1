@@ -162,6 +162,7 @@ impl FrameInfo {
         on();
 
         // mark not free
+        self.clear_shared_info();
         self.set_free(false);
     }
 
@@ -171,6 +172,7 @@ impl FrameInfo {
     pub fn free(&mut self) {
         // remove shared page info for this process
         let pid = unsafe { (*CURRENT_PROCESS).get_pid() };
+        let mut dealloced = false;
         if self.has_shared_info() {
             let sfi_list = &mut self
                 .get_shared_info()
@@ -181,6 +183,20 @@ impl FrameInfo {
                 .position(|&(req_pid, _)| req_pid == pid)
                 .expect("Attempt to free shared page which this process is not sharing!");
             let sfi = sfi_list.remove(i);
+
+            // if no more sharers, drop the shared info
+            if sfi_list.is_empty() {
+                let addr = self.info & !3;
+                let ptr = addr as *mut SharedFrameInfo;
+                off();
+                unsafe { Box::from_raw(ptr); }
+                dealloced = true;
+            }
+        }
+
+        if dealloced {
+            self.clear_shared_info();
+            on();
         }
 
         // if there is only one "sharer" left, free the page
@@ -255,6 +271,11 @@ impl FrameInfo {
         let base = self.info & 3;
 
         self.info = addr | base;
+    }
+
+    /// Remove the `SharedFrameInfo` ptr of the frame
+    fn clear_shared_info(&mut self) {
+        self.info &= 3;
     }
 }
 

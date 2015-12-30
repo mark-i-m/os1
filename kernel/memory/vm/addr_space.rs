@@ -148,7 +148,7 @@ impl AddressSpace {
         if next == 255 {
             // unmap all if we have run out
             for i in 0..256 {
-                self.unmap(unsafe { KMAP_ADDRESS } + i * 0x1000);
+                self.unmap(unsafe { KMAP_ADDRESS } + i * 0x1000, true);
             }
             self.kmap_index = 0;
         } else {
@@ -164,16 +164,24 @@ impl AddressSpace {
         unsafe { &mut *(vaddr as *mut Frame) }
     }
 
-    /// Remove any mapping for this virtual address
+    /// Remove any mapping for this virtual address The method first tries to acquire the address
+    /// space lock if `lock` is true.
+    ///
     /// NOTE: should only be called on the current address space because it assumes that the PD is
     /// at PD_ADDRESS
-    pub fn unmap(&mut self, virt: usize) {
+    pub fn unmap(&mut self, virt: usize, lock: bool) {
+        //unsafe {
+        //    printf!("{:?} [unmap {:x}]\n", *CURRENT_PROCESS, virt);
+        //}
+
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
         let pd = unsafe {&mut *PD_ADDRESS};
 
-        self.lock.down();
+        if lock {
+            self.lock.down();
+        }
 
         if pd[pde_index].is_flag(0) { // present bit
             off();
@@ -195,7 +203,13 @@ impl AddressSpace {
             }
         }
 
-        self.lock.up();
+        if lock {
+            self.lock.up();
+        }
+
+        //unsafe {
+        //    printf!("{:?} [unmaped {:x}]\n", *CURRENT_PROCESS, virt);
+        //}
     }
 
     /// Returns the current physical address mapped to the given virtual address
@@ -307,15 +321,19 @@ impl AddressSpace {
     pub fn clear(&mut self) {
         let pd = unsafe {&mut *PD_ADDRESS};
 
+        self.lock.down();
+
         // for each present PDE, remove all
         // mappings associated with it
         for pde_index in (unsafe { NUM_SHARED } + 1)..1024 {
             if pd[pde_index].is_flag(0) { // present bit
                 for pte_index in 0..1024 {
-                    self.unmap((pde_index << 22) | (pte_index << 12));
+                    self.unmap((pde_index << 22) | (pte_index << 12), false);
                 }
             }
         }
+
+        self.lock.up();
     }
 }
 
