@@ -54,7 +54,7 @@ pub fn run(this: &Process) -> usize {
 
     msg.put_str("\n\nYay! :)");
 
-    // test semaphores
+    // test share-page IPC
     unsafe {
         // create another process
         let p = Process::new("semaphore_test", self::run3);
@@ -68,7 +68,7 @@ pub fn run(this: &Process) -> usize {
         ready_queue::make_ready(p);
     }
 
-    msg.put_str("\n\nNow test semaphores... ");
+    msg.put_str("\n\nNow test IPC... ");
 
     0
 }
@@ -162,7 +162,6 @@ fn run3(this: &Process) -> usize {
 
         let mut msg_sem = {
             let s = 0xF000_0000 as *mut Semaphore<Window>;
-            *s = Semaphore::new(Window::new(60, 4, (1,1)), 1);
             &mut *s
         };
 

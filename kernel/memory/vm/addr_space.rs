@@ -273,37 +273,33 @@ impl AddressSpace {
             }
         }
 
-        printf!("Request share to {} at {:X}\n", pid, vaddr);
-
         // get the process and check that it is alive
         unsafe { if let Some(p) = PROCESS_TABLE.get(pid) {
-            match (*p).get_state() {
-                State::TERMINATED => false,
-                _ => {
+            if (*p).get_state() == State::TERMINATED {
+                false
+            } else {
+                let addr_space = &mut (*p).addr_space;
 
-                    let addr_space = &mut (*p).addr_space;
+                // lock the other process first
+                addr_space.lock.down();
+                self.lock.down();
 
-                    // lock the other process first
-                    addr_space.lock.down();
-                    self.lock.down();
+                // get the paddr of this vaddr
+                let ret = if let Some(paddr) = self.v_to_p(vaddr, false) {
+                    // add to its addr_space::share_req list
+                    addr_space.share_req.push_back(((*CURRENT_PROCESS).get_pid(), paddr));
 
-                    // get the paddr of this vaddr
-                    let ret = if let Some(paddr) = self.v_to_p(vaddr, false) {
-                        // add to its addr_space::share_req list
-                        addr_space.share_req.push_back(((*CURRENT_PROCESS).get_pid(), paddr));
+                    // mark the frame shared
+                    Frame::share((*CURRENT_PROCESS).get_pid(), vaddr, paddr);
+                    true
+                } else {
+                    false
+                };
 
-                        // mark the frame shared
-                        Frame::share((*CURRENT_PROCESS).get_pid(), vaddr, paddr);
-                        true
-                    } else {
-                        false
-                    };
+                self.lock.up();
+                addr_space.lock.up();
 
-                    self.lock.up();
-                    addr_space.lock.up();
-
-                    ret
-                }
+                ret
             }
         } else {
             false
@@ -326,6 +322,14 @@ impl AddressSpace {
 
         // lock the list here
         let (_, paddr) = self.share_req.remove(i);
+
+        // check that the sharing process still lives; otherwise,
+        // the shared page might have been deallocated
+        unsafe { if let Some(p) = PROCESS_TABLE.get(pid) {
+            if (*p).get_state() == State::TERMINATED {
+                return false
+            }
+        }}
 
         // make a mapping
         unsafe { Frame::share((*CURRENT_PROCESS).get_pid(), vaddr, paddr); }

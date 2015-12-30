@@ -48,7 +48,7 @@ pub type ProcessQueue = StaticLinkedList<*mut Process>;
 
 /// An enum representing the possible states of a process
 #[repr(C)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum State {
     /// Process is created, but not ready
     INIT,
