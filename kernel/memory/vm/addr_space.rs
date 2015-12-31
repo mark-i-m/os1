@@ -1,11 +1,10 @@
 //! A module process address spaces
 
-use super::super::super::concurrency::StaticSemaphore;
+use super::super::super::concurrency::{Barrier, Event, StaticSemaphore};
 use super::super::super::interrupts::{on, off};
 use super::super::super::machine::{invlpg, vmm_on};
 use super::super::super::process::{CURRENT_PROCESS, State};
 use super::super::super::process::proc_table::PROCESS_TABLE;
-use super::super::super::static_linked_list::StaticLinkedList;
 use super::super::physmem::Frame;
 use super::{SHARED_PDES, NUM_SHARED, PD_ADDRESS, KMAP_ADDRESS, USER_ADDRESS, VMM_ON};
 use super::structs::{VMTable, PagingEntry};
@@ -18,16 +17,24 @@ pub struct AddressSpace {
     /// the index of the first un-kmapped page
     kmap_index: u8,
 
-    /// list of page-share requests
-    ///
-    /// Format: `(PID, paddr)`
-    share_req: StaticLinkedList<(usize, usize)>,
-
     /// a lock for the address space
     ///
     /// NOTE: to prevent deadlocks, *ALWAYS* acquire
     /// this lock before locks on frames.
     lock: StaticSemaphore,
+
+    /// The PID of the process the current share request is going to
+    req_pid: usize,
+
+    /// The frame the current share request is for
+    req_paddr: usize,
+
+    /// A barrier for page-sharing
+    req_bar: Barrier,
+
+    /// A waiting list for other processes who are expecting this
+    /// process to share with them
+    req_wait: Event,
 }
 
 impl AddressSpace {
@@ -58,8 +65,11 @@ impl AddressSpace {
         let a = AddressSpace {
             page_dir: pd_paddr,
             kmap_index: 0,
-            share_req: StaticLinkedList::new(),
             lock: StaticSemaphore::new(1),
+            req_pid: 0,
+            req_paddr: 0,
+            req_bar: Barrier::new(2),
+            req_wait: Event::new(),
         };
 
         a
@@ -72,7 +82,7 @@ impl AddressSpace {
     /// because it assumes that the PD is at PD_ADDRESS
     pub fn map(&mut self, phys: usize, virt: usize, lock: bool) {
         //unsafe {
-        //    bootlog!("{:?} [map {:x} -> {:x}]\n", *CURRENT_PROCESS, virt, phys);
+        //    printf!("{:?} [map {:x} -> {:x}]\n", *CURRENT_PROCESS, virt, phys);
         //}
 
         let pde_index = virt >> 22;
@@ -263,79 +273,89 @@ impl AddressSpace {
     /// Returns true if the request succeeded, and false if there was
     /// an error (e.g. the process has already died).
     ///
+    /// Blocks until the request is accepted.
+    ///
     /// NOTE: this has to run while the addresss space is active.
     pub fn request_share(&mut self, pid: usize, vaddr: usize) -> bool {
 
-        // cannot share with self!
-        unsafe {
-            if pid == (*CURRENT_PROCESS).get_pid() {
-                return false;
-            }
-        }
-
-        // get the process and check that it is alive
-        unsafe { if let Some(p) = PROCESS_TABLE.get(pid) {
-            if (*p).get_state() == State::TERMINATED {
-                false
-            } else {
-                let addr_space = &mut (*p).addr_space;
-
-                // lock the other process first
-                addr_space.lock.down();
-                self.lock.down();
-
-                // get the paddr of this vaddr
-                let ret = if let Some(paddr) = self.v_to_p(vaddr, false) {
-                    // add to its addr_space::share_req list
-                    addr_space.share_req.push_back(((*CURRENT_PROCESS).get_pid(), paddr));
-
-                    // mark the frame shared
-                    Frame::share((*CURRENT_PROCESS).get_pid(), vaddr, paddr);
-                    true
-                } else {
-                    false
-                };
-
-                self.lock.up();
-                addr_space.lock.up();
-
-                ret
-            }
-        } else {
-            false
-        }}
-    }
-
-    /// Creates a mapping in this process's address space for the
-    /// first page-share request from the process with the given `PID`
-    /// to the given page. Returns true if success; false otherwise.
-    pub fn accept_share(&mut self, pid: usize, vaddr: usize) -> bool {
+        // mark the frame and create the request
         self.lock.down();
 
-        // find and remove the right request
-        let i = if let Some(i) = self.share_req
-            .iter().position(|&(req_pid, _)| req_pid == pid) {
-                i
+        unsafe {
+            self.req_pid = if let Some(p) = PROCESS_TABLE.get(pid) {
+                if (*p).get_state() == State::TERMINATED {
+                    return false;
+                } else {
+                    pid
+                }
             } else {
                 return false;
             };
+        }
+        self.req_paddr = if let Some(paddr) = self.v_to_p(vaddr, false) {
+            paddr
+        } else {
+            return false;
+        };
 
-        // lock the list here
-        let (_, paddr) = self.share_req.remove(i);
-
-        // check that the sharing process still lives; otherwise,
-        // the shared page might have been deallocated
-        unsafe { if let Some(p) = PROCESS_TABLE.get(pid) {
-            if (*p).get_state() == State::TERMINATED {
-                return false
-            }
-        }}
-
-        // make a mapping
-        unsafe { Frame::share((*CURRENT_PROCESS).get_pid(), vaddr, paddr); }
-        self.map(paddr, vaddr, false);
+        Frame::share( unsafe {(*CURRENT_PROCESS).get_pid()}, vaddr, self.req_paddr);
 
         self.lock.up();
+
+        self.req_wait.notify();
+
+        self.req_bar.reach();
+
+        true
+    }
+
+    /// Creates a mapping in this process's address space for the
+    /// first page-share request from the process with the given PID
+    /// to the given page.
+    ///
+    /// Returns true if success; false otherwise.
+    ///
+    /// Blocks until the request is completed.
+    ///
+    /// NOTE: This should run inside this processes address space
+    pub fn accept_share(&mut self, pid: usize, vaddr: usize) -> bool {
+
+        let other = unsafe {if let Some(p) = PROCESS_TABLE.get(pid) {
+            p
+        } else {
+            return false;
+        }};
+        let addr_space = unsafe { &mut (*other).addr_space };
+        let my_pid = unsafe { (*CURRENT_PROCESS).get_pid() };
+
+        // wait until the other process creates a req for this pid
+        loop {
+            addr_space.lock.down();
+
+            if addr_space.req_pid == my_pid {
+                break;
+            } else {
+                off();
+                addr_space.lock.up();
+                addr_space.req_wait.wait();
+                on();
+            }
+        }
+
+        self.lock.down();
+
+        // create a mapping
+        Frame::share(my_pid, vaddr, addr_space.req_paddr);
+        self.map(addr_space.req_paddr, vaddr, false);
+
+        self.lock.up();
+
+        addr_space.req_pid = 0;
+        addr_space.req_paddr = 0;
+
+        addr_space.lock.up();
+
+        addr_space.req_bar.reach();
 
         true
     }

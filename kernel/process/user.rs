@@ -57,15 +57,13 @@ pub fn run(this: &Process) -> usize {
     // test share-page IPC
     unsafe {
         // create another process
-        let p = Process::new("semaphore_test", self::run3);
+        ready_queue::make_ready(Process::new("semaphore_test", self::run3));
 
         // share the semaphore
         let me = &mut *PROCESS_TABLE.get(this.pid).expect("Oh no! expected Some(process)!");
         if !me.addr_space.request_share(this.pid + NUM_LOOP + 1, 0xD000_0000) {
             panic!("Share request failed!");
         }
-
-        ready_queue::make_ready(p);
     }
 
     msg.put_str("\n\nNow test IPC... ");

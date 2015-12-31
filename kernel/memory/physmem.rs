@@ -93,10 +93,15 @@ impl Frame {
 
     /// Add the given pid as a sharer of this frame.
     pub fn share(pid: usize, vaddr: usize, paddr: usize) {
+
+        // TODO: deal with a frame being shared multiple times
+        // by the same process
+
         let all_frames = unsafe {&mut *FRAME_INFO};
         let index = paddr >> 12;
 
         off();
+
         let frame = &mut all_frames[index];
         let sfi = if frame.has_shared_info() {
             frame.get_shared_info().expect("No shared frame info!")
@@ -109,6 +114,8 @@ impl Frame {
         sfi.list.push_back((pid, vaddr));
 
         on();
+
+        //printf!("Shared {:X} {:X}\n", vaddr, paddr);
     }
 }
 
