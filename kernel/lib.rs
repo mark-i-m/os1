@@ -41,7 +41,6 @@ mod static_linked_list;
 mod concurrency;
 mod fs;
 mod interrupts;
-mod ipc;
 mod machine;
 mod memory;
 mod process;
