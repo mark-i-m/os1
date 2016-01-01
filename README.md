@@ -2,9 +2,8 @@
 
 Implementation of a simple OS in Rust
 
-There is a comprehensive website [here](https://mark-i-m.github.com/os1) that
-includes a .img file for those who want to just boot the OS, an explanation of
-the implementation, and Rustdocs of the code.
+For more information about the implementation, Rustdocs, a screenshot, and a
+bootable .img file, visit the website [here](https://mark-i-m.github.com/os1).
 
 For those that want to build from source, instructions are below.
 
@@ -34,9 +33,9 @@ you want the output:
 
 ```bash
 rustdoc -o $DOC_OUTPUT -w html \
-    --extern rlibc=../deps/librlibc.rlib \
-    --extern core=../deps/libcore.rlib \
-    --extern alloc=../deps/liballoc.rlib \
+    --extern rlibc=../lib/librlibc.rlib \
+    --extern core=../lib/libcore.rlib \
+    --extern alloc=../lib/liballoc.rlib \
     --target ../i686-unknown-elf.json \
     --no-defaults --passes strip-hidden \
     --passes collapse-docs --passes unindent-comments lib.rs
