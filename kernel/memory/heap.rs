@@ -27,7 +27,7 @@
 
 #![allow(dead_code)]
 
-use core::mem::{size_of};
+use core::mem::size_of;
 
 /// A flag to turn on and off debugging output
 const DEBUG: bool = false;

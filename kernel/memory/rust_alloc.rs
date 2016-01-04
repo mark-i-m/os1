@@ -8,8 +8,8 @@
 
 #![allow(private_no_mangle_fns)] // If something goes wrong, try removing and see compiler says
 
-use super::heap::{malloc, free, usable_size, print_stats};
 use super::super::interrupts::{on, off};
+use super::heap::{malloc, free, usable_size, print_stats};
 
 /// Return a pointer to `size` bytes of memory aligned to `align`.
 ///

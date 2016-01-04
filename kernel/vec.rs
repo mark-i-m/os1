@@ -5,7 +5,6 @@
 use alloc::raw_vec::RawVec;
 
 use core::ops::{Index, IndexMut};
-
 use core::ptr;
 
 /// A vector implementation.

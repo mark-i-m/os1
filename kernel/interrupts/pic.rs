@@ -1,9 +1,6 @@
 //! A module for programmable interrupt controller
 
-use core::option::Option::None;
-
 use super::super::machine::*;
-
 use super::idt::add_interrupt_handler;
 
 /// Command port for PIC1

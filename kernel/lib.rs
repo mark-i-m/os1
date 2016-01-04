@@ -34,10 +34,10 @@ extern crate rlibc;
 mod debug;
 mod bare_bones;
 
-#[macro_use]
-mod vec;
 mod linked_list;
 mod static_linked_list;
+mod vec;
+
 mod concurrency;
 mod fs;
 mod interrupts;
@@ -85,7 +85,7 @@ pub fn kernel_main() {
     // yield to init process
     printf!("Everything inited! Here we go!\n");
 
-    process::proc_yield(core::option::Option::None);
+    process::proc_yield(None);
 
     // yield should never return to here
     panic! ("This should never happen!\n");

@@ -1,16 +1,12 @@
 //! A module containing useful structs to abstract paging structures
 
+use core::intrinsics::transmute;
 use core::ops::{Index, IndexMut};
 
-use core::intrinsics::transmute;
-
 use super::super::super::interrupts::{on, off};
-
-use super::super::physmem::Frame;
-
-use super::VMM_ON;
-
 use super::super::super::process::CURRENT_PROCESS;
+use super::super::physmem::Frame;
+use super::VMM_ON;
 
 /// A single entry in a page directory or table
 /// ```

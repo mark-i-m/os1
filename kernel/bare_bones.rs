@@ -5,8 +5,7 @@
 use core::fmt;
 
 use debug::Debug;
-
-use machine::{cli};
+use machine::cli;
 
 // For bare-bones rust
 #[lang = "stack_exhausted"] extern fn stack_exhausted() {}

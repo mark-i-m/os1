@@ -3,8 +3,6 @@
 
 #[link(name = "asmcode", repr="static")]
 
-use core::option::Option;
-
 use process::ProcessQueue;
 
 #[allow(improper_ctypes)]

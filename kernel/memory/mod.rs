@@ -4,17 +4,16 @@
 //! 2. Physical memory allocator
 //! 3. Virtual memory management
 
-pub use self::vm::{vmm_page_fault, AddressSpace};
-
 pub use self::tss::esp0;
+pub use self::vm::{vmm_page_fault, AddressSpace};
 
 pub mod rust_alloc;
 
 mod heap;
-mod tss;
 mod physmem;
-mod vm;
 mod regionmap;
+mod tss;
+mod vm;
 
 /// Initialize all memory subsystems
 pub fn init(kheap_start: usize, kheap_size: usize) {

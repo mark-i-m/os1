@@ -17,19 +17,15 @@
 //!    new page read/write
 //! 3. Else, allocate a new frame a map the page to it
 
-mod structs;
-mod addr_space;
-
 pub use self::addr_space::{AddressSpace, vmm_page_fault};
 
+mod addr_space;
+mod structs;
+
+use super::super::interrupts::add_trap_handler;
 use super::super::machine::page_fault_handler;
-
-use super::super::interrupts::{add_trap_handler};
-
 use super::super::static_linked_list::StaticLinkedList;
-
 use super::physmem::Frame;
-
 use self::structs::{VMTable, PagingEntry};
 
 /// A list of shared PDEs direct mapping the beginning of memory

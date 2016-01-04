@@ -1,10 +1,10 @@
 //! A semaphore implementation based on the rust Mutex<T> type
 
+use alloc::boxed::Box;
+
 use core::sync::atomic::{AtomicIsize, Ordering};
 use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
-
-use alloc::boxed::Box;
 
 use super::super::interrupts::{on,off};
 use super::super::process::{ready_queue, proc_yield, ProcessQueue};
