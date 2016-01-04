@@ -15,6 +15,7 @@
            core_str_ext,
            dropck_parametricity,
            ptr_as_ref,
+           core_intrinsics,
           )]
 
 // Compile without libstd
@@ -41,6 +42,7 @@ mod vec;
 mod concurrency;
 mod fs;
 mod interrupts;
+mod io;
 mod machine;
 mod memory;
 mod process;

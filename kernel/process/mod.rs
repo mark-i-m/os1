@@ -6,6 +6,7 @@ use core::fmt::{Debug, Formatter, Result};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use super::interrupts::{on, off};
+use super::io::NonBlockingBuffer;
 use super::machine::{self, context_switch};
 use super::memory::{AddressSpace, esp0};
 use super::static_linked_list::StaticLinkedList;
@@ -15,6 +16,7 @@ use self::idle::IDLE_PROCESS;
 use self::proc_table::PROCESS_TABLE;
 
 pub mod context;
+pub mod focus;
 pub mod proc_table;
 pub mod ready_queue;
 
@@ -78,6 +80,9 @@ pub struct Process {
     /// Number of calls to interrupts::on() while this process was running
     /// Interrupts are on if `disable_cnt == 0`
     pub disable_cnt: usize,
+
+    /// A keyboard input buffer
+    pub buffer: Option<NonBlockingBuffer>,
 }
 
 impl Process {
@@ -95,6 +100,7 @@ impl Process {
             kcontext: KContext::new(),
             addr_space: AddressSpace::new(),
             disable_cnt: 0,
+            buffer: None,
         };
 
         p.get_stack();
@@ -135,12 +141,23 @@ impl Process {
         self.state = s;
     }
 
+    /// Get the state of the process
     pub fn get_state(&self) -> State {
         self.state
     }
 
+    /// Get the PID of this process
     pub fn get_pid(&self) -> usize {
         self.pid
+    }
+
+    /// Start accepting keyboard input when this process
+    /// gains focussed. The buffer will have the capacity
+    /// given.
+    pub fn accept_kbd(&mut self, cap: usize) {
+        if self.buffer.is_none() {
+            self.buffer = Some(NonBlockingBuffer::new(cap));
+        }
     }
 }
 

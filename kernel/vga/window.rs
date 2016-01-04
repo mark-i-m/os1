@@ -1,8 +1,10 @@
 //! A module for primitive window drawing
 
-use super::vga::VGA;
-
 pub use super::vga::Color;
+
+use core::fmt::{Write,Error};
+
+use super::vga::VGA;
 
 /// The abstration of a window.
 ///
@@ -125,5 +127,12 @@ impl Window {
 
         self.cursor = (crow, ccol);
         self.vga.set_cursor((row+crow, col+ccol));
+    }
+}
+
+impl Write for Window {
+    fn write_str(&mut self, s: &str) -> Result<(), Error> {
+        self.put_str(s);
+        Result::Ok(())
     }
 }

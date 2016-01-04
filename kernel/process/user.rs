@@ -1,12 +1,15 @@
 //! A module for user processes
 // So far it just contains some test code
 
+use core::fmt::Write;
 use core::ptr;
 
 use super::super::concurrency::{Semaphore, StaticSemaphore};
+use super::super::io::stream::InputStream;
 use super::super::vga::window::{Window, Color};
 use super::Process;
 use super::ready_queue;
+use super::focus::focus;
 use super::proc_table::PROCESS_TABLE;
 
 // useful constants
@@ -21,6 +24,10 @@ static mut s2: StaticSemaphore = StaticSemaphore::new(1);
 
 // Some test routines
 pub fn run(this: &Process) -> usize {
+
+    // grab focus
+    focus(None);
+
     let mut w0 = Window::new(COLS, ROWS, (0, 0));
     let mut msg_sem = unsafe {
         let s = 0xD000_0000 as *mut Semaphore<Window>;
@@ -166,6 +173,37 @@ fn run3(this: &Process) -> usize {
         let mut msg = msg_sem.down();
 
         msg.put_str("Success! :D");
+    }
+
+    ready_queue::make_ready(Process::new("kbd_proc", self::run4));
+
+    0
+}
+
+fn run4(this: &Process) -> usize {
+    // test the keyboard
+
+    // get focus
+    focus(None);
+
+    // accept kbd input
+    let me = unsafe {
+        &mut *PROCESS_TABLE.get(this.pid).expect("Oh no! expected Some(process)!")
+    };
+    me.accept_kbd(3);
+
+    // accept input until we get a \n
+    let mut w0 = Window::new(20, 4, (2, 1));
+    w0.set_bg(Color::Green);
+    w0.set_fg(Color::Red);
+
+    let buffer = me.buffer.as_mut().expect("Oh no! Why isn't there a buffer?");
+    loop {
+        match buffer.next() {
+            Some('\n') => break,
+            Some(c) => { write!(&mut w0, "{}", c); },
+            None => {},
+        }
     }
 
     0

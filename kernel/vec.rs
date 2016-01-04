@@ -4,8 +4,10 @@
 
 use alloc::raw_vec::RawVec;
 
-use core::ops::{Index, IndexMut};
+use core::intrinsics::assume;
+use core::ops::{Index, IndexMut, Deref, DerefMut};
 use core::ptr;
+use core::slice;
 
 /// A vector implementation.
 /// - Amortized O(1) push to end
@@ -94,5 +96,27 @@ impl<T> Drop for Vec<T> {
 
         // deallocate
         self.buf.shrink_to_fit(0);
+    }
+}
+
+impl<T> Deref for Vec<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &[T] {
+        unsafe {
+            let p = self.buf.ptr();
+            assume(!p.is_null());
+            slice::from_raw_parts(p, self.len)
+        }
+    }
+}
+
+impl<T> DerefMut for Vec<T> {
+    fn deref_mut(&mut self) -> &mut [T] {
+        unsafe {
+            let ptr = self.buf.ptr();
+            assume(!ptr.is_null());
+            slice::from_raw_parts_mut(ptr, self.len)
+        }
     }
 }

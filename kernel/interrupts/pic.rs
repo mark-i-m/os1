@@ -1,7 +1,9 @@
 //! A module for programmable interrupt controller
 
+use super::super::io::kbd::handler as kbd_handler;
 use super::super::machine::*;
 use super::idt::add_interrupt_handler;
+use super::pit::handler as pit_handler;
 
 /// Command port for PIC1
 const C1: u16 = 0x20;
@@ -83,8 +85,8 @@ pub fn pic_irq(irq: usize) {
 
     // execute handler
     match irq {
-        0   => super::pit::handler(),
-        1   => { } // keyboard
+        0   => pit_handler(), // PIT
+        1   => kbd_handler(), // keyboard
         13  => { } // Processor, FPU
         _   => {
             unsafe { cli(); }
