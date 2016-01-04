@@ -8,7 +8,9 @@
 
 #![allow(private_no_mangle_fns)] // If something goes wrong, try removing and see compiler says
 
-use super::super::interrupts::{on, off};
+use core::ptr;
+
+use interrupts::{on, off};
 use super::heap::{malloc, free, usable_size, print_stats};
 
 /// Return a pointer to `size` bytes of memory aligned to `align`.
@@ -57,14 +59,22 @@ pub unsafe extern fn __rust_deallocate(ptr: *mut u8, old_size: usize, align: usi
 /// any value in range_inclusive(requested_size, usable_size).
 #[no_mangle]
 pub unsafe extern fn __rust_reallocate(ptr: *mut u8, old_size: usize, size: usize, align: usize) -> *mut u8 {
+    if size <= old_size {
+        return ptr;
+    }
+
     off();
-    let _try_alloc = malloc(size, align);
-    let ret = match _try_alloc as usize {
-        0 => {_try_alloc}
-        _ => {free(ptr, old_size); _try_alloc}
-    };
+    let try_alloc = malloc(size, align);
+    if try_alloc as usize != 0 {
+        // copy old contents
+        ptr::copy(ptr, try_alloc, old_size);
+
+        // then free old ptr
+        free(ptr, old_size);
+    }
     on();
-    ret
+
+    try_alloc
 }
 
 /// Resize the allocation referenced by `ptr` to `size` bytes.

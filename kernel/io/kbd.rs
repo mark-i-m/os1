@@ -75,6 +75,9 @@ fn get_key() -> Option<char> {
         0x30            => Some(ul('b')),
         0x31            => Some(ul('n')),
         0x32            => Some(ul('m')),
+        0x39            => Some(' '),
+
+        // TODO: map other ascii characters
 
         0x2a | 0x36     => {
             unsafe { SHIFT = true; }

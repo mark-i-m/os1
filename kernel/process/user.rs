@@ -4,9 +4,10 @@
 use core::fmt::Write;
 use core::ptr;
 
-use super::super::concurrency::{Semaphore, StaticSemaphore};
-use super::super::io::stream::InputStream;
-use super::super::vga::window::{Window, Color};
+use concurrency::{Semaphore, StaticSemaphore};
+use io::stream::InputStream;
+use string::String;
+use vga::rectangle::{Rectangle, Color};
 use super::Process;
 use super::ready_queue;
 use super::focus::focus;
@@ -28,10 +29,10 @@ pub fn run(this: &Process) -> usize {
     // grab focus
     focus(None);
 
-    let mut w0 = Window::new(COLS, ROWS, (0, 0));
+    let mut w0 = Rectangle::new(COLS, ROWS, (0, 0));
     let mut msg_sem = unsafe {
-        let s = 0xD000_0000 as *mut Semaphore<Window>;
-        ptr::write(s, Semaphore::new(Window::new(60, 7, (1,1)), 1));
+        let s = 0xD000_0000 as *mut Semaphore<Rectangle>;
+        ptr::write(s, Semaphore::new(Rectangle::new(60, 7, (1,1)), 1));
         &mut *s
     };
 
@@ -114,7 +115,7 @@ fn run2(this: &Process) -> usize {
 
     unsafe { s2.down(); }
 
-    let mut w = Window::new(COLS,ROWS, (0,0));
+    let mut w = Rectangle::new(COLS,ROWS, (0,0));
 
     let me = unsafe { current };
     let prev = get_prev(me);
@@ -166,7 +167,7 @@ fn run3(this: &Process) -> usize {
         }
 
         let mut msg_sem = {
-            let s = 0xF000_0000 as *mut Semaphore<Window>;
+            let s = 0xF000_0000 as *mut Semaphore<Rectangle>;
             &mut *s
         };
 
@@ -193,15 +194,31 @@ fn run4(this: &Process) -> usize {
     me.accept_kbd(3);
 
     // accept input until we get a \n
-    let mut w0 = Window::new(20, 4, (2, 1));
+    let mut w0 = Rectangle::new(40, 4, (8, 1));
     w0.set_bg(Color::Green);
     w0.set_fg(Color::Red);
+    w0.paint();
+
+    let mut string = String::new();
 
     let buffer = me.buffer.as_mut().expect("Oh no! Why isn't there a buffer?");
     loop {
         match buffer.next() {
             Some('\n') => break,
-            Some(c) => { write!(&mut w0, "{}", c); },
+            Some('\x08') => { // backspace
+                let _ = string.pop();
+                if string.len() == 0 {
+                    w0.paint();
+                } else {
+                    w0.set_cursor((0,0));
+                    write!(&mut w0, "{}", string);
+                }
+            }
+            Some(c) => {
+                string.push(c);
+                w0.set_cursor((0,0));
+                write!(&mut w0, "{}", string);
+            },
             None => {},
         }
     }

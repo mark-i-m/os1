@@ -38,6 +38,7 @@ mod bare_bones;
 mod linked_list;
 mod static_linked_list;
 mod vec;
+mod string;
 
 mod concurrency;
 mod fs;
