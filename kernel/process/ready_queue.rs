@@ -1,7 +1,6 @@
 //! A module for the ready queue
 
 use super::super::interrupts::{on, off};
-
 use super::{Process, State, ProcessQueue};
 
 /// The ready queue. A queue containing all processes that are ready to be scheduled.

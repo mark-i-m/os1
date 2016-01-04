@@ -1,8 +1,6 @@
 //! A module for the idle process, a process that runs when there is
 //! nothing else left to do.
 
-use core::option::Option::{None};
-
 use super::{Process, proc_yield};
 
 /// The idle process

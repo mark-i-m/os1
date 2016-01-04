@@ -3,7 +3,6 @@
 #![allow(unused_variables)]
 
 use super::super::vga::window::Window;
-
 use super::Process;
 use super::ready_queue;
 

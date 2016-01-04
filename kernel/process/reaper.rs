@@ -3,13 +3,10 @@
 
 use alloc::boxed::Box;
 
-use super::{Process, ready_queue, ProcessQueue};
-
-use super::proc_table::PROCESS_TABLE;
-
 use super::super::concurrency::StaticSemaphore;
-
 use super::super::interrupts::{on, off};
+use super::{Process, ready_queue, ProcessQueue};
+use super::proc_table::PROCESS_TABLE;
 
 /// The reaper blocks onto this semaphore until enough have died
 static mut REAPER_SEMAPHORE: StaticSemaphore = StaticSemaphore::new(0);

@@ -6,7 +6,7 @@
 //! switch in to kernel mode. The kernel context is saved
 //! to the process struct when we context switch.
 
-use super::{CURRENT_PROCESS};
+use super::CURRENT_PROCESS;
 
 /// A struct representing the contents of the general purpose registers
 /// as produced by the `pusha` instruction.

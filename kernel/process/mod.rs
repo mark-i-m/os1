@@ -3,34 +3,23 @@
 use alloc::boxed::Box;
 
 use core::fmt::{Debug, Formatter, Result};
-use core::cmp::PartialEq;
-
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use core::ops::Drop;
-
+use super::interrupts::{on, off};
+use super::machine::{self, context_switch};
+use super::memory::{AddressSpace, esp0};
 use super::static_linked_list::StaticLinkedList;
 
-use super::interrupts::{on, off};
-
-use super::machine::{self, context_switch};
-
-use super::memory::{AddressSpace, esp0};
-
-use self::context::{KContext};
-
+use self::context::KContext;
 use self::idle::IDLE_PROCESS;
-
 use self::proc_table::PROCESS_TABLE;
 
 pub mod context;
-
+pub mod proc_table;
 pub mod ready_queue;
 
-pub mod proc_table;
-
-mod init;
 mod idle;
+mod init;
 mod reaper;
 mod user;
 
