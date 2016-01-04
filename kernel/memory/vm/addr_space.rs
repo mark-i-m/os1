@@ -300,9 +300,11 @@ impl AddressSpace {
 
         Frame::share( unsafe {(*CURRENT_PROCESS).get_pid()}, vaddr, self.req_paddr);
 
-        self.lock.up();
-
         self.req_wait.notify();
+
+        self.req_wait.reset();
+
+        self.lock.up();
 
         self.req_bar.reach();
 
