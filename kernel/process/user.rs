@@ -6,11 +6,11 @@ use core::ptr;
 
 use concurrency::{Semaphore, StaticSemaphore};
 use io::stream::InputStream;
-use string::String;
 use vga::rectangle::{Rectangle, Color};
+use vga::input::{InputElement, TextBox};
 use super::Process;
-use super::ready_queue;
 use super::focus::focus;
+use super::ready_queue;
 use super::proc_table::PROCESS_TABLE;
 
 // useful constants
@@ -181,47 +181,24 @@ fn run3(this: &Process) -> usize {
     0
 }
 
-fn run4(this: &Process) -> usize {
+fn run4(_: &Process) -> usize {
     // test the keyboard
 
-    // get focus
-    focus(None);
+    let mut label = Rectangle::new(17,1,(8,1));
+    label.set_bg(Color::Black);
+    label.set_fg(Color::Yellow);
+    label.set_cursor((0,0));
+    label.put_str("Enter your name: ");
 
-    // accept kbd input
-    let me = unsafe {
-        &mut *PROCESS_TABLE.get(this.pid).expect("Oh no! expected Some(process)!")
-    };
-    me.accept_kbd(3);
+    let mut input_box = TextBox::new(40, (8,18));
+    let string = input_box.get_str();
 
-    // accept input until we get a \n
-    let mut w0 = Rectangle::new(40, 4, (8, 1));
-    w0.set_bg(Color::Green);
-    w0.set_fg(Color::Red);
-    w0.paint();
+    let mut b = Rectangle::new(70, 1, (10, 1));
+    b.set_bg(Color::LightGray);
+    b.set_fg(Color::Black);
+    b.set_cursor((0,0));
 
-    let mut string = String::new();
-
-    let buffer = me.buffer.as_mut().expect("Oh no! Why isn't there a buffer?");
-    loop {
-        match buffer.next() {
-            Some('\n') => break,
-            Some('\x08') => { // backspace
-                let _ = string.pop();
-                if string.len() == 0 {
-                    w0.paint();
-                } else {
-                    w0.set_cursor((0,0));
-                    write!(&mut w0, "{}", string);
-                }
-            }
-            Some(c) => {
-                string.push(c);
-                w0.set_cursor((0,0));
-                write!(&mut w0, "{}", string);
-            },
-            None => {},
-        }
-    }
+    let _ = write!(&mut b, "Hello, {}!\n", string);
 
     0
 }
