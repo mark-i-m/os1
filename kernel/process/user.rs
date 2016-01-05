@@ -193,7 +193,7 @@ fn run4(_: &Process) -> usize {
     let mut input_box = TextBox::new(40, (8,18));
     let string = input_box.get_str();
 
-    let mut b = Rectangle::new(70, 1, (10, 1));
+    let mut b = Rectangle::new(70, 10, (10, 1));
     b.set_bg(Color::LightGray);
     b.set_fg(Color::Black);
     b.set_cursor((0,0));
