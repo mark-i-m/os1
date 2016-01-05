@@ -1,7 +1,6 @@
 //! A simple String implementation
 
 use core::fmt;
-use core::mem;
 use core::ops::{Deref};
 use core::str;
 
@@ -48,5 +47,15 @@ impl fmt::Display for String {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&**self, f)
+    }
+}
+
+impl Clone for String {
+    fn clone(&self) -> Self {
+        String { vec: self.vec.clone() }
+    }
+
+    fn clone_from(&mut self, source: &Self) {
+        self.vec.clone_from(&source.vec);
     }
 }

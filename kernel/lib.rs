@@ -9,6 +9,7 @@
 #![feature(no_std,
            lang_items,
            alloc,
+           heap_api,
            box_syntax,
            box_patterns,
            const_fn,
