@@ -69,6 +69,20 @@ impl Rectangle {
                 self.set_cursor((cr, cc));
             }
 
+            // draw a space before the word
+            if cc > 0 {
+                self.put_char(' ');
+
+                // advance
+                if cc + 1 >= self.width {
+                    cr += 1;
+                    cc = 0;
+                } else {
+                    cc += 1;
+                }
+                self.set_cursor((cr,cc));
+            }
+
             for ch in word.chars() {
                 // take char of special characters
                 match ch {
@@ -93,20 +107,6 @@ impl Rectangle {
 
                 // move cursor
                 self.set_cursor((cr, cc));
-            }
-
-            // draw a space after the word
-            if cc > 0 {
-                self.put_char(' ');
-
-                // advance
-                if cc + 1 >= self.width {
-                    cr += 1;
-                    cc = 0;
-                } else {
-                    cc += 1;
-                }
-                self.set_cursor((cr,cc));
             }
         }
     }

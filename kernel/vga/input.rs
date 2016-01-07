@@ -40,6 +40,7 @@ impl InputElement for TextArea {
         me.accept_kbd(3);
 
         self.tbox.paint();
+        self.tbox.set_cursor((0,0));
 
         // get focus
         focus(None);
@@ -50,15 +51,13 @@ impl InputElement for TextArea {
                 Some('\n') => break,
                 Some('\x08') => { // backspace
                     let _ = self.string.pop();
-                    if self.string.len() == 0 {
-                        self.tbox.paint();
-                    } else {
-                        self.tbox.set_cursor((0,0));
-                        let _ = write!(&mut self.tbox, "{}", self.string);
-                    }
+                    self.tbox.paint();
+                    self.tbox.set_cursor((0,0));
+                    let _ = write!(&mut self.tbox, "{}", self.string);
                 }
                 Some(c) => {
                     self.string.push(c);
+                    self.tbox.paint();
                     self.tbox.set_cursor((0,0));
                     let _ = write!(&mut self.tbox, "{}", self.string);
                 },
