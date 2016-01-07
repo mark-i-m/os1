@@ -4,8 +4,6 @@ RUSTC = rustc
 
 RSFLAGS = --target=../i686-unknown-elf.json -L . --crate-type=rlib -C opt-level=3 -Z no-landing-pads
 
-default: all
-
 all: librlibc.rlib liballoc.rlib liballoc_system.rlib
 
 libcore.rlib:

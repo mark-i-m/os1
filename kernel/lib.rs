@@ -80,7 +80,8 @@ pub fn kernel_main() {
     // init interupts
     interrupts::init(1000 /* hz */);
 
-    // TODO: filesystem
+    // filesystem
+    fs::init(self::io::ide::IDE::new(3 /* hdd */));
 
     /////////////////////////////////////////////////////
     // Done initing stuff                              //

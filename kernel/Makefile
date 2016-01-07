@@ -1,39 +1,59 @@
-.PHONY: all clean
+# Choose tools
+RUSTC = rustc
+CC = gcc
+
+AR = ar
+LD = ld
+
+OBJCOPY = objcopy
+DD = dd
 
 # rust libraries
-DEPDIR = ../lib
+LIBS = ../lib
 
-# run configuration
-QEMUEXTRA =
-KERNELDEBUG =
-KERNELSERIAL =
+# Choose options
+# If kernel.img is > 64K, the BIOS will not load it, so if it is crashing, use -O1, not -O0
+RUSTOPT = -C opt-level=0 -g
+ASOPT = -O0 -g
+
+RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${LIBS} ${RUSTOPT} -Z no-landing-pads
+ASFLAGS += -m32 ${ASOPT}
+
+# Lists of files
+RUSTFILES = $(shell find -name '*.rs')
+SFILES = $(wildcard *.S) $(wildcard *.s)
+
+OFILES = $(subst .s,.o,$(subst .S,.o,$(SFILES)))
+AFILES = libos1.a
+
+# General rules
+.PHONY: all clean
 
 # by default build, but do not run
-default: all
-
 all: kernel.img
 
--include ../common.mak
+%.o: %.S
+	${CC} ${ASFLAGS} -c -o $@ $<
+
+%.o: %.s
+	${CC} ${ASFLAGS} -c -o $@ $<
+
+libos1.a: ${RUSTFILES}
+	${RUSTC} ${RUSTFLAGS} lib.rs
+
+%.bin: %
+	${OBJCOPY} -O binary $< $@
+
+%.img: %.bin
+	${DD} if=$< of=$@ bs=512 conv=sync
 
 # kernel build
 kernel: ${OFILES} ${AFILES}
 	${LD} --gc-sections -N -m elf_i386 -e start --section-start mbr=0x7c00 -Ttext=0x9000 -o kernel ${OFILES} --start-group ${AFILES} --end-group
 
-# kernel run
-# DO NOT ENABLE KVM!!! For some reason it causes weird crashes...
-run: all
-	qemu-system-x86_64 ${KERNELDEBUG} ${KERNELSERIAL} --serial mon:stdio -drive format=raw,file=kernel.img,index=2,media=disk ${QEMUEXTRA}
-
-runtext: KERNELSERIAL = -nographic
-runtext: run
-
-rungraphic: RUSTOPT = -C opt-level=3
-rungraphic: ASOPT = -O3
-rungraphic: run
-
-rundebug: KERNELDEBUG = -s -S
-rundebug: clean runtext
-
-# kernel clean
-clean::
+clean:
+	rm -f *.o
+	rm -f *.a
+	rm -f *.img
+	rm -f *.bin
 	rm -f kernel
