@@ -2,7 +2,9 @@
 
 pub use self::nbb::NonBlockingBuffer;
 
-pub mod kbd;
 pub mod stream;
+pub mod kbd;
+pub mod block;
+pub mod ide;
 
 mod nbb;

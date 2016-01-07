@@ -9,7 +9,7 @@ use process::ProcessQueue;
 #[allow(dead_code)]
 extern "C" {
     /// a wrapper around inb
-    pub fn inb(port: u16) -> u8; // if there are problems, change u8 to u32
+    pub fn inb(port: u16) -> u8;
 
     /// a wrapper around inl
     pub fn inl(port: u16) -> u32;

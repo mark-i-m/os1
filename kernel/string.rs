@@ -1,5 +1,7 @@
 //! A simple String implementation
 
+#![allow(dead_code)]
+
 use core::fmt;
 use core::ops::{Deref};
 use core::str;
