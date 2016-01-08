@@ -79,7 +79,7 @@ pub trait BlockDevice {
         let num_read = min(buffer.size(), blk_size - buf_offset);
         unsafe {
             let buf = buffer.get_ptr::<u8>(buffer.offset());
-            copy(block_buf.get_ptr::<u8>(0), buf, num_read);
+            copy(block_buf.get_ptr::<u8>(buf_offset), buf, num_read);
         }
 
         // update the offset

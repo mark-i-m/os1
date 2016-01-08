@@ -88,6 +88,7 @@ pub fn pic_irq(irq: usize) {
         0   => pit_handler(), // PIT
         1   => kbd_handler(), // keyboard
         13  => { } // Processor, FPU
+        15  => { } // IDE
         _   => {
             unsafe { cli(); }
             panic!("interrupt {}\n",irq)

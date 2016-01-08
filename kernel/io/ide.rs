@@ -22,6 +22,7 @@ pub struct IDE {
 }
 
 /// IDE drive status
+#[allow(dead_code)]
 #[derive(PartialEq)]
 enum IDEStatus {
     BUSY  = 0x80,   // Busy
@@ -69,36 +70,25 @@ impl IDE {
         PORTS[self.controller() as usize]
     }
 
-    /// Get the status of the drive
+    /// Get the status of the drive. This
+    /// is a bit mask of status flags.
     #[inline]
-    fn get_status(&self) -> IDEStatus {
+    fn get_status(&self) -> u8 {
         unsafe {
-            match inb(self.port() + 7) {
-                0x80 => IDEStatus::BUSY,
-                0x40 => IDEStatus::READY,
-                0x20 => IDEStatus::WTFLT,
-                0x10 => IDEStatus::SCMPL,
-                0x08 => IDEStatus::DRQ,
-                0x04 => IDEStatus::CORR,
-                0x02 => IDEStatus::IDX,
-                0x01 => IDEStatus::ERR,
-                _    => {
-                    panic!("Invalid status");
-                }
-            }
+            inb(self.port() + 7)
         }
     }
 
     /// Return true if the drive is busy
     #[inline]
     fn is_busy(&self) -> bool {
-        self.get_status() == IDEStatus::BUSY
+        self.get_status() & (IDEStatus::BUSY as u8) > 0
     }
 
     /// Return true if the drive is ready
     #[inline]
     fn is_ready(&self) -> bool {
-        self.get_status() == IDEStatus::READY
+        self.get_status() & (IDEStatus::READY as u8) > 0
     }
 
     /// Wait for the drive to become ready
