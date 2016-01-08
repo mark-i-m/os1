@@ -14,6 +14,7 @@
            box_patterns,
            const_fn,
            core_str_ext,
+           core_slice_ext,
            dropck_parametricity,
            ptr_as_ref,
            core_intrinsics,

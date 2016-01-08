@@ -1,6 +1,6 @@
 .PHONY: all lib kernel mkfs user clean clean-all
 
-default: rungraphic
+default: lib kernel user mkfs
 
 # build
 lib:
