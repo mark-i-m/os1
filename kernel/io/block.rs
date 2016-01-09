@@ -76,7 +76,7 @@ pub trait BlockDevice {
 
         // get the portion we want
         let buf_offset = offset - (sector * blk_size);
-        let num_read = min(buffer.size(), blk_size - buf_offset);
+        let num_read = min(buffer.size() - buffer.offset(), blk_size - buf_offset);
         unsafe {
             let buf = buffer.get_ptr::<u8>(buffer.offset());
             copy(block_buf.get_ptr::<u8>(buf_offset), buf, num_read);

@@ -10,7 +10,7 @@ use process::{CURRENT_PROCESS, proc_yield};
 use super::block::*;
 
 /// The size of a sector
-const SECTOR_SIZE: usize = 512;
+pub const SECTOR_SIZE: usize = 512;
 
 /// The base I/O port for each controller
 const PORTS: [u16; 2] = [0x1f0, 0x170];
