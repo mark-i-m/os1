@@ -173,6 +173,16 @@ outb:
 	pop %edx
 	ret
 
+	# oulb(int port, int val)
+	.global outl
+outl:
+	push %edx
+	mov 8(%esp),%dx
+	mov 12(%esp),%eax
+	outl %eax,%dx
+	pop %edx
+	ret
+
 	# int inb(int port)
 	.global inb
 inb:

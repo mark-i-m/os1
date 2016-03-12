@@ -1,12 +1,13 @@
-//! A module for accessing IDE block devices
+//! A module for accessing IDE block devices via PIO
+//! TODO: Add DMA support for performance
 
 use alloc::heap;
 
 use core::mem;
 
-use concurrency::StaticSemaphore;
-use machine::{inb, inl, outb};
+use machine::{inb, inl, outb, outl};
 use process::{CURRENT_PROCESS, proc_yield};
+use sync::StaticSemaphore;
 use super::block::*;
 
 /// The size of a sector
@@ -129,7 +130,7 @@ impl BlockDevice for IDE {
             outb(base + 3, ((block_num >> 0) & 0xFF) as u8);	// bits 7 .. 0
             outb(base + 4, ((block_num >> 8) & 0xFF) as u8);	// bits 15 .. 8
             outb(base + 5, ((block_num >> 16)& 0xFF) as u8);	// bits 23 .. 16
-            outb(base + 6, 0xE0 | (ch << 4) as u8 | ((block_num >> 24) & 0xf) as u8);
+            outb(base + 6, 0xE0 | (ch << 4) as u8 | ((block_num >> 24) & 0xf) as u8); // bits 28 .. 24, send to primary master
             outb(base + 7, 0x20);		                        // read with retry
         }
 
@@ -140,6 +141,37 @@ impl BlockDevice for IDE {
         for i in 0..num_words {
             unsafe {
                 *buffer.get_ref_mut::<u32>(i) = inl(base);
+            }
+        }
+
+        self.lock.up();
+    }
+
+    fn write_block<B : BlockDataBuffer>(&mut self, block_num: usize, buffer: &B) {
+        let base = self.port();
+        let ch   = self.channel();
+
+        self.lock.down();
+
+        // seek
+        self.wait_for_drive();
+
+        unsafe {
+            outb(base + 2, 1);			                        // block_num count
+            outb(base + 3, ((block_num >> 0) & 0xFF) as u8);	// bits 7 .. 0
+            outb(base + 4, ((block_num >> 8) & 0xFF) as u8);	// bits 15 .. 8
+            outb(base + 5, ((block_num >> 16)& 0xFF) as u8);	// bits 23 .. 16
+            outb(base + 6, 0xE0 | (ch << 4) as u8 | ((block_num >> 24) & 0xf) as u8); // bits 28 .. 24, send to primary master
+            outb(base + 7, 0x30);		                        // write with retry
+        }
+
+        // read
+        self.wait_for_drive();
+
+        let num_words = self.get_block_size() / mem::size_of::<u32>();
+        for i in 0..num_words {
+            unsafe {
+                outl(base, *buffer.get_ref_mut::<u32>(i));
             }
         }
 

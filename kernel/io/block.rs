@@ -63,6 +63,9 @@ pub trait BlockDevice {
     /// The method panics if there is not enough space in the buffer
     fn read_block<B : BlockDataBuffer>(&mut self, block_num: usize, buffer: &mut B);
 
+    /// Write the given block from the buffer
+    fn write_block<B : BlockDataBuffer>(&mut self, block_num: usize, buffer: &B);
+
     /// Read from the block device at `offset` into the given buffer starting at the buffer's
     /// internal offset. This method will read no more data than will fit into the remaining space
     /// in the buffer, but it may also read less. It will update the buffer's offset, and return
@@ -90,6 +93,13 @@ pub trait BlockDevice {
         num_read
     }
 
+    /// Write from the buffer to the disk starting at the buffer's internal offset. This may not
+    /// write the whole buffer. This will update the buffer's offset, and return the number of
+    /// bytes written.
+    fn write<B : BlockDataBuffer>(&mut self, offset: usize, buffer: &B) -> usize {
+        0 // TODO
+    }
+
     /// Read from the block device at `offset` into the given buffer starting at the buffer's
     /// internal offset. This method will fill the remaining space in the buffer. It will update
     /// the buffer's offset.
@@ -107,5 +117,11 @@ pub trait BlockDevice {
             offset += read;
             remaining -= read;
         }
+    }
+
+    /// Write from the buffer to the disk starting at the buffer's internal offset. This will
+    /// write the whole buffer. This will update the buffer's offset.
+    fn write_fully<B: BlockDataBuffer>(&mut self, mut offset: usize, buffer: &B) {
+        // TODO
     }
 }
