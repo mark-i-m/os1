@@ -1,4 +1,4 @@
-//! A module for concurrency primitives
+//! A module for synchronization primitives
 
 pub use self::semaphore::*;
 pub use self::barrier::Barrier;
