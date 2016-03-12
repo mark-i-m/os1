@@ -11,7 +11,7 @@ use super::hw::*;
 
 /// A handle on the file system for all needed operations.
 pub struct OFS<B: BlockDevice> {
-    device: B,
+    device: Arc<B>,
 
     // metadata
     meta: Metadata,
@@ -21,9 +21,11 @@ pub struct OFS<B: BlockDevice> {
 }
 
 /// A handle on the file for all needed operations.
-pub struct File {
+pub struct File<B: BlockDevice> {
     inode_num: usize,
     inode: Inode,
+    offset: usize,
+    device: Arc<B>,
 }
 
 impl<B: BlockDevice> OFS<B> {
@@ -50,7 +52,7 @@ impl<B: BlockDevice> OFS<B> {
 
     /// Open the file with the given inode number and
     /// return a handle to it.
-    pub fn open(&mut self, inode: usize) -> File {
+    pub fn open(&mut self, inode: usize) -> File<B> {
         File {
             inode_num: inode,
             inode: self.get_inode(inode),
@@ -112,6 +114,10 @@ impl<B: BlockDevice> OFS<B> {
     }
 }
 
-//impl<B: BlockDevice> File<B> {
-//    // TODO
-//}
+impl<B: BlockDevice> File<B> {
+    // TODO: fix this
+
+    pub fn read(&mut self) -> usize {
+
+    }
+}

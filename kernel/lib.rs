@@ -94,5 +94,6 @@ pub fn kernel_main() {
     process::proc_yield(None);
 
     // yield should never return to here
-    panic! ("This should never happen!\n");
+    panic!("This should never happen!\n");
+
 }

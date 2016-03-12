@@ -1,6 +1,7 @@
 //! A module of low-level abstractions for disk-level representations of data for OFS.
 
 use core::mem;
+use core::ops::Index;
 
 use string::String;
 use io::ide::SECTOR_SIZE;
@@ -10,6 +11,13 @@ use io::ide::SECTOR_SIZE;
 #[repr(C, packed)]
 pub struct OFSDate {
     date: usize,
+}
+
+/// A data structure representing a list on the hard
+/// disk, in which the last element may be the dnode
+/// number containing the remaining elements
+pub struct ExtendableList<L: Index<usize>> {
+    list: L,
 }
 
 /// The metadata sector of the partition
@@ -29,16 +37,16 @@ pub struct Inode {
     name: [u8; 12],         // file name (up to 12B)
     uid: usize,             // owner UID
     gid: usize,             // group GID
+    user_perm: u8,          // user permissions
+    group_perm: u8,         // group permissions
+    all_perm: u8,           // everyone permissions
+    flags:u8,               // various flags
     size: usize,            // file size in bytes
     data: usize,            // index of Dnode with contents
     created: OFSDate,       // date created
     modified: OFSDate,      // date last modified
-    parents: [usize; 3],    // indices of nodes pointing to this node
-                            //     upto 3, but the last can be a link
-                            //     to more pointers
-    children: [usize; 4],   // indices of nodes pointed to by this node
-                            //     upto 4, but the last can be a link
-                            //     to more pointers
+    parents: ExtendableList<[usize; 10]>,// An extendable list of parent nodes
+    children: ExtendableList<[usize; 12]>,// An extendable list of child nodes
 }
 
 /// A single OFS Dnode
