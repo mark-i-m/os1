@@ -1,6 +1,6 @@
 //! A module for file system stuff
 
-use io::ide::{IDE, IDEBuf};
+use io::ide::{IDE};
 use io::block::{BlockDevice, BlockDataBuffer};
 
 pub mod ofs;
@@ -8,7 +8,7 @@ pub mod ofs;
 /// Initialize the file system
 pub fn init(mut rootfs: IDE) {
 
-    let mut buf = IDEBuf::new(512);    
+    let mut buf = BlockDataBuffer::new(512);    
 
     rootfs.read_block(0, &mut buf);
 

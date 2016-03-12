@@ -7,4 +7,4 @@ hdd.img: mkfs
 	./mkfs
 
 clean:
-	rm -f mkfs
+	rm -f mkfs hdd.img

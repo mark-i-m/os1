@@ -1,8 +1,6 @@
 //! A module for accessing IDE block devices via PIO
 //! TODO: Add DMA support for performance
 
-use alloc::heap;
-
 use core::mem;
 
 use machine::{inb, inl, outb, outl};
@@ -34,13 +32,6 @@ enum IDEStatus {
     CORR  = 0x04,   // Corrected data
     IDX   = 0x02,   // Inlex
     ERR   = 0x01,   // Error
-}
-
-/// A `BlockDataBuffer` for use with IDE devices
-pub struct IDEBuf {
-    buf: *mut u8,
-    size: usize,
-    offset: usize,
 }
 
 impl IDE {
@@ -116,7 +107,7 @@ impl BlockDevice for IDE {
         SECTOR_SIZE
     }
 
-    fn read_block<B : BlockDataBuffer>(&mut self, block_num: usize, buffer: &mut B) {
+    fn read_block(&mut self, block_num: usize, buffer: &mut BlockDataBuffer) {
         let base = self.port();
         let ch   = self.channel();
 
@@ -147,7 +138,7 @@ impl BlockDevice for IDE {
         self.lock.up();
     }
 
-    fn write_block<B : BlockDataBuffer>(&mut self, block_num: usize, buffer: &B) {
+    fn write_block(&mut self, block_num: usize, buffer: &BlockDataBuffer) {
         let base = self.port();
         let ch   = self.channel();
 
@@ -176,48 +167,5 @@ impl BlockDevice for IDE {
         }
 
         self.lock.up();
-    }
-}
-
-impl BlockDataBuffer for IDEBuf {
-    fn new(size: usize) -> IDEBuf {
-        unsafe {
-            IDEBuf {
-                buf: heap::allocate(size, 1),
-                size: size,
-                offset: 0,
-            }
-        }
-    }
-
-    fn offset(&self) -> usize {
-        self.offset
-    }
-
-    fn set_offset(&mut self, offset: usize) {
-        self.offset = offset;
-    }
-
-    fn size(&self) -> usize {
-        self.size
-    }
-
-    unsafe fn get_ptr<T>(&self, offset: usize) -> *mut T {
-        let t_size = mem::size_of::<T>();
-        let num_ts = self.size() / t_size;
-
-        if offset >= num_ts {
-            panic!("Out of bounds");
-        }
-
-        self.buf.offset((offset * t_size) as isize) as *mut T
-    }
-}
-
-impl Drop for IDEBuf {
-    fn drop(&mut self) {
-        unsafe {
-            heap::deallocate(self.buf, self.size, 1);
-        }
     }
 }
