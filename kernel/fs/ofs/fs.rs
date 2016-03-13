@@ -4,9 +4,9 @@ use alloc::arc::Arc;
 
 use core::mem;
 
-use concurrency::StaticSemaphore;
+use sync::StaticSemaphore;
 use io::block::{BlockDevice, BlockDataBuffer};
-use io::ide::{IDE, IDEBuf, SECTOR_SIZE};
+use io::ide::{IDE, SECTOR_SIZE};
 use super::hw::*;
 
 /// A handle on the file system for all needed operations.
@@ -31,7 +31,7 @@ pub struct File<B: BlockDevice> {
 impl<B: BlockDevice> OFS<B> {
     /// Create a new handle on the device using the device
     pub fn new(mut device: B) -> OFS<B> {
-        let mut buf = IDEBuf::new(SECTOR_SIZE);
+        let mut buf = BlockDataBuffer::new(SECTOR_SIZE);
 
         device.read_fully(0, &mut buf);
 
@@ -90,7 +90,7 @@ impl<B: BlockDevice> OFS<B> {
 
         // read from disk
         let inode_size = mem::size_of::<Inode>();
-        let mut buf = IDEBuf::new(inode_size);
+        let mut buf = BlockDataBuffer::new(inode_size);
         self.device.read_fully(inode_sector*SECTOR_SIZE+inode_mod*inode_size, &mut buf);
 
         unsafe {
@@ -105,7 +105,7 @@ impl<B: BlockDevice> OFS<B> {
 
         // read from disk
         let dnode_size = mem::size_of::<Dnode>();
-        let mut buf = IDEBuf::new(dnode_size);
+        let mut buf = BlockDataBuffer::new(dnode_size);
         self.device.read_fully(dnode_sector*SECTOR_SIZE+dnode_mod*dnode_size, &mut buf);
 
         unsafe {
