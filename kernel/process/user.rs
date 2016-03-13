@@ -4,8 +4,8 @@
 use core::fmt::Write;
 use core::ptr;
 
-use concurrency::{Semaphore, StaticSemaphore};
 use io::stream::InputStream;
+use sync::{Semaphore, StaticSemaphore};
 use vga::rectangle::{Rectangle, Color};
 use vga::input::{InputElement, TextBox};
 use super::Process;

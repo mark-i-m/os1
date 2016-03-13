@@ -17,6 +17,9 @@ extern "C" {
     /// a wrapper around outb
     pub fn outb(port: u16, val: u8);
 
+    /// a wrapper around outl
+    pub fn outl(port: u16, val: u32);
+
     /// a wrapper around ltr
     pub fn ltr(tr: usize);
 

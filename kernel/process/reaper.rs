@@ -3,8 +3,8 @@
 
 use alloc::boxed::Box;
 
-use super::super::concurrency::StaticSemaphore;
 use super::super::interrupts::{on, off};
+use super::super::sync::StaticSemaphore;
 use super::{Process, ready_queue, ProcessQueue};
 use super::proc_table::PROCESS_TABLE;
 

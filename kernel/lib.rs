@@ -42,13 +42,13 @@ mod static_linked_list;
 mod vec;
 mod string;
 
-mod concurrency;
 mod fs;
 mod interrupts;
 mod io;
 mod machine;
 mod memory;
 mod process;
+mod sync;
 mod vga;
 
 // exported functions -- to use in asm functions

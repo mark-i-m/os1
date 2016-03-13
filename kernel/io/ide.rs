@@ -1,12 +1,11 @@
-//! A module for accessing IDE block devices
-
-use alloc::heap;
+//! A module for accessing IDE block devices via PIO
+//! TODO: Add DMA support for performance
 
 use core::mem;
 
-use concurrency::StaticSemaphore;
-use machine::{inb, inl, outb};
+use machine::{inb, inl, outb, outl};
 use process::{CURRENT_PROCESS, proc_yield};
+use sync::StaticSemaphore;
 use super::block::*;
 
 /// The size of a sector
@@ -33,13 +32,6 @@ enum IDEStatus {
     CORR  = 0x04,   // Corrected data
     IDX   = 0x02,   // Inlex
     ERR   = 0x01,   // Error
-}
-
-/// A `BlockDataBuffer` for use with IDE devices
-pub struct IDEBuf {
-    buf: *mut u8,
-    size: usize,
-    offset: usize,
 }
 
 impl IDE {
@@ -115,7 +107,7 @@ impl BlockDevice for IDE {
         SECTOR_SIZE
     }
 
-    fn read_block<B : BlockDataBuffer>(&mut self, block_num: usize, buffer: &mut B) {
+    fn read_block(&mut self, block_num: usize, buffer: &mut BlockDataBuffer) {
         let base = self.port();
         let ch   = self.channel();
 
@@ -129,7 +121,7 @@ impl BlockDevice for IDE {
             outb(base + 3, ((block_num >> 0) & 0xFF) as u8);	// bits 7 .. 0
             outb(base + 4, ((block_num >> 8) & 0xFF) as u8);	// bits 15 .. 8
             outb(base + 5, ((block_num >> 16)& 0xFF) as u8);	// bits 23 .. 16
-            outb(base + 6, 0xE0 | (ch << 4) as u8 | ((block_num >> 24) & 0xf) as u8);
+            outb(base + 6, 0xE0 | (ch << 4) as u8 | ((block_num >> 24) & 0xf) as u8); // bits 28 .. 24, send to primary master
             outb(base + 7, 0x20);		                        // read with retry
         }
 
@@ -145,47 +137,35 @@ impl BlockDevice for IDE {
 
         self.lock.up();
     }
-}
 
-impl BlockDataBuffer for IDEBuf {
-    fn new(size: usize) -> IDEBuf {
+    fn write_block(&mut self, block_num: usize, buffer: &BlockDataBuffer) {
+        let base = self.port();
+        let ch   = self.channel();
+
+        self.lock.down();
+
+        // seek
+        self.wait_for_drive();
+
         unsafe {
-            IDEBuf {
-                buf: heap::allocate(size, 1),
-                size: size,
-                offset: 0,
+            outb(base + 2, 1);			                        // block_num count
+            outb(base + 3, ((block_num >> 0) & 0xFF) as u8);	// bits 7 .. 0
+            outb(base + 4, ((block_num >> 8) & 0xFF) as u8);	// bits 15 .. 8
+            outb(base + 5, ((block_num >> 16)& 0xFF) as u8);	// bits 23 .. 16
+            outb(base + 6, 0xE0 | (ch << 4) as u8 | ((block_num >> 24) & 0xf) as u8); // bits 28 .. 24, send to primary master
+            outb(base + 7, 0x30);		                        // write with retry
+        }
+
+        // read
+        self.wait_for_drive();
+
+        let num_words = self.get_block_size() / mem::size_of::<u32>();
+        for i in 0..num_words {
+            unsafe {
+                outl(base, *buffer.get_ref_mut::<u32>(i));
             }
         }
-    }
 
-    fn offset(&self) -> usize {
-        self.offset
-    }
-
-    fn set_offset(&mut self, offset: usize) {
-        self.offset = offset;
-    }
-
-    fn size(&self) -> usize {
-        self.size
-    }
-
-    unsafe fn get_ptr<T>(&self, offset: usize) -> *mut T {
-        let t_size = mem::size_of::<T>();
-        let num_ts = self.size() / t_size;
-
-        if offset >= num_ts {
-            panic!("Out of bounds");
-        }
-
-        self.buf.offset((offset * t_size) as isize) as *mut T
-    }
-}
-
-impl Drop for IDEBuf {
-    fn drop(&mut self) {
-        unsafe {
-            heap::deallocate(self.buf, self.size, 1);
-        }
+        self.lock.up();
     }
 }

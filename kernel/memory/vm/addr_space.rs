@@ -1,10 +1,10 @@
 //! A module process address spaces
 
-use super::super::super::concurrency::{Barrier, Event, StaticSemaphore};
 use super::super::super::interrupts::{on, off};
 use super::super::super::machine::{invlpg, vmm_on};
 use super::super::super::process::{CURRENT_PROCESS, State};
 use super::super::super::process::proc_table::PROCESS_TABLE;
+use super::super::super::sync::{Barrier, Event, StaticSemaphore};
 use super::super::physmem::Frame;
 use super::{SHARED_PDES, NUM_SHARED, PD_ADDRESS, KMAP_ADDRESS, USER_ADDRESS, VMM_ON};
 use super::structs::{VMTable, PagingEntry};
