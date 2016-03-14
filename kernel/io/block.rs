@@ -61,7 +61,30 @@ pub trait BlockDevice {
     /// write the whole buffer. This will update the buffer's offset, and return the number of
     /// bytes written.
     fn write(&mut self, offset: usize, buffer: &BlockDataBuffer) -> usize {
-        0 // TODO
+        // read the block we are about to modify
+        let blk_size = self.get_block_size();
+        let sector = offset / blk_size;
+        let mut block_buf = BlockDataBuffer::new(blk_size);
+        self.read_block(sector, &mut block_buf);
+
+        // modify the block
+        let buf_offset = offset - (sector * blk_size);
+        let num_written = min(buffer.size() - buffer.offset(), blk_size - buf_offset);
+
+        unsafe {
+            let buf = buffer.get_ptr::<u8>(buffer.offset());
+            copy(buf, block_buf.get_ptr::<u8>(buf_offset), num_written);
+        }
+
+        // write modified block to disk
+        self.write_block(sector, &block_buf);
+
+        // update the offset
+        let new_offset = buffer.offset() + num_written;
+        buffer.set_offset(new_offset);
+
+        // return the number of bytes read
+        num_written
     }
 
     /// Read from the block device at `offset` into the given buffer starting at the buffer's
@@ -86,7 +109,15 @@ pub trait BlockDevice {
     /// Write from the buffer to the disk starting at the buffer's internal offset. This will
     /// write the whole buffer. This will update the buffer's offset.
     fn write_fully(&mut self, mut offset: usize, buffer: &BlockDataBuffer) {
-        // TODO
+        // find remaining space in the buffer
+        let mut remaining = buffer.size() - buffer.offset();
+
+        // read into the buffer until it is full
+        while remaining > 0 {
+            let written = self.write(offset, buffer);
+            offset += written;
+            remaining -= written;
+        }
     }
 }
 

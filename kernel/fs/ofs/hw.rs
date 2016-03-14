@@ -45,8 +45,10 @@ pub struct Inode {
     data: usize,            // index of Dnode with contents
     created: OFSDate,       // date created
     modified: OFSDate,      // date last modified
-    parents: ExtendableList<[usize; 10]>,// An extendable list of parent nodes
-    children: ExtendableList<[usize; 12]>,// An extendable list of child nodes
+    //parents: ExtendableList<[usize; 10]>,// An extendable list of parent nodes
+    //children: ExtendableList<[usize; 12]>,// An extendable list of child nodes
+    parents: [usize; 10],
+    children: [usize; 12],
 }
 
 /// A single OFS Dnode
