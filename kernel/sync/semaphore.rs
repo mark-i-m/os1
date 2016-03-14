@@ -42,7 +42,7 @@ pub struct StaticSemaphore {
 
 /// RAII SemaphoreGuard
 pub struct SemaphoreGuard<'semaphore, T: 'semaphore> {
-    semaphore: &'semaphore mut StaticSemaphore,
+    semaphore: &'semaphore StaticSemaphore,
     data: &'semaphore UnsafeCell<T>,
 }
 
@@ -60,10 +60,10 @@ impl<T> Semaphore<T> {
 
     /// Acquire.
     /// returns an RAII guard, so no need for up()
-    pub fn down<'semaphore>(&'semaphore mut self) -> SemaphoreGuard<'semaphore, T> {
+    pub fn down<'semaphore>(&'semaphore self) -> SemaphoreGuard<'semaphore, T> {
         // acquire semaphore
         self.inner.down();
-        SemaphoreGuard::new(&mut *self.inner, &self.data)
+        SemaphoreGuard::new(&*self.inner, &self.data)
     }
 }
 
@@ -124,7 +124,7 @@ impl StaticSemaphore {
 
 impl<'semaphore, T> SemaphoreGuard<'semaphore, T> {
     /// Create a guard referring to the given semaphore and data
-    fn new(semaphore: &'semaphore mut StaticSemaphore,
+    fn new(semaphore: &'semaphore StaticSemaphore,
                data: &'semaphore UnsafeCell<T>) -> SemaphoreGuard<'semaphore, T>{
         SemaphoreGuard {
             semaphore: semaphore,
@@ -132,7 +132,7 @@ impl<'semaphore, T> SemaphoreGuard<'semaphore, T> {
         }
     }
 
-    pub fn up(&mut self) {
+    pub fn up(&self) {
         self.semaphore.up();
     }
 }
