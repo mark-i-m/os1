@@ -35,8 +35,9 @@ pub struct Semaphore<T> {
 /// `StaticSemaphore` is a semaphore implementation that can be used in
 /// statics. It has a const constructor.
 pub struct StaticSemaphore {
-    count: AtomicIsize,
-    queue: ProcessQueue,
+    // Use UnsafeCells so that it the semaphore can be used immutably
+    count: UnsafeCell<AtomicIsize>,
+    queue: UnsafeCell<ProcessQueue>,
 }
 
 /// RAII SemaphoreGuard
@@ -73,34 +74,37 @@ impl<T> Drop for Semaphore<T> {
     }
 }
 
-// TODO: make StaticSemaphore use an unsafe cell, so it can be used immutably
 impl StaticSemaphore {
     /// Create a new `StaticSemaphore` with the given count
     pub const fn new(i: isize) -> StaticSemaphore {
         StaticSemaphore {
-            count: AtomicIsize::new(i),
-            queue: ProcessQueue::new(),
+            count: UnsafeCell::new(AtomicIsize::new(i)),
+            queue: UnsafeCell::new(ProcessQueue::new()),
         }
     }
 
     /// Acquire
-    pub fn down(&mut self) {
+    pub fn down(&self) {
         off();
-        if self.count.fetch_sub(1, Ordering::AcqRel) <= 0 {
-            self.count.fetch_add(1, Ordering::AcqRel);
-            // block
-            proc_yield(Some(&mut self.queue));
+        unsafe {
+            if (*self.count.get()).fetch_sub(1, Ordering::AcqRel) <= 0 {
+                (*self.count.get()).fetch_add(1, Ordering::AcqRel);
+                // block
+                proc_yield(Some(&mut *self.queue.get()));
+            }
         }
         on();
     }
 
     /// Release
-    pub fn up(&mut self) {
+    pub fn up(&self) {
         off();
-        if let Some(next) = self.queue.pop_front() {
-            ready_queue::make_ready(next);
-        } else {
-            self.count.fetch_add(1,Ordering::AcqRel);
+        unsafe {
+            if let Some(next) = (*self.queue.get()).pop_front() {
+                ready_queue::make_ready(next);
+            } else {
+                (*self.count.get()).fetch_add(1,Ordering::AcqRel);
+            }
         }
         on();
     }
@@ -108,10 +112,12 @@ impl StaticSemaphore {
     /// Clean up.
     /// Cannot implement Drop here because we want to be able
     /// to create a static semaphore.
-    pub fn destroy(&mut self) {
-        if self.queue.len() > 0 {
-            // TODO: intead, just kill the processes or do zombie detection
-            panic!("Semaphore destroyed with processes waiting!");
+    pub fn destroy(&self) {
+        unsafe {
+            if (*self.queue.get()).len() > 0 {
+                // TODO: intead, just kill the processes or do zombie detection
+                panic!("Semaphore destroyed with processes waiting!");
+            }
         }
     }
 }
@@ -124,6 +130,10 @@ impl<'semaphore, T> SemaphoreGuard<'semaphore, T> {
             semaphore: semaphore,
             data: data,
         }
+    }
+
+    pub fn up(&mut self) {
+        self.semaphore.up();
     }
 }
 
