@@ -5,6 +5,7 @@ use core::fmt::Write;
 use core::ptr;
 
 use io::stream::InputStream;
+use fs::ROOT_FS;
 use sync::{Semaphore, StaticSemaphore};
 use vga::rectangle::{Rectangle, Color};
 use vga::input::{InputElement, TextBox};
@@ -30,10 +31,10 @@ pub fn run(this: &Process) -> usize {
     focus(None);
 
     let mut w0 = Rectangle::new(COLS, ROWS, (0, 0));
-    let mut msg_sem = unsafe {
+    let msg_sem = unsafe {
         let s = 0xD000_0000 as *mut Semaphore<Rectangle>;
         ptr::write(s, Semaphore::new(Rectangle::new(60, 7, (1,1)), 1));
-        &mut *s
+        &*s
     };
 
     unsafe { *(0xF000_0000 as *mut usize) = this.pid; }
@@ -166,9 +167,9 @@ fn run3(this: &Process) -> usize {
             panic!("Share accept failed");
         }
 
-        let mut msg_sem = {
+        let msg_sem = {
             let s = 0xF000_0000 as *mut Semaphore<Rectangle>;
-            &mut *s
+            &*s
         };
 
         let mut msg = msg_sem.down();
@@ -199,6 +200,18 @@ fn run4(_: &Process) -> usize {
     b.set_cursor((0,0));
 
     let _ = write!(&mut b, "Hello, {}!\n", string);
+
+    ready_queue::make_ready(Process::new("fs_proc", self::run5));
+
+    0
+}
+
+fn run5(_: &Process) -> usize {
+    // test the fs
+
+    let mut f = unsafe { (*ROOT_FS).open(0) };
+
+    // TODO: read something from the file
 
     0
 }

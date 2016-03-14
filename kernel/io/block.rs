@@ -60,7 +60,7 @@ pub trait BlockDevice {
     /// Write from the buffer to the disk starting at the buffer's internal offset. This may not
     /// write the whole buffer. This will update the buffer's offset, and return the number of
     /// bytes written.
-    fn write(&mut self, offset: usize, buffer: &BlockDataBuffer) -> usize {
+    fn write(&mut self, offset: usize, buffer: &mut BlockDataBuffer) -> usize {
         // read the block we are about to modify
         let blk_size = self.get_block_size();
         let sector = offset / blk_size;
@@ -108,7 +108,7 @@ pub trait BlockDevice {
 
     /// Write from the buffer to the disk starting at the buffer's internal offset. This will
     /// write the whole buffer. This will update the buffer's offset.
-    fn write_fully(&mut self, mut offset: usize, buffer: &BlockDataBuffer) {
+    fn write_fully(&mut self, mut offset: usize, buffer: &mut BlockDataBuffer) {
         // find remaining space in the buffer
         let mut remaining = buffer.size() - buffer.offset();
 

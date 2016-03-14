@@ -10,9 +10,9 @@ use io::block::BlockDevice;
 use sync::Semaphore;
 use self::ofs::fs::OFS;
 
-static mut ROOT_FS: *mut OFS<IDE> = 0 as *mut OFS<IDE>;
+pub static mut ROOT_FS: *mut OFS<IDE> = 0 as *mut OFS<IDE>;
 
-/// Initialize the file system
+/// Initialize the root file system from the given device
 pub fn init(mut device: IDE) {
     unsafe {
         let mut ofs = box OFS::new(Arc::new(Semaphore::new(device, 1)));
