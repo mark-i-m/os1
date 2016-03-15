@@ -4,6 +4,7 @@
 use core::fmt::Write;
 use core::ptr;
 
+use io::block::BlockDataBuffer;
 use io::stream::InputStream;
 use fs::ROOT_FS;
 use sync::{Semaphore, StaticSemaphore};
@@ -212,6 +213,24 @@ fn run5(_: &Process) -> usize {
     let mut f = unsafe { (*ROOT_FS).open(0) };
 
     // TODO: read something from the file
+    let mut buf = BlockDataBuffer::new(4);
+
+    f.read(&mut buf);
+
+    let val1 = unsafe { *buf.get_ref::<usize>(0) };
+
+    buf.set_offset(0);
+
+    f.read(&mut buf);
+
+    let val2 = unsafe { *buf.get_ref::<usize>(0) };
+
+    let mut b = Rectangle::new(70, 10, (12, 1));
+    b.set_bg(Color::LightGray);
+    b.set_fg(Color::Black);
+    b.set_cursor((0,0));
+
+    let _ = write!(&mut b, "Read values from file: {:X}, {:X}!\n", val1, val2);
 
     0
 }
