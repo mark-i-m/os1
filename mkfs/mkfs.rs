@@ -3,10 +3,10 @@ use std::fs::File;
 use std::mem::transmute;
 
 // OFS constants
-const SECTOR_SIZE: usize = 512;
+const SECTOR_SIZE: usize = 512; // bytes
 
-const INODE_SIZE: usize = 64;
-const DNODE_SIZE: usize = SECTOR_SIZE;
+const INODE_SIZE: usize = 128; // bytes
+const DNODE_SIZE: usize = 128; // bytes
 
 // Total size of sample disk designed
 // to keep the math simple
@@ -17,21 +17,22 @@ const TOTAL_SIZE: usize = SECTOR_SIZE // meta data sector
                         + SECTOR_SIZE*8 * DNODE_SIZE // dnodes
                         ;
 
-// pub struct Inode {
-//     name: [u8; 12],         // file name (up to 12B)
-//     uid: usize,             // owner UID
-//     gid: usize,             // group GID
-//     size: usize,            // file size in bytes
-//     data: usize,            // index of Dnode with contents
-//     created: usize,         // date created
-//     modified: usize,        // date last modified
-//     parents: [usize; 3],    // indices of inodes pointing to this node
-//                             //     upto 3, but the last can be a link
-//                             //     to more pointers
-//     children: [usize; 4],   // indices of inodes pointed to by this node
-//                             //     upto 4, but the last can be a link
-//                             //     to more pointers
-// }
+
+//pub struct Inode {
+//    pub name: [u8; 12],         // file name (up to 12B)
+//    pub uid: usize,             // owner UID
+//    pub gid: usize,             // group GID
+//    pub user_perm: u8,          // user permissions
+//    pub group_perm: u8,         // group permissions
+//    pub all_perm: u8,           // everyone permissions
+//    pub flags:u8,               // various flags
+//    pub size: usize,            // file size in bytes
+//    pub data: usize,            // index of Dnode with contents
+//    pub created: OFSDate,       // date created
+//    pub modified: OFSDate,      // date last modified
+//    pub parents: [usize; 10],
+//    pub children: [usize; 12],
+//}
 
 pub fn main() {
     // Generate image
@@ -53,13 +54,15 @@ pub fn main() {
     let first_inode = SECTOR_SIZE*3/4;
     data[first_inode+0] = 0x2E_6F_6F_66;
     data[first_inode+1] = 0x00_74_78_74;
-    data[first_inode+5] = 100;
-    data[first_inode+6] = 0;
+    data[first_inode+6] = 100; // size
+    data[first_inode+7] = 0;
     data[first_inode+9] = 0;
 
     // Dnodes
+    let first_dnode = (3 * SECTOR_SIZE + SECTOR_SIZE * 8 * INODE_SIZE)/4;
+    println!("first dnode = {} {:X}", first_dnode*4, first_dnode*4);
     for i in 0..128 {
-        data[SECTOR_SIZE/4*515+i] = 0xDEADBEAF;
+        data[first_dnode+i] = 0xDEADBEAF+(i as u32);
     }
 
     // write to file
