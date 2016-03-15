@@ -30,28 +30,28 @@ pub struct Metadata {
     pub num_dnode: usize,
 }
 
-/// A single OFS Inode
+/// A single OFS Inode (128B)
 #[derive(Clone)]
 #[repr(C, packed)]
 pub struct Inode {
-    name: [u8; 12],         // file name (up to 12B)
-    uid: usize,             // owner UID
-    gid: usize,             // group GID
-    user_perm: u8,          // user permissions
-    group_perm: u8,         // group permissions
-    all_perm: u8,           // everyone permissions
-    flags:u8,               // various flags
-    size: usize,            // file size in bytes
-    data: usize,            // index of Dnode with contents
-    created: OFSDate,       // date created
-    modified: OFSDate,      // date last modified
-    //parents: ExtendableList<[usize; 10]>,// An extendable list of parent nodes
-    //children: ExtendableList<[usize; 12]>,// An extendable list of child nodes
-    parents: [usize; 10],
-    children: [usize; 12],
+    pub name: [u8; 12],         // file name (up to 12B)
+    pub uid: usize,             // owner UID
+    pub gid: usize,             // group GID
+    pub user_perm: u8,          // user permissions
+    pub group_perm: u8,         // group permissions
+    pub all_perm: u8,           // everyone permissions
+    pub flags:u8,               // various flags
+    pub size: usize,            // file size in bytes
+    pub data: usize,            // index of Dnode with contents
+    pub created: OFSDate,       // date created
+    pub modified: OFSDate,      // date last modified
+    //pub parents: ExtendableList<[usize; 10]>,// An extendable list of parent nodes
+    //pub children: ExtendableList<[usize; 12]>,// An extendable list of child nodes
+    pub parents: [usize; 10],
+    pub children: [usize; 12],
 }
 
-/// A single OFS Dnode
+/// A single OFS Dnode (128B)
 #[repr(C, packed)]
 pub struct Dnode {
     pub data: [usize; 128],
