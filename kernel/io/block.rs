@@ -119,6 +119,24 @@ pub trait BlockDevice {
             remaining -= written;
         }
     }
+
+    /// Read `bytes` bytes from the block device at `offset` into the given buffer starting at the
+    /// buffer's internal offset. This method will fill the remaining space in the buffer. It will
+    /// update the buffer's offset.
+    ///
+    /// # Panics
+    ///
+    /// The method panics if there is not enough space in the buffer
+    fn read_exactly(&mut self, offset: usize, bytes: usize, buffer: &mut BlockDataBuffer) {
+        // TODO: make this more efficient
+        let tmp = &mut BlockDataBuffer::new(bytes);
+        self.read_fully(offset, tmp);
+        unsafe {
+            let buf_offset = buffer.offset();
+            copy(tmp.get_ptr::<u8>(0), buffer.get_ptr::<u8>(buf_offset), bytes);
+            buffer.set_offset(buf_offset+bytes);
+        }
+    }
 }
 
 impl BlockDataBuffer {
@@ -160,7 +178,7 @@ impl BlockDataBuffer {
         let num_ts = self.size() / t_size;
 
         if offset >= num_ts {
-            panic!("Out of bounds");
+            panic!("Out of bounds {} * {} out of {}", offset, t_size, self.size());
         }
 
         self.buf.offset((offset * t_size) as isize) as *mut T

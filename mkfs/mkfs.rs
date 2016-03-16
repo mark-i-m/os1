@@ -6,7 +6,7 @@ use std::mem::transmute;
 const SECTOR_SIZE: usize = 512; // bytes
 
 const INODE_SIZE: usize = 128; // bytes
-const DNODE_SIZE: usize = 128; // bytes
+const DNODE_SIZE: usize = 512; // bytes
 
 // Total size of sample disk designed
 // to keep the math simple
@@ -48,22 +48,22 @@ pub fn main() {
     data[SECTOR_SIZE  /4] = 1 << 31;
 
     // Dnode bitmap
-    data[SECTOR_SIZE*2/4] = 1 << 31;
+    data[SECTOR_SIZE*2/4] = 1 << 31 | 1 << 30;
 
     // Inodes
     let first_inode = SECTOR_SIZE*3/4;
     data[first_inode+0] = 0x2E_6F_6F_66;
     data[first_inode+1] = 0x00_74_78_74;
-    data[first_inode+6] = 100; // size
-    data[first_inode+7] = 0;
-    data[first_inode+9] = 0;
+    data[first_inode+6] = 516; // size
+    data[first_inode+7] = 1;
 
     // Dnodes
     let first_dnode = (3 * SECTOR_SIZE + SECTOR_SIZE * 8 * INODE_SIZE)/4;
-    println!("first dnode = {} {:X}", first_dnode*4, first_dnode*4);
-    for i in 0..128 {
-        data[first_dnode+i] = 0xDEADBEAF+(i as u32);
-    }
+    data[first_dnode] = 0x0000_BEB0;
+    data[first_dnode+1] = 0xDEADBEBE;
+    data[first_dnode+DNODE_SIZE/4] = 0xDEADBEAF;
+    data[first_dnode+2*DNODE_SIZE/4-1] = 0;
+    data[first_dnode+2*DNODE_SIZE/4-2] = 0xDEAD_0000;
 
     // write to file
     let mut buffer = File::create("hdd.img").ok().expect("Could not create file hdd.img");

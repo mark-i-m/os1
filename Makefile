@@ -33,7 +33,7 @@ rungraphic:
 	make run RUSTOPT="-C opt-level=3" ASOPT="-O3"
 
 rundebug: KERNELDEBUG = -s -S
-rundebug: clean runtext
+rundebug: clean run
 
 # clean
 clean:

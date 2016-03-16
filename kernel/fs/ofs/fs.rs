@@ -2,7 +2,9 @@
 
 use alloc::arc::Arc;
 
+use core::cmp::min;
 use core::mem;
+use core::ptr::copy;
 
 use sync::Semaphore;
 use io::block::{BlockDevice, BlockDataBuffer};
@@ -22,6 +24,7 @@ pub struct File<B: BlockDevice> {
     inode_num: usize,
     inode: Inode,
     offset: usize,
+    offset_dnode: usize,
     // TODO: make this less hacky... the File should be able to call the FS
     device: Arc<Semaphore<B>>,
     ofs_meta: Metadata, // a copy of the OFS metadata for some computations
@@ -52,10 +55,14 @@ impl<B: BlockDevice> OFS<B> {
     /// Open the file with the given inode number and
     /// return a handle to it.
     pub fn open(&mut self, inode: usize) -> File<B> {
+        let i = self.get_inode(inode);
+        let d = i.data;
+        //printf!("Open file: i {}, d {}\n", inode, d);
         File {
             inode_num: inode,
-            inode: self.get_inode(inode),
+            inode: i,
             offset: 0,
+            offset_dnode: d,
             device: self.device.clone(),
             ofs_meta: self.meta.clone(),
         }
@@ -155,8 +162,7 @@ impl<B: BlockDevice> File<B> {
         inode_sector*SECTOR_SIZE+inode_mod*inode_size
     }
 
-    fn get_dnode_offset(&self) -> usize {
-        let d = self.inode.data;
+    fn get_dnode_offset(&self, d: usize) -> usize {
         let dnode_sector = self.get_dnode_start_sector() + d/Dnode::dnodes_per_sector();
         let dnode_mod = d % Dnode::dnodes_per_sector();
 
@@ -164,14 +170,72 @@ impl<B: BlockDevice> File<B> {
         dnode_sector*SECTOR_SIZE+dnode_mod*dnode_size
     }
 
-    pub fn read(&mut self, buf: &mut BlockDataBuffer) {
-        let old_buf_offset = buf.offset();
+    fn read_part(&mut self, buf: &mut BlockDataBuffer) -> usize {
+        // EOF
+        if self.inode.size == self.offset {
+            return 0;
+        }
 
-        printf!("First inode at sector {}\n", self.get_inode_start_sector());
-        printf!("Reading dnode at offset {}\n", self.get_dnode_offset());
+        // How many bytes left in dnode?
+        let dnode_size = mem::size_of::<Dnode>();
 
-        self.device.down().read_fully(self.get_dnode_offset() + self.offset, buf);
+        // Where are we in the current dnode?
+        let dnode_start = self.get_dnode_offset(self.offset_dnode);
+        let dnode_offset = self.offset % (dnode_size - 4);
 
-        self.offset += buf.offset() - old_buf_offset;
+        // Is this the last dnode of the file?
+        let last_dnode = self.inode.size - self.offset <= dnode_size - dnode_offset;
+
+        if last_dnode {
+            let bytes_left = self.inode.size - self.offset;
+            let num_read = min(bytes_left, buf.size() - buf.offset());
+            self.device.down().read_exactly(dnode_start + dnode_offset, bytes_left, buf);
+            self.offset += num_read;
+            num_read
+        } else {
+            let bytes_left = dnode_size - (self.offset % (dnode_size - 4)) - 4;
+
+            if buf.size() - buf.offset() < bytes_left {
+                let num_read = buf.size() - buf.offset();
+                self.device.down().read_exactly(dnode_start + dnode_offset, num_read, buf);
+                self.offset += num_read;
+                num_read
+            } else {
+                let tmp = &mut BlockDataBuffer::new(bytes_left + 4);
+                self.device.down().read_fully(dnode_start + dnode_offset, tmp);
+                self.offset += bytes_left;
+                self.offset_dnode = unsafe {*tmp.get_ptr(bytes_left/4)};
+                let buf_offset = buf.offset();
+                unsafe {
+                    copy(tmp.get_ptr::<u8>(0), buf.get_ptr::<u8>(buf_offset), bytes_left);
+                }
+                buf.set_offset(buf_offset + bytes_left);
+                bytes_left
+            }
+        }
+    }
+
+    pub fn read(&mut self, buf: &mut BlockDataBuffer) -> usize {
+        // EOF
+        if self.inode.size == self.offset {
+            return 0;
+        }
+
+        // How many bytes can fit in buf?
+        let max_bytes = buf.size() - buf.offset();
+
+        // How many bytes left in the file?
+        let bytes_left = self.inode.size - self.offset;
+
+        // Number of bytes we can read to buf
+        let num_read = min(max_bytes, bytes_left);
+
+        let new_offset = buf.offset() + num_read;
+
+        while buf.offset() < new_offset {
+            self.read_part(buf);
+        }
+
+        num_read
     }
 }
