@@ -52,22 +52,6 @@ impl<B: BlockDevice> OFS<B> {
         }
     }
 
-    /// Open the file with the given inode number and
-    /// return a handle to it.
-    pub fn open(&mut self, inode: usize) -> File<B> {
-        let i = self.get_inode(inode);
-        let d = i.data;
-        //printf!("Open file: i {}, d {}\n", inode, d);
-        File {
-            inode_num: inode,
-            inode: i,
-            offset: 0,
-            offset_dnode: d,
-            device: self.device.clone(),
-            ofs_meta: self.meta.clone(),
-        }
-    }
-
     /// Get the sector number of the first inode
     fn get_inode_start_sector(&self) -> usize {
         let inode_map_bytes = self.meta.num_inode / 8;
@@ -121,13 +105,47 @@ impl<B: BlockDevice> OFS<B> {
             buf.get_ref::<Dnode>(dnode_mod).clone()
         }
     }
+
+    /// Open the file with the given inode number and return a handle to it.
+    pub fn open(&mut self, inode: usize) -> File<B> {
+        let i = self.get_inode(inode);
+        let d = i.data;
+        //printf!("Open file: i {}, d {}\n", inode, d);
+        File {
+            inode_num: inode,
+            inode: i,
+            offset: 0,
+            offset_dnode: d,
+            device: self.device.clone(),
+            ofs_meta: self.meta.clone(),
+        }
+    }
+
+    /// Create a link (directed edge) from file `a` to file `b`. `a` and `b` are the inode number
+    /// of the files.
+    pub fn link(&mut self, a: usize, b: usize) {
+        // TODO
+    }
+
+    /// Return metadata for file `a`. `a` is the inode number of the file.
+    pub fn stat(&self, a: usize) {
+        // TODO
+    }
+
+    /// Create a new file and a link from `a` to it. `a` is the inode number of the file. Return
+    /// the inode number of the new file.
+    pub fn new_file(&mut self, a: usize) -> usize {
+        // TODO
+        0
+    }
+
+    /// Delete file `a`. `a` is the inode number of the file.
+    pub fn delete_file(&mut self, a: usize) {
+        // TODO
+    }
 }
 
 impl<B: BlockDevice> File<B> {
-    pub fn seek(&mut self, offset: usize) {
-        self.offset = offset;
-    }
-
     /// Get the sector number of the first inode
     fn get_inode_start_sector(&self) -> usize {
         let inode_map_bytes = self.ofs_meta.num_inode / 8;
@@ -147,12 +165,14 @@ impl<B: BlockDevice> File<B> {
         1 + inode_map_sectors + dnode_map_sectors
     }
 
-    /// Get the sector number of the first dnode
+    /// Get the sector number of the first dnode.
+    /// 
     /// NOTE: Assume that the first dnode starts at the beginning of a sector
     fn get_dnode_start_sector(&self) -> usize {
         self.get_inode_start_sector() + self.ofs_meta.num_inode/Inode::inodes_per_sector()
     }
 
+    /// Get the disk offset of this file's inode.
     fn get_inode_offset(&mut self) -> usize {
         let i = self.inode_num;
         let inode_sector = self.get_inode_start_sector() + i/Inode::inodes_per_sector();
@@ -162,6 +182,7 @@ impl<B: BlockDevice> File<B> {
         inode_sector*SECTOR_SIZE+inode_mod*inode_size
     }
 
+    /// Get the disk offset of the `d`th dnode.
     fn get_dnode_offset(&self, d: usize) -> usize {
         let dnode_sector = self.get_dnode_start_sector() + d/Dnode::dnodes_per_sector();
         let dnode_mod = d % Dnode::dnodes_per_sector();
@@ -170,6 +191,10 @@ impl<B: BlockDevice> File<B> {
         dnode_sector*SECTOR_SIZE+dnode_mod*dnode_size
     }
 
+    /// Read from the file at the file offset into the buffer at the buffer offset.  This method
+    /// will not overflow the buffer or read past the end of the file, but it might not read as
+    /// much as possible from the file, even if the buffer is not full. This updates both the
+    /// file offset and the buffer offset.
     fn read_part(&mut self, buf: &mut BlockDataBuffer) -> usize {
         // EOF
         if self.inode.size == self.offset {
@@ -215,6 +240,14 @@ impl<B: BlockDevice> File<B> {
         }
     }
 
+    /// Seek into the file to the given `offset`.
+    pub fn seek(&mut self, offset: usize) {
+        // TODO
+    }
+
+    /// Fill the buffer starting at the buffer offset from the file starting at the file offset.
+    /// This reads as much as possible from the file without overflowing the buffer or reading past
+    /// the EOF. This updates both the file and buffer offsets.
     pub fn read(&mut self, buf: &mut BlockDataBuffer) -> usize {
         // EOF
         if self.inode.size == self.offset {
@@ -237,5 +270,19 @@ impl<B: BlockDevice> File<B> {
         }
 
         num_read
+    }
+
+    /// Write `bytes` bytes from the buffer at the buffer offset to the file at the file offset.
+    /// This will increase the length of the file if necessary.  This updates both the file and
+    /// buffer offsets.
+    pub fn write(&mut self, bytes: usize, buf: &mut BlockDataBuffer) {
+        //TODO
+    }
+}
+
+impl<B : BlockDevice> Drop for File<B> {
+    /// Close the file.
+    fn drop(&mut self) {
+        // TODO: close file
     }
 }

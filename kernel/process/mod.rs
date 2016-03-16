@@ -5,11 +5,11 @@ use alloc::boxed::Box;
 use core::fmt::{Debug, Formatter, Result};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use super::interrupts::{on, off};
-use super::io::NonBlockingBuffer;
-use super::machine::{self, context_switch};
-use super::memory::{AddressSpace, esp0};
-use super::static_linked_list::StaticLinkedList;
+use interrupts::{on, off};
+use io::NonBlockingBuffer;
+use machine::{self, context_switch};
+use memory::{AddressSpace, esp0};
+use static_linked_list::StaticLinkedList;
 
 use self::context::KContext;
 use self::idle::IDLE_PROCESS;
@@ -83,6 +83,9 @@ pub struct Process {
 
     /// A keyboard input buffer
     pub buffer: Option<NonBlockingBuffer>,
+
+    /// Current working file (inode number)
+    pub cwf: usize, 
 }
 
 impl Process {
@@ -101,6 +104,7 @@ impl Process {
             addr_space: AddressSpace::new(),
             disable_cnt: 0,
             buffer: None,
+            cwf: 0,
         };
 
         p.get_stack();
@@ -159,6 +163,8 @@ impl Process {
             self.buffer = Some(NonBlockingBuffer::new(cap));
         }
     }
+
+    // TODO: implement pwd (pwf) and cd (cf)
 }
 
 impl Drop for Process {
