@@ -11,9 +11,15 @@ use io::block::{BlockDevice, BlockDataBuffer};
 use io::ide::SECTOR_SIZE;
 use super::hw::*;
 
-/// A handle on the file system for all needed operations.
+/// A safe handle on the file system for all needed operations.
+pub struct OFSHandle<B: BlockDevice> {
+    fs: Arc<Semaphore<OFS<B>>>,
+}
+
+/// The OFS interface
 pub struct OFS<B: BlockDevice> {
-    device: Arc<Semaphore<B>>,
+    // block device
+    device: B,
 
     // metadata
     meta: Metadata,
@@ -25,18 +31,17 @@ pub struct File<B: BlockDevice> {
     inode: Inode,
     offset: usize,
     offset_dnode: usize,
-    // TODO: make this less hacky... the File should be able to call the FS
-    device: Arc<Semaphore<B>>,
-    ofs_meta: Metadata, // a copy of the OFS metadata for some computations
+    ofs: Arc<Semaphore<OFS<B>>>,
 }
 
-impl<B: BlockDevice> OFS<B> {
-    /// Create a new handle on the device using the device
-    pub fn new(device: Arc<Semaphore<B>>) -> OFS<B> {
+impl<B: BlockDevice> OFSHandle<B> {
+    /// Create a new handle on the fs using the device
+    ///
+    /// NOTE: we do not have to lock the device now, because ownership transfers to the handle :D
+    pub fn new(mut device: B) -> OFSHandle<B> {
         let mut buf = BlockDataBuffer::new(SECTOR_SIZE);
 
-        let mut dev = device.down();
-        dev.read_fully(0, &mut buf);
+        device.read_fully(0, &mut buf);
 
         // get the metadata sector
         let meta = unsafe { buf.get_ref::<Metadata>(0).clone() };
@@ -46,69 +51,20 @@ impl<B: BlockDevice> OFS<B> {
             panic!("This is not an OFS volume!");
         }
 
-        OFS {
-            device: device.clone(),
-            meta: meta,
-        }
-    }
-
-    /// Get the sector number of the first inode
-    fn get_inode_start_sector(&self) -> usize {
-        let inode_map_bytes = self.meta.num_inode / 8;
-        let inode_map_sectors = if inode_map_bytes % SECTOR_SIZE > 0 {
-            inode_map_bytes / SECTOR_SIZE + 1
-        } else {
-            inode_map_bytes / SECTOR_SIZE
-        };
-
-        let dnode_map_bytes = self.meta.num_dnode / 8;
-        let dnode_map_sectors = if dnode_map_bytes % SECTOR_SIZE > 0 {
-            dnode_map_bytes / SECTOR_SIZE + 1
-        } else {
-            dnode_map_bytes / SECTOR_SIZE
-        };
-
-        1 + inode_map_sectors + dnode_map_sectors
-    }
-
-    /// Get the sector number of the first dnode
-    fn get_dnode_start_sector(&self) -> usize {
-        self.get_inode_start_sector() + self.meta.num_inode
-    }
-
-    /// Get the `i`th inode
-    pub fn get_inode(&mut self, i: usize) -> Inode {
-        let inode_sector = self.get_inode_start_sector() + i/Inode::inodes_per_sector();
-        let inode_mod = i % Inode::inodes_per_sector();
-
-        // read from disk
-        let inode_size = mem::size_of::<Inode>();
-        let mut buf = BlockDataBuffer::new(inode_size);
-        self.device.down().read_fully(inode_sector*SECTOR_SIZE+inode_mod*inode_size, &mut buf);
-
-        unsafe {
-            buf.get_ref::<Inode>(inode_mod).clone()
-        }
-    }
-
-    /// Get the `d`th dnode
-    fn get_dnode(&mut self, d: usize) -> Dnode {
-        let dnode_sector = self.get_dnode_start_sector() + d/Dnode::dnodes_per_sector();
-        let dnode_mod = d % Dnode::dnodes_per_sector();
-
-        // read from disk
-        let dnode_size = mem::size_of::<Dnode>();
-        let mut buf = BlockDataBuffer::new(dnode_size);
-        self.device.down().read_fully(dnode_sector*SECTOR_SIZE+dnode_mod*dnode_size, &mut buf);
-
-        unsafe {
-            buf.get_ref::<Dnode>(dnode_mod).clone()
+        OFSHandle {
+            fs: Arc::new(Semaphore::new(OFS {
+                device: device,
+                meta: meta,
+            }, 1)),
         }
     }
 
     /// Open the file with the given inode number and return a handle to it.
     pub fn open(&mut self, inode: usize) -> File<B> {
-        let i = self.get_inode(inode);
+        // lock the fs
+        let mut fs = self.fs.down();
+
+        let i = fs.get_inode(inode);
         let d = i.data;
         //printf!("Open file: i {}, d {}\n", inode, d);
         File {
@@ -116,8 +72,7 @@ impl<B: BlockDevice> OFS<B> {
             inode: i,
             offset: 0,
             offset_dnode: d,
-            device: self.device.clone(),
-            ofs_meta: self.meta.clone(),
+            ofs: self.fs.clone(),
         }
     }
 
@@ -145,17 +100,17 @@ impl<B: BlockDevice> OFS<B> {
     }
 }
 
-impl<B: BlockDevice> File<B> {
+impl<B: BlockDevice> OFS<B> {
     /// Get the sector number of the first inode
     fn get_inode_start_sector(&self) -> usize {
-        let inode_map_bytes = self.ofs_meta.num_inode / 8;
+        let inode_map_bytes = self.meta.num_inode / 8;
         let inode_map_sectors = if inode_map_bytes % SECTOR_SIZE > 0 {
             inode_map_bytes / SECTOR_SIZE + 1
         } else {
             inode_map_bytes / SECTOR_SIZE
         };
 
-        let dnode_map_bytes = self.ofs_meta.num_dnode / 8;
+        let dnode_map_bytes = self.meta.num_dnode / 8;
         let dnode_map_sectors = if dnode_map_bytes % SECTOR_SIZE > 0 {
             dnode_map_bytes / SECTOR_SIZE + 1
         } else {
@@ -169,12 +124,11 @@ impl<B: BlockDevice> File<B> {
     /// 
     /// NOTE: Assume that the first dnode starts at the beginning of a sector
     fn get_dnode_start_sector(&self) -> usize {
-        self.get_inode_start_sector() + self.ofs_meta.num_inode/Inode::inodes_per_sector()
+        self.get_inode_start_sector() + self.meta.num_inode/Inode::inodes_per_sector()
     }
 
-    /// Get the disk offset of this file's inode.
-    fn get_inode_offset(&mut self) -> usize {
-        let i = self.inode_num;
+    /// Get the disk offset of the `i`th inode.
+    fn get_inode_offset(&mut self, i: usize) -> usize {
         let inode_sector = self.get_inode_start_sector() + i/Inode::inodes_per_sector();
         let inode_mod = i % Inode::inodes_per_sector();
 
@@ -191,6 +145,38 @@ impl<B: BlockDevice> File<B> {
         dnode_sector*SECTOR_SIZE+dnode_mod*dnode_size
     }
 
+    /// Get the `i`th inode
+    pub fn get_inode(&mut self, i: usize) -> Inode {
+        let inode_sector = self.get_inode_start_sector() + i/Inode::inodes_per_sector();
+        let inode_mod = i % Inode::inodes_per_sector();
+
+        // read from disk
+        let inode_size = mem::size_of::<Inode>();
+        let mut buf = BlockDataBuffer::new(inode_size);
+        self.device.read_fully(inode_sector*SECTOR_SIZE+inode_mod*inode_size, &mut buf);
+
+        unsafe {
+            buf.get_ref::<Inode>(inode_mod).clone()
+        }
+    }
+
+    /// Get the `d`th dnode
+    fn get_dnode(&mut self, d: usize) -> Dnode {
+        let dnode_sector = self.get_dnode_start_sector() + d/Dnode::dnodes_per_sector();
+        let dnode_mod = d % Dnode::dnodes_per_sector();
+
+        // read from disk
+        let dnode_size = mem::size_of::<Dnode>();
+        let mut buf = BlockDataBuffer::new(dnode_size);
+        self.device.read_fully(dnode_sector*SECTOR_SIZE+dnode_mod*dnode_size, &mut buf);
+
+        unsafe {
+            buf.get_ref::<Dnode>(dnode_mod).clone()
+        }
+    }
+}
+
+impl<B: BlockDevice> File<B> {
     /// Read from the file at the file offset into the buffer at the buffer offset.  This method
     /// will not overflow the buffer or read past the end of the file, but it might not read as
     /// much as possible from the file, even if the buffer is not full. This updates both the
@@ -201,11 +187,14 @@ impl<B: BlockDevice> File<B> {
             return 0;
         }
 
+        // lock the file system
+        let mut fs = self.ofs.down();
+
         // How many bytes left in dnode?
         let dnode_size = mem::size_of::<Dnode>();
 
         // Where are we in the current dnode?
-        let dnode_start = self.get_dnode_offset(self.offset_dnode);
+        let dnode_start = fs.get_dnode_offset(self.offset_dnode);
         let dnode_offset = self.offset % (dnode_size - 4);
 
         // Is this the last dnode of the file?
@@ -214,7 +203,7 @@ impl<B: BlockDevice> File<B> {
         if last_dnode {
             let bytes_left = self.inode.size - self.offset;
             let num_read = min(bytes_left, buf.size() - buf.offset());
-            self.device.down().read_exactly(dnode_start + dnode_offset, bytes_left, buf);
+            fs.device.read_exactly(dnode_start + dnode_offset, bytes_left, buf);
             self.offset += num_read;
             num_read
         } else {
@@ -222,12 +211,12 @@ impl<B: BlockDevice> File<B> {
 
             if buf.size() - buf.offset() < bytes_left {
                 let num_read = buf.size() - buf.offset();
-                self.device.down().read_exactly(dnode_start + dnode_offset, num_read, buf);
+                fs.device.read_exactly(dnode_start + dnode_offset, num_read, buf);
                 self.offset += num_read;
                 num_read
             } else {
                 let tmp = &mut BlockDataBuffer::new(bytes_left + 4);
-                self.device.down().read_fully(dnode_start + dnode_offset, tmp);
+                fs.device.read_fully(dnode_start + dnode_offset, tmp);
                 self.offset += bytes_left;
                 self.offset_dnode = unsafe {*tmp.get_ptr(bytes_left/4)};
                 let buf_offset = buf.offset();
@@ -242,7 +231,13 @@ impl<B: BlockDevice> File<B> {
 
     /// Seek into the file to the given `offset`.
     pub fn seek(&mut self, offset: usize) {
-        // TODO
+        if offset > self.offset {
+            //TODO
+            // Seek forwards
+        } else if offset < self.offset {
+            //TODO
+            // Seek backwards
+        }
     }
 
     /// Fill the buffer starting at the buffer offset from the file starting at the file offset.

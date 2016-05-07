@@ -98,6 +98,12 @@ impl Dnode {
     pub fn dnodes_per_sector() -> usize {
         SECTOR_SIZE / mem::size_of::<Dnode>()
     }
+
+    /// Return the last word of this dnode. If the file
+    /// has another dnode, this will be its index.
+    pub fn get_next(&self) -> usize {
+        self.data[self.data.len()]
+    }
 }
 
 impl Clone for Dnode {
