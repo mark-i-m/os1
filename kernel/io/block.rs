@@ -137,6 +137,20 @@ pub trait BlockDevice {
             buffer.set_offset(buf_offset+bytes);
         }
     }
+
+    /// Write `bytes` bytes to the block device at `offset` from the given buffer starting at the
+    /// buffer's internal offset. This method will overwrite the existing disk contents. It will
+    /// update the buffer's offset.
+    fn write_exactly(&mut self, offset: usize, bytes: usize, buffer: &mut BlockDataBuffer) {
+        // TODO: make this more efficient
+        let tmp = &mut BlockDataBuffer::new(bytes);
+        unsafe {
+            let buf_offset = buffer.offset();
+            copy(buffer.get_ptr::<u8>(buf_offset), tmp.get_ptr::<u8>(0), bytes);
+            buffer.set_offset(buf_offset+bytes);
+        }
+        self.write_fully(offset, tmp);
+    }
 }
 
 impl BlockDataBuffer {

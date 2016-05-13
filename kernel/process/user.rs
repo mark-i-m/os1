@@ -214,23 +214,61 @@ fn run5(_: &Process) -> usize {
 
     let mut buf = BlockDataBuffer::new(512);
 
-    f.read(&mut buf);
+    f.seek(512);
 
-    let val1 = unsafe { *buf.get_ref::<usize>(0) };
-    let val2 = unsafe { *buf.get_ref::<usize>(126) | *buf.get_ref::<usize>(127) };
+    f.read(&mut buf);
+    let val3 = unsafe { *buf.get_ref::<usize>(0) };
+
+    f.seek(0);
 
     buf.set_offset(0);
-
     f.read(&mut buf);
-
-    let val3 = unsafe { *buf.get_ref::<usize>(0) };
+    let val1 = unsafe { *buf.get_ref::<usize>(0) };
+    let val2 = unsafe { *buf.get_ref::<usize>(126) | *buf.get_ref::<usize>(127) };
 
     let mut b = Rectangle::new(70, 10, (12, 1));
     b.set_bg(Color::LightGray);
     b.set_fg(Color::Black);
     b.set_cursor((0,0));
 
-    let _ = write!(&mut b, "Read values from file: {:8X}, {:8X}, {:8X}!\n", val1, val2, val3);
+    let _ = write!(&mut b, "Read values from file {}: {:8X}, {:8X}, {:8X} ... ", f.get_filename(), val1, val2, val3);
+    if val1 == 0xDEADBEEF &&
+       val2 == 0xDEADBEB0 &&
+       val3 == 0xDEADBEBE {
+        let _ = write!(&mut b, "Success!\n");
+    } else {
+        let _ = write!(&mut b, "Failure :[");
+    }
+
+    f.seek(516);
+
+    let mut buf2 = BlockDataBuffer::new(32);
+    unsafe {
+        *buf2.get_ref_mut::<usize>(0) = 0xCAFEBABE;
+        *buf2.get_ref_mut::<usize>(2) = 0xCAFEBABE;
+        *buf2.get_ref_mut::<usize>(4) = 0xCAFEBABE;
+        *buf2.get_ref_mut::<usize>(6) = 0xCAFEBABE;
+        *buf2.get_ref_mut::<usize>(1) = 0xBAADFACE;
+        *buf2.get_ref_mut::<usize>(3) = 0xBAADFACE;
+        *buf2.get_ref_mut::<usize>(5) = 0xBAADFACE;
+        *buf2.get_ref_mut::<usize>(7) = 0xBAADFACE;
+    }
+
+    f.write(32, &mut buf2);
+
+    f.seek(32);
+    buf2.set_offset(0);
+    f.read(&mut buf2);
+    buf2.set_offset(0);
+
+    let btct = unsafe { *buf2.get_ref::<usize>(0) };
+
+    unsafe { *buf2.get_ref_mut::<usize>(0) = btct+1 };
+    
+    f.seek(32);
+    f.write(4, &mut buf2);
+
+    let _ = write!(&mut b, "\nBoot #{}\n", btct);
 
     0
 }

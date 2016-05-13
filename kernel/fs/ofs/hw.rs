@@ -1,7 +1,7 @@
 //! A module of low-level abstractions for disk-level representations of data for OFS.
 
 use core::mem;
-use core::ops::Index;
+//use core::ops::Index;
 
 use string::String;
 use io::ide::SECTOR_SIZE;
@@ -13,12 +13,12 @@ pub struct OFSDate {
     date: usize,
 }
 
-/// A data structure representing a list on the hard
-/// disk, in which the last element may be the dnode
-/// number containing the remaining elements
-pub struct ExtendableList<L: Index<usize>> {
-    list: L,
-}
+// /// A data structure representing a list on the hard
+// /// disk, in which the last element may be the dnode
+// /// number containing the remaining elements
+// pub struct ExtendableList<L: Index<usize>> {
+//     list: L,
+// }
 
 /// The metadata sector of the partition
 #[derive(Clone)]
@@ -102,7 +102,7 @@ impl Dnode {
     /// Return the last word of this dnode. If the file
     /// has another dnode, this will be its index.
     pub fn get_next(&self) -> usize {
-        self.data[self.data.len()]
+        self.data[self.data.len()-1]
     }
 }
 
