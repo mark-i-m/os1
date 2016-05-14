@@ -83,16 +83,43 @@ impl<B: BlockDevice> OFSHandle<B> {
         // TODO
     }
 
-    /// Return metadata for file `a`. `a` is the inode number of the file.
-    pub fn stat(&self, a: usize) {
-        // TODO
+    /// Return metadata for the file with inode `a`.
+    pub fn stat(&self, a: usize) -> Inode {
+        self.fs.down().get_inode(a)
     }
 
     /// Create a new file and a link from `a` to it. `a` is the inode number of the file. Return
     /// the inode number of the new file.
-    pub fn new_file(&mut self, a: usize) -> usize {
-        // TODO
-        0
+    pub fn new_file(&mut self) -> usize {
+        let mut fs = self.fs.down();
+
+        let inode_num = fs.get_new_inode();
+        let dnode_num = fs.get_new_dnode();
+        let inode = Inode {
+            name: UNNAMED,
+            uid: 0,
+            gid: 0,
+            user_perm: 7,
+            group_perm: 0,
+            all_perm: 0,
+            flags: 0,
+            size: 0,
+            data: dnode_num,
+            created: OFSDate::now(),
+            modified: OFSDate::now(),
+            parents: [0; 10],
+            children: [0; 12],
+        };
+
+        let mut tmp = BlockDataBuffer::new(mem::size_of::<Inode>());
+        unsafe {
+            *tmp.get_ref_mut(0) = inode;
+        }
+
+        let inode_start_offset = fs.get_inode_offset(inode_num);
+        fs.device.write_fully(inode_start_offset, &mut tmp);
+
+        inode_num
     }
 
     /// Delete file `a`. `a` is the inode number of the file.
@@ -174,6 +201,41 @@ impl<B: BlockDevice> OFS<B> {
         unsafe {
             buf.get_ref::<Dnode>(dnode_mod).clone()
         }
+    }
+
+    /// Allocate a new inode and return its index
+    ///
+    /// # Panics
+    /// Panics if there is not a free inode
+    fn get_new_inode(&mut self) -> usize {
+        // read bitmap
+        let mut buf = BlockDataBuffer::new(self.meta.num_inode / 8);
+        self.device.read_fully(SECTOR_SIZE, &mut buf);
+
+        // find first free bit, set it, and return
+        for i in 0..(self.meta.num_inode / 8) {
+            let bitmap_byte = unsafe { *buf.get_ptr::<u8>(i) };
+            if bitmap_byte != 0xFF {
+                for b in 0..8 {
+                    // found free bit
+                    if bitmap_byte & (1 << b) == 0 {
+                        // set bit
+                        unsafe {
+                            *buf.get_ptr::<u8>(i) |= 1 << b;
+                        }
+
+                        // writeback
+                        buf.set_offset(i);
+                        self.device.write_exactly(SECTOR_SIZE + i, 1, &mut buf);
+
+                        // return dnode number
+                        return i*8 + b
+                    }
+                }
+            }
+        }
+
+        panic!("Out of dnodes!");
     }
 
     /// Allocate a new dnode and return its index
@@ -309,7 +371,6 @@ impl<B: BlockDevice> File<B> {
             if last_dnode && eof_offset < dnode_offset + num_write {
                 self.inode.size += dnode_offset + num_write - eof_offset;
             }
-            let old_buf_offset = buf.offset();
             num_write
         } else {
             let num_write = min(dnode_size - 4 - dnode_offset, bytes);

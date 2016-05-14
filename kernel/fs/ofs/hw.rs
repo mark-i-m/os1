@@ -57,8 +57,24 @@ pub struct Dnode {
     pub data: [usize; 128],
 }
 
+pub const UNNAMED: [u8; 12] = [
+    'u' as u8,
+    'n' as u8,
+    'n' as u8,
+    'a' as u8,
+    'm' as u8,
+    'e' as u8,
+    'd' as u8,
+    0,0,0,0,0,
+];
+
 impl OFSDate {
-    // TODO
+    pub fn now() -> OFSDate {
+        // TODO
+        OFSDate {
+            date: 0,
+        }
+    }
 }
 
 impl Metadata {
