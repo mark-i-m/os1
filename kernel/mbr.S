@@ -2,70 +2,146 @@
     This is the bootstrap code.
 
     It will be stored in sector#0 of the boot drive but the BIOS will load
-    it at address 0x7c0
+    it at address 0x7C00
 
     We will compile the MBR at 0x7C00 then extract the appropriate 512 byte
     block and copy it to the boot drive
 
-
+    The bootloader all fits within 0x7C00 to 0x8000 -- the first 2 sectors
 */
 
         .code16
-	.section mbr,"xa"
+    .section mbr,"xa"
 
-	.global start
+    .global start
 start:
-	cli			# disable interrupts
+    cli         # disable interrupts
 
-	mov $0,%ax		# initialize data and stack segments
-	mov %ax,%ds
-	mov %ax,%ss
+    mov $0,%ax      # initialize data and stack segments
+    mov %ax,%ds
+    mov %ax,%ss
 
-	movb %dl,0x7000		# save boot drive id
+    movb %dl,0x7000     # save boot drive id
 
-	# print an 'x' to let the world know we're here
-	movb $'x',%al
-	movb $1,%ah
-	mov $0,%dx
-	int $0x14
+    # print an 'x' to let the world know we're here
+    movb $'x',%al
+    movb $1,%ah
+    mov $0,%dx
+    int $0x14
 
-	# read the drive parameters
-	movw $30,0x6000
-	movb $0x48,%ah		# function code (read drive parameters)
-	movb 0x7000,%dl		# drive index
-	movw $0x6000,%si	# result buffer
-	int $0x13		# call the BIOS
+    # read the drive parameters
+    movw $30,0x6000
+    movb $0x48,%ah      # function code (read drive parameters)
+    movb 0x7000,%dl     # drive index
+    movw $0x6000,%si    # result buffer
+    int $0x13       # call the BIOS
 
-	movw 0x6010,%cx		# low 16 bits of sector count
-				# this limits hdd size to 64k * 512 = 32MB
+    movw 0x6010,%cx     # low 16 bits of sector count
+                # this limits hdd size to 64k * 512 = 32MB
 
+    # load the bootloader
+    # read hdd into memory starting at bootloader_contd
+    movw $0x6000,%si    # DAP pointer
+    movb $16,(%si)      # size of buffer
+    movb $0,1(%si)      # unused
+    movw $1,2(%si)      # number of sectors
+    movw $bootload_contd,4(%si) # buffer offset
+    movw $0,6(%si)      # buffer segment
+    movw $1,8(%si)      # starting sector number
+    movw $0,10(%si)
+    movw $0,12(%si)
+    movw $0,14(%si)
 
-	# read hdd into memory starting at loadKernelHere
-	movw $0x6000,%si	# DAP pointer
-	movb $16,(%si)		# size of buffer
-	movb $0,1(%si)		# unused
-	add $-1,%cx		# -1 sector
-	movw %cx,2(%si)		# number of sectors
-	movw $loadKernelHere,4(%si)	# buffer offset
-	movw $0,6(%si)		# buffer segment
-	movw $1,8(%si)		# starting sector number
-	movw $0,10(%si)
-	movw $0,12(%si)
-	movw $0,14(%si)
+    mov $0x42,%ah       # function code
+    movb 0x7000,%dl     # drive index
+    int $0x13       # read the sectors
 
-	mov $0x42,%ah		# function code
-	movb 0x7000,%dl		# drive index
-	int $0x13		# read the sectors
+    jnc bootload_contd # if there is an error print 'E' and hang
+    movb $'E',%al
+    movb $1,%ah
+    mov $0,%dx
+    int $0x14
 
-    jnc cont # if there is an error print 'e' and hang
+hang:
+    jmp hang
 
-	movb $'e',%al
-	movb $1,%ah
-	mov $0,%dx
-	int $0x14
+magic: # place magic MBR bytes 0x55AA
+    .skip 510 - (magic - start)
+    .byte 0x55
+    .byte 0xaa
 
-error:
-    jmp error
+bootload_contd:
+    # when the kernel is larger than 64KB, we need to load it in chunks of 64KB;
+    # loop over the chunks loading them. 64KB => 64KB/512B = 128 sectors
+
+    # read hdd into memory starting at loadKernelHere
+    movw $0x6000,%si    # DAP pointer
+    movb $16,(%si)      # size of buffer
+    movb $0,1(%si)      # unused
+
+    # number of sectors we need to copy
+    movw %cx, %bx
+    add $-2, %bx        # boot sectors
+
+    # number of sectors copied
+    xor %edi, %edi
+
+load_loop: 
+    # copy up to 127 sectors at a time
+    mov $0, %eax
+    movw %bx, %ax
+    sub  %di, %ax
+    je cont
+    cmp $127, %ax
+    jle set_num_sec
+    movw $127, %ax
+set_num_sec:
+    movw %ax,2(%si)     # number of sectors
+
+    # where in memory to load to
+    # this is a 4B field. The upper 2B are the segment, the lower 2B are offset.
+    xor %ecx, %ecx
+    imul $512, %edi, %ecx
+    add $loadKernelHere, %ecx
+    mov %cx,4(%si)      # buffer offset
+    shr $16, %ecx
+    shl $12, %ecx
+    mov %cx,6(%si)      # buffer segment
+
+    # which sector to start copying    
+    # most likely we won't need to copy more than 2^16 sectors
+    # so the first 2B is sufficient
+    mov $0, %ecx
+    movw %di, %cx
+    addw $2, %cx         # skip the first two sectors (since we already loaded them)
+    movw %cx,8(%si)     # starting sector number
+    movw $0,10(%si)
+    movw $0,12(%si)
+    movw $0,14(%si)
+
+    # update counter
+    add %ax, %di
+
+    mov $0x42,%ah       # function code
+    movb 0x7000,%dl     # drive index
+    int $0x13       # read the sectors
+
+    # on error print 'e' and hang
+    jnc loop_jmp    
+    movb $'e',%al
+    movb $1,%ah
+    mov $0,%dx
+    int $0x14
+    jmp hang
+
+loop_jmp:
+    # print 'l'
+    movb $'l',%al
+    movb $1,%ah
+    mov $0,%dx
+    int $0x14
+
+    jmp load_loop
 
 cont:
     # detect available memory: ripped from OSDev
@@ -116,106 +192,103 @@ e820f:
     clc                         # there is jc on end of list, so carry should be cleared
     jmp done
 failed:
-	movb $'m',%al               # if there is an error print 'm' and hang
-	movb $1,%ah
-	mov $0,%dx
-	int $0x14
+    movb $'m',%al               # if there is an error print 'm' and hang
+    movb $1,%ah
+    mov $0,%dx
+    int $0x14
 done:
 
-	# load the gdt
-	lgdt gdtDesc
+    # load the gdt
+    lgdt gdtDesc
 
-	# load the idt
-	lidt idtDesc
+    # load the idt
+    lidt idtDesc
 
-	# enable protected mode, still running in 16 bit segment with
+    # enable protected mode, still running in 16 bit segment with
         # original segments
-	mov %cr0,%eax
-	or $1,%eax
-	mov %eax,%cr0
+    mov %cr0,%eax
+    or $1,%eax
+    mov %eax,%cr0
 
 
-	# set the stack and data segments, can't touch memory until
-	# we get into 32 bit mode
-	#mov $16,%ax
-	#mov %ax,%ds
-	#mov %ax,%ss
+    # set the stack and data segments, can't touch memory until
+    # we get into 32 bit mode
+    #mov $16,%ax
+    #mov %ax,%ds
+    #mov %ax,%ss
 
-	# do a far jump to the kernel entry point in 32 bit mode
-	ljmp $8,$loadKernelHere
+    # do a far jump to the kernel entry point in 32 bit mode
+    ljmp $8,$loadKernelHere
 
 
-end: # place magic MBR bytes 0x55AA
-	.skip 510 - (end - start)
-	.byte 0x55
-	.byte 0xaa
+.align 512
 
-	.code32
+    .code32
 loadKernelHere:
-	mov $16,%ax
-	mov %ax,%ss
-	mov $16,%ax
-	mov %ax,%ds
-	jmp kStart
+    mov $16,%ax
+    mov %ax,%ss
+    mov $16,%ax
+    mov %ax,%ds
+    jmp kStart
 
 #define GDT_COUNT 6
 
 gdt:
-	.long 0			# gdt[0] must be empty
-	.long 0
+    .long 0         # gdt[0] must be empty
+    .long 0
 
-	.long 0x0000ffff	# gdt[1] KERNEL CODE
-	.long 0x00cf9800
+    .long 0x0000ffff    # gdt[1] KERNEL CODE
+    .long 0x00cf9800
 
-	.long 0x0000ffff	# gdt[2] KERNEL DATA
-	.long 0x00cf9200
+    .long 0x0000ffff    # gdt[2] KERNEL DATA
+    .long 0x00cf9200
 
-	.long 0x0000ffff	# gdt[3] USER CODE
-	.long 0x00cff800
+    .long 0x0000ffff    # gdt[3] USER CODE
+    .long 0x00cff800
 
-	.long 0x0000ffff	# gdt[4] USER DATA
-	.long 0x00cff200
+    .long 0x0000ffff    # gdt[4] USER DATA
+    .long 0x00cff200
 
-	.global tssDescriptor
+    .global tssDescriptor
 tssDescriptor:
-	.long 0			# gdt[5] TSS
-	.long 0
+    .long 0         # gdt[5] TSS
+    .long 0
 
 gdtDesc:
-	.word (GDT_COUNT * 8) - 1
-	.long gdt
+    .word (GDT_COUNT * 8) - 1
+    .long gdt
 
-	.global kernelCodeSeg
+    .global kernelCodeSeg
 kernelCodeSeg:
-	.long 1 * 8
+    .long 1 * 8
 
-	.global kernelDataSeg
+    .global kernelDataSeg
 kernelDataSeg:
-	.long 2 * 8
+    .long 2 * 8
 
-	.global userCodeSeg
+    .global userCodeSeg
 userCodeSeg:
-	.long 3 * 8 + 3
+    .long 3 * 8 + 3
 
-	.global userDataSeg
+    .global userDataSeg
 userDataSeg:
-	.long 4 * 8 + 3
+    .long 4 * 8 + 3
 
-	.global tssDS
+    .global tssDS
 tssDS:
-	.long 5 * 8
+    .long 5 * 8
 
 
 
 
 #define IDT_COUNT 256
 
-	.global idt
+    .global idt
 idt:
-	.skip IDT_COUNT * 8
+    .skip IDT_COUNT * 8
 idtDesc:
-	.word (IDT_COUNT * 8) - 1
-	.long idt
+    .word (IDT_COUNT * 8) - 1
+    .long idt
 
 
     .global memory_map
