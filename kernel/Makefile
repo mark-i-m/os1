@@ -12,7 +12,6 @@ DD = dd
 LIBS = ../lib
 
 # Choose options
-# If kernel.img is > 64K, the BIOS will not load it, so if it is crashing, use -O1, not -O0
 RUSTOPT = -C opt-level=0 -g
 ASOPT = -O0 -g
 
