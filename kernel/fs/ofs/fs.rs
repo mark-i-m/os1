@@ -12,6 +12,10 @@ use io::block::{BlockDevice, BlockDataBuffer};
 use io::ide::SECTOR_SIZE;
 use super::hw::*;
 
+// TODO: file system consistency
+// TODO: what about concurrent writes?
+// TODO: what if a file is deleted while another process is writing to it?
+
 /// A safe handle on the file system for all needed operations.
 pub struct OFSHandle<B: BlockDevice> {
     fs: Arc<Semaphore<OFS<B>>>,
@@ -83,8 +87,15 @@ impl<B: BlockDevice> OFSHandle<B> {
         // TODO
     }
 
+    /// Remove a link (directed edge) from file `a` to file `b`. `a` and `b` are the inode number
+    /// of the files.
+    pub fn unlink(&mut self, a: usize, b: usize) {
+        // TODO
+    }
+
     /// Return metadata for the file with inode `a`.
     pub fn stat(&self, a: usize) -> Inode {
+        // TODO: also return links
         self.fs.down().get_inode(a)
     }
 
@@ -119,12 +130,17 @@ impl<B: BlockDevice> OFSHandle<B> {
         let inode_start_offset = fs.get_inode_offset(inode_num);
         fs.device.write_fully(inode_start_offset, &mut tmp);
 
+        // TODO: link the file to the the current working file of the creating process
+
         inode_num
     }
 
     /// Delete file `a`. `a` is the inode number of the file.
     pub fn delete_file(&mut self, a: usize) {
         // TODO
+        // Remove links
+        // Remove Inode
+        // Remove Dnodes
     }
 }
 
@@ -279,7 +295,8 @@ impl<B: BlockDevice> OFS<B> {
 }
 
 impl<B: BlockDevice> File<B> {
-    // TODO TODO TODO: update other file metadata, e.g. modified, filename, etc...
+    // TODO: change file name
+    // TODO: define filename conflicts?
 
     /// Return the filename
     pub fn get_filename(&self) -> String {
@@ -343,6 +360,8 @@ impl<B: BlockDevice> File<B> {
     /// write as much as possible from the file. This updates both the file offset and the buffer
     /// offset.
     fn write_part(&mut self, bytes: usize, buf: &mut BlockDataBuffer) -> usize {
+        // TODO update modified time
+
         // lock the file system
         let mut fs = self.ofs.down();
 
