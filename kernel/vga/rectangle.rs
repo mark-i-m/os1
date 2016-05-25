@@ -58,6 +58,7 @@ impl Rectangle {
 
     /// Render the string at the cursor using word wrapping.
     pub fn put_str(&mut self, s: &str) {
+        let mut first = true;
         for word in s.split(" ") {
             // word wrapping
             let len = word.len();
@@ -70,7 +71,7 @@ impl Rectangle {
             }
 
             // draw a space before the word
-            if cc > 0 {
+            if cc > 0 && !first {
                 self.put_char(' ');
 
                 // advance
@@ -107,6 +108,8 @@ impl Rectangle {
 
                 // move cursor
                 self.set_cursor((cr, cc));
+
+                first = false;
             }
         }
     }
