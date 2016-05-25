@@ -64,7 +64,8 @@ pub fn main() {
     data[first_dnode+DNODE_SIZE/4] = 0xDEADBEEF;
     data[first_dnode+2*DNODE_SIZE/4-1] = 0;
     data[first_dnode+2*DNODE_SIZE/4-2] = 0xDEAD_0000;
-    data[first_dnode+DNODE_SIZE/4+8] = 0;
+    data[first_dnode+DNODE_SIZE/4+8] = 1; //32B into the file
+    data[first_dnode+DNODE_SIZE/4+9] = 11; //36B into the file
 
     // write to file
     let mut buffer = File::create("hdd.img").ok().expect("Could not create file hdd.img");

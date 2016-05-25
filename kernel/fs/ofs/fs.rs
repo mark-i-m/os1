@@ -85,12 +85,14 @@ impl<B: BlockDevice> OFSHandle<B> {
     /// of the files.
     pub fn link(&mut self, a: usize, b: usize) {
         // TODO
+        panic!("OFS is read-only until I think about consistency...");
     }
 
     /// Remove a link (directed edge) from file `a` to file `b`. `a` and `b` are the inode number
     /// of the files.
     pub fn unlink(&mut self, a: usize, b: usize) {
         // TODO
+        panic!("OFS is read-only until I think about consistency...");
     }
 
     /// Return metadata for the file with inode `a`.
@@ -102,6 +104,7 @@ impl<B: BlockDevice> OFSHandle<B> {
     /// Create a new file and a link from `a` to it. `a` is the inode number of the file. Return
     /// the inode number of the new file.
     pub fn new_file(&mut self) -> usize {
+        panic!("OFS is read-only until I think about consistency...");
         let mut fs = self.fs.down();
 
         let inode_num = fs.get_new_inode();
@@ -141,6 +144,7 @@ impl<B: BlockDevice> OFSHandle<B> {
         // Remove links
         // Remove Inode
         // Remove Dnodes
+        panic!("OFS is read-only until I think about consistency...");
     }
 }
 
@@ -500,6 +504,7 @@ impl<B: BlockDevice> File<B> {
     /// This will increase the length of the file if necessary.  This updates both the file and
     /// buffer offsets.
     pub fn write(&mut self, bytes: usize, buf: &mut BlockDataBuffer) {
+        panic!("OFS is read-only until I think about consistency...");
         let mut written = 0;
         while written < bytes {
             written += self.write_part(bytes - written, buf);
@@ -510,15 +515,16 @@ impl<B: BlockDevice> File<B> {
 impl<B : BlockDevice> Drop for File<B> {
     /// Close the file. Write back the inode
     fn drop(&mut self) {
-        let mut fs = self.ofs.down();
+        //TODO: uncomment and correct
+        //let mut fs = self.ofs.down();
 
-        let inode_start_offset = fs.get_inode_offset(self.inode_num);
+        //let inode_start_offset = fs.get_inode_offset(self.inode_num);
 
-        let mut tmp = BlockDataBuffer::new(mem::size_of::<Inode>());
-        unsafe {
-            *tmp.get_ptr(0) = self.inode.clone();
-        }
+        //let mut tmp = BlockDataBuffer::new(mem::size_of::<Inode>());
+        //unsafe {
+        //    *tmp.get_ptr(0) = self.inode.clone();
+        //}
 
-        fs.device.write_fully(inode_start_offset, &mut tmp);
+        //fs.device.write_fully(inode_start_offset, &mut tmp);
     }
 }

@@ -243,32 +243,40 @@ fn run5(_: &Process) -> usize {
     f.seek(516);
 
     let mut buf2 = BlockDataBuffer::new(32);
-    unsafe {
-        *buf2.get_ref_mut::<usize>(0) = 0xCAFEBABE;
-        *buf2.get_ref_mut::<usize>(2) = 0xCAFEBABE;
-        *buf2.get_ref_mut::<usize>(4) = 0xCAFEBABE;
-        *buf2.get_ref_mut::<usize>(6) = 0xCAFEBABE;
-        *buf2.get_ref_mut::<usize>(1) = 0xBAADFACE;
-        *buf2.get_ref_mut::<usize>(3) = 0xBAADFACE;
-        *buf2.get_ref_mut::<usize>(5) = 0xBAADFACE;
-        *buf2.get_ref_mut::<usize>(7) = 0xBAADFACE;
-    }
+    //unsafe {
+    //    *buf2.get_ref_mut::<usize>(0) = 0xCAFEBABE;
+    //    *buf2.get_ref_mut::<usize>(2) = 0xCAFEBABE;
+    //    *buf2.get_ref_mut::<usize>(4) = 0xCAFEBABE;
+    //    *buf2.get_ref_mut::<usize>(6) = 0xCAFEBABE;
+    //    *buf2.get_ref_mut::<usize>(1) = 0xBAADFACE;
+    //    *buf2.get_ref_mut::<usize>(3) = 0xBAADFACE;
+    //    *buf2.get_ref_mut::<usize>(5) = 0xBAADFACE;
+    //    *buf2.get_ref_mut::<usize>(7) = 0xBAADFACE;
+    //}
 
-    f.write(32, &mut buf2);
+    //f.write(32, &mut buf2);
 
     f.seek(32);
     buf2.set_offset(0);
     f.read(&mut buf2);
-    buf2.set_offset(0);
+    //buf2.set_offset(0);
 
-    let btct = unsafe { *buf2.get_ref::<usize>(0) };
+    //let btct = unsafe { *buf2.get_ref::<usize>(0) };
+    let version_major = unsafe { *buf2.get_ref::<usize>(0) };
+    let version_minor = unsafe { *buf2.get_ref::<usize>(1) };
 
-    unsafe { *buf2.get_ref_mut::<usize>(0) = btct+1 };
+    //unsafe { *buf2.get_ref_mut::<usize>(0) = btct+1 };
+    //
+    //f.seek(32);
+    //f.write(4, &mut buf2);
+
+    //let _ = write!(&mut b, "\nBoot #{}\n", btct);
     
-    f.seek(32);
-    f.write(4, &mut buf2);
-
-    let _ = write!(&mut b, "\nBoot #{}\n", btct);
+    let mut v = Rectangle::new(15, 1, (24, 64));
+    v.set_bg(Color::LightBlue);
+    v.set_fg(Color::Red);
+    v.set_cursor((0,0));
+    let _ = write!(&mut v, "os1 v{}.{}", version_major, version_minor);
 
     0
 }
