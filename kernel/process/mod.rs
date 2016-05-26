@@ -5,10 +5,10 @@ use alloc::boxed::Box;
 use core::fmt::{Debug, Formatter, Result};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use interrupts::{on, off};
+use interrupts::{esp0, on, off};
 use io::NonBlockingBuffer;
 use machine::{self, context_switch};
-use memory::{AddressSpace, esp0};
+use memory::AddressSpace;
 use static_linked_list::StaticLinkedList;
 
 use self::context::KContext;
@@ -274,10 +274,9 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
 
     // switch address spaces
     (*next).addr_space.activate();
-
+    
     // switch stacks
-    // TODO: turn this on
-    //esp0((*CURRENT_PROCESS).stack + STACK_SIZE*4);
+    esp0((*next).stack + STACK_SIZE*4);
 
     // set the CURRENT_PROCESS
     CURRENT_PROCESS = next;

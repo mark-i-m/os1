@@ -71,6 +71,8 @@ pub fn kernel_main() {
     /////////////////////////////////////////////////////
 
     // init tss, heap, and vm
+    interrupts::tss_init();
+
     // make the kernel heap 3MiB starting at 1MiB.
     // make memory data structures take up the next 4MiB.
     memory::init(1<<20, 3<<20);

@@ -32,7 +32,8 @@ struct TSS {
 }
 
 impl TSSDescriptor {
-    fn set(&mut self, base: &'static TSS, limit: usize) {
+    fn set(&mut self, base: &'static TSS) {
+        let limit = mem::size_of::<TSS>();
         let base_usize = base as *const TSS as usize;
 
         // clear
@@ -51,11 +52,19 @@ impl TSSDescriptor {
         self.f0 = (self.f0 & 0xFFFF_0000) | (limit & 0x0000_FFFF);
         self.f1 = (self.f1 & 0xFFF0_FFFF) | (limit & 0x000F_0000);
 
+        // set lots of flags here (some of them are being set to 0):
+
+        // set "accessed" to indicate TSS, not LDT
+        self.f1 |= 1 << 8;
+
+        // set "executable"
+        self.f1 |= 1 << 11;
+
+        // 32-bit TSS
+        self.f1 |= 1 << 22;
+
         // set present
         self.f1 |= 1 << 15;
-
-        // set type
-        self.f1 |= 0x9 << 8;
     }
 }
 
@@ -81,8 +90,8 @@ impl TSS {
 pub fn init() {
     unsafe {
         TSS_.ss0 = kernelDataSeg as usize;
-        tssDescriptor.set(&TSS_, mem::size_of::<TSS>());
-        ltr(tssDS)
+        tssDescriptor.set(&TSS_);
+        ltr(tssDS);
     }
 }
 
