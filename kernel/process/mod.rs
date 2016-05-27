@@ -5,6 +5,7 @@ use alloc::boxed::Box;
 use core::fmt::{Debug, Formatter, Result};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
+use fs::ROOT_FS;
 use interrupts::{esp0, on, off};
 use io::NonBlockingBuffer;
 use machine::{self, context_switch};
@@ -36,6 +37,15 @@ pub static mut CURRENT_PROCESS: *mut Process = 0 as *mut Process;
 
 /// Type alias for a queue of Processes
 pub type ProcessQueue = StaticLinkedList<*mut Process>;
+
+/// An enum representing change of directory
+#[derive(Clone, Copy, PartialEq)]
+pub enum CF {
+    /// ".."
+    Back,
+    /// Next file
+    Next(usize),
+}
 
 /// An enum representing the possible states of a process
 #[repr(C)]
@@ -85,7 +95,10 @@ pub struct Process {
     pub buffer: Option<NonBlockingBuffer>,
 
     /// Current working file (inode number)
-    pub cwf: usize, 
+    pub cwf: usize,
+
+    /// Path taken to the cwf (a stack of inode #s), not including the cwf
+    pub path: StaticLinkedList<usize>,
 }
 
 impl Process {
@@ -105,6 +118,7 @@ impl Process {
             disable_cnt: 0,
             buffer: None,
             cwf: 0,
+            path: StaticLinkedList::new(),
         };
 
         p.get_stack();
@@ -164,7 +178,45 @@ impl Process {
         }
     }
 
-    // TODO: implement pwd (pwf) and cd (cf)
+    /// Return the inode number of the current working file
+    pub fn cwf(&self) -> usize {
+        self.cwf
+    }
+
+    /// Change files to the given inode number if that file exists and is reachable from the cwf
+    pub fn cf(&mut self, new_cwf: CF) {
+        match new_cwf {
+            CF::Back => {
+                if self.path.len() > 0 {
+                    self.cwf = self.path.pop_back().unwrap();
+                }
+            }
+            CF::Next(new) => {
+                // check if new exists
+                match unsafe { (*ROOT_FS).stat(new) } {
+                    Some(inode) => {
+                        // check if they are linked
+                        let cwf_inode = unsafe { (*ROOT_FS).stat(self.cwf()).unwrap() };
+                        let mut linked = false;
+
+                        for i in inode.links.iter() {
+                            if *i == self.cwf() {
+                                linked = true;
+                                break;
+                            }
+                        }
+
+                        // if linked actually change paths
+                        if linked {
+                            self.path.push_back(new);
+                            self.cwf = new;
+                        }
+                    }
+                    None => {}
+                }
+            }
+        }
+    }
 }
 
 impl Drop for Process {
@@ -274,7 +326,7 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
 
     // switch address spaces
     (*next).addr_space.activate();
-    
+
     // switch stacks
     esp0((*next).stack + STACK_SIZE*4);
 

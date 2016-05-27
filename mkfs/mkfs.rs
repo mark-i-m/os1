@@ -40,9 +40,8 @@ pub fn main() {
 
     // Meta data
     data[0] = 0x00_53_46_4F;            // magic: OSF\0
-    data[1] = 0;                        // inode of root file
-    data[2] = (SECTOR_SIZE*8) as u32;   // # inodes
-    data[3] = (SECTOR_SIZE*8) as u32;   // # dnodes
+    data[1] = (SECTOR_SIZE*8) as u32;   // # inodes
+    data[2] = (SECTOR_SIZE*8) as u32;   // # dnodes
 
     // Inode bitmap
     data[SECTOR_SIZE  /4] = 1 << 31;

@@ -1,6 +1,7 @@
 //! A module for file system stuff
 
 pub mod ofs;
+pub mod error;
 
 use alloc::boxed::Box;
 

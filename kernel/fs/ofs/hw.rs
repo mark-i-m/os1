@@ -25,7 +25,7 @@ pub struct OFSDate {
 #[repr(C, packed)]
 pub struct Metadata {
     magic: [u8; 4],
-    pub root_inode: usize,
+    //pub root_inode: usize, // NOTE: inode 0 is always root
     pub num_inode: usize,
     pub num_dnode: usize,
 }
@@ -45,10 +45,7 @@ pub struct Inode {
     pub data: usize,            // index of Dnode with contents
     pub created: OFSDate,       // date created
     pub modified: OFSDate,      // date last modified
-    //pub parents: ExtendableList<[usize; 10]>,// An extendable list of parent nodes
-    //pub children: ExtendableList<[usize; 12]>,// An extendable list of child nodes
-    pub parents: [usize; 10],
-    pub children: [usize; 12],
+    pub links: [usize; 22],
 }
 
 /// A single OFS Dnode (512B)

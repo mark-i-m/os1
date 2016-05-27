@@ -11,10 +11,9 @@ use string::String;
 use io::block::{BlockDevice, BlockDataBuffer};
 use io::ide::SECTOR_SIZE;
 use super::hw::*;
+use super::super::error::Error;
 
 // TODO: file system consistency
-// TODO: what about concurrent writes?
-// TODO: what if a file is deleted while another process is writing to it?
 
 /// A safe handle on the file system for all needed operations.
 pub struct OFSHandle<B: BlockDevice> {
@@ -65,46 +64,57 @@ impl<B: BlockDevice> OFSHandle<B> {
     }
 
     /// Open the file with the given inode number and return a handle to it.
-    pub fn open(&mut self, inode: usize) -> File<B> {
+    pub fn open(&mut self, inode: usize) -> Result<File<B>, Error> {
         // lock the fs
         let mut fs = self.fs.down();
 
-        let i = fs.get_inode(inode);
-        let d = i.data;
-        //printf!("Open file: i {}, d {}\n", inode, d);
-        File {
-            inode_num: inode,
-            inode: i,
-            offset: 0,
-            offset_dnode: d,
-            ofs: self.fs.clone(),
+        if !fs.is_file(inode) {
+            Err(Error::new("No such file or directory"))
+        } else {
+            let i = fs.get_inode(inode);
+            let d = i.data;
+            //printf!("Open file: i {}, d {}\n", inode, d);
+            Ok(File {
+                inode_num: inode,
+                inode: i,
+                offset: 0,
+                offset_dnode: d,
+                ofs: self.fs.clone(),
+            })
         }
     }
 
     /// Create a link (directed edge) from file `a` to file `b`. `a` and `b` are the inode number
     /// of the files.
-    pub fn link(&mut self, a: usize, b: usize) {
+    pub fn link(&mut self, a: usize, b: usize) -> Option<Error> {
         // TODO
-        panic!("OFS is read-only until I think about consistency...");
+        // TODO: make sure that they are not already linked
+        Some(Error::new("OFS is read-only until I think about consistency..."))
     }
 
     /// Remove a link (directed edge) from file `a` to file `b`. `a` and `b` are the inode number
     /// of the files.
-    pub fn unlink(&mut self, a: usize, b: usize) {
+    pub fn unlink(&mut self, a: usize, b: usize) -> Option<Error> {
         // TODO
-        panic!("OFS is read-only until I think about consistency...");
+        // TODO: make sure that they are already linked
+        Some(Error::new("OFS is read-only until I think about consistency..."))
     }
 
-    /// Return metadata for the file with inode `a`.
-    pub fn stat(&self, a: usize) -> Inode {
-        // TODO: also return links
-        self.fs.down().get_inode(a)
+    /// Return metadata for the file with inode `a` or None if the file does not exist
+    pub fn stat(&self, a: usize) -> Option<Inode> {
+        let mut fs = self.fs.down();
+        if fs.is_file(a) {
+            Some(fs.get_inode(a))
+        } else {
+            None
+        }
     }
 
     /// Create a new file and a link from `a` to it. `a` is the inode number of the file. Return
     /// the inode number of the new file.
-    pub fn new_file(&mut self) -> usize {
-        panic!("OFS is read-only until I think about consistency...");
+    pub fn new_file(&mut self) -> Result<usize, Error> {
+        return Err(Error::new("OFS is read-only until I think about consistency..."));
+
         let mut fs = self.fs.down();
 
         let inode_num = fs.get_new_inode();
@@ -121,8 +131,7 @@ impl<B: BlockDevice> OFSHandle<B> {
             data: dnode_num,
             created: OFSDate::now(),
             modified: OFSDate::now(),
-            parents: [0; 10],
-            children: [0; 12],
+            links: [0; 22],
         };
 
         let mut tmp = BlockDataBuffer::new(mem::size_of::<Inode>());
@@ -135,16 +144,17 @@ impl<B: BlockDevice> OFSHandle<B> {
 
         // TODO: link the file to the the current working file of the creating process
 
-        inode_num
+        Ok(inode_num)
     }
 
     /// Delete file `a`. `a` is the inode number of the file.
-    pub fn delete_file(&mut self, a: usize) {
+    pub fn delete_file(&mut self, a: usize) -> Option<Error> {
         // TODO
         // Remove links
         // Remove Inode
         // Remove Dnodes
-        panic!("OFS is read-only until I think about consistency...");
+        // TODO: what if a file is deleted while another process is writing to it?
+        Some(Error::new("OFS is read-only until I think about consistency..."))
     }
 }
 
@@ -255,7 +265,7 @@ impl<B: BlockDevice> OFS<B> {
             }
         }
 
-        panic!("Out of dnodes!");
+        panic!("Out of inodes!");
     }
 
     /// Allocate a new dnode and return its index
@@ -295,6 +305,23 @@ impl<B: BlockDevice> OFS<B> {
         }
 
         panic!("Out of dnodes!");
+    }
+
+    /// Returns true if the file exists.
+    pub fn is_file(&mut self, inode: usize) -> bool {
+        // which byte of the bitmap
+        let byte = inode / 8;
+
+        // which bit of that byte
+        let bit = inode % 8;
+
+        // read bitmap
+        let mut buf = BlockDataBuffer::new(1);
+        self.device.read_fully(byte, &mut buf);
+
+        let bitmap_byte = unsafe { *buf.get_ptr::<u8>(0) };
+
+        bitmap_byte & (1 << bit) != 0
     }
 }
 
@@ -365,6 +392,7 @@ impl<B: BlockDevice> File<B> {
     /// offset.
     fn write_part(&mut self, bytes: usize, buf: &mut BlockDataBuffer) -> usize {
         // TODO update modified time
+        // TODO: what about concurrent writes?
 
         // lock the file system
         let mut fs = self.ofs.down();
