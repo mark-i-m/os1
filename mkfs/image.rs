@@ -148,8 +148,6 @@ impl OFSImage {
     /// Copy the file (on the host machine) to the OFS image. No guarantees are made about
     /// the order of inodes or dnodes chosen.
     pub fn add_file(&mut self, file: &str) {
-        println!("Adding file '{}' to image.", file);
-
         // open the file and read it
         if !Path::new(file).is_file() {
             println!("Error! No such file or directory '{}'.", file);
@@ -232,12 +230,12 @@ impl OFSImage {
             inode.name[i] = basename.char_at(i) as u8;
         }
         inode.data = first_dnode as u32;
+
+        println!("Added file '{}' to image.", basename);
     }
 
     /// Write the bytes of this OFSImage to the given file.
     pub fn burn(&self, file: &str) {
-        println!("Burning image to file '{}'.", file);
-
         let outfile = File::create(file).expect(format!("Cannot write to file '{}'", file).as_str());
         let mut wbuf = BufWriter::new(outfile); // buffer writes
 
@@ -331,5 +329,7 @@ impl OFSImage {
 
         // flush the buffer
         let _ = wbuf.flush();
+
+        println!("Burned image to file '{}'.", file);
     }
 }

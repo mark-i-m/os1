@@ -1,10 +1,10 @@
-all: hdd.img
+all: mkfs hdd.img
 
-mkfs: mkfs.rs
+mkfs: mkfs.rs Makefile
 	rustc -o mkfs mkfs.rs
 
-hdd.img: mkfs
-	./mkfs
+hdd.img: mkfs Makefile
+	@./mkfs $(shell find ../kernel/ -type f -name '*.rs')
 
 clean:
 	rm -f mkfs hdd.img
