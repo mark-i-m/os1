@@ -173,10 +173,10 @@ impl OFSImage {
             } else {
                 // chain the dnodes
                 let dnode = self.get_dnode(prev_dnode as u32);
-                dnode.bytes[DNODE_SIZE-4] = ((next_dnode >> 24) & 0xFF) as u8;
-                dnode.bytes[DNODE_SIZE-3] = ((next_dnode >> 16) & 0xFF) as u8;
-                dnode.bytes[DNODE_SIZE-2] = ((next_dnode >>  8) & 0xFF) as u8;
-                dnode.bytes[DNODE_SIZE-1] = ((next_dnode      ) & 0xFF) as u8;
+                dnode.bytes[DNODE_SIZE-1] = ((next_dnode >> 24) & 0xFF) as u8;
+                dnode.bytes[DNODE_SIZE-2] = ((next_dnode >> 16) & 0xFF) as u8;
+                dnode.bytes[DNODE_SIZE-3] = ((next_dnode >>  8) & 0xFF) as u8;
+                dnode.bytes[DNODE_SIZE-4] = ((next_dnode      ) & 0xFF) as u8;
             }
 
             // read DNODE_SIZE - 4 bytes
@@ -203,12 +203,12 @@ impl OFSImage {
             let _ = f.read_exact(&mut last_dnode.bytes);
         }
 
-        {
+        if size > DNODE_SIZE as u64 {
             let second_last = self.get_dnode(next_dnode as u32);
-            second_last.bytes[DNODE_SIZE-4] = ((last_dnode_idx >> 24) & 0xFF) as u8;
-            second_last.bytes[DNODE_SIZE-3] = ((last_dnode_idx >> 16) & 0xFF) as u8;
-            second_last.bytes[DNODE_SIZE-2] = ((last_dnode_idx >>  8) & 0xFF) as u8;
-            second_last.bytes[DNODE_SIZE-1] = ((last_dnode_idx      ) & 0xFF) as u8;
+            second_last.bytes[DNODE_SIZE-1] = ((last_dnode_idx >> 24) & 0xFF) as u8;
+            second_last.bytes[DNODE_SIZE-2] = ((last_dnode_idx >> 16) & 0xFF) as u8;
+            second_last.bytes[DNODE_SIZE-3] = ((last_dnode_idx >>  8) & 0xFF) as u8;
+            second_last.bytes[DNODE_SIZE-4] = ((last_dnode_idx      ) & 0xFF) as u8;
         }
 
         // create the inode
@@ -248,16 +248,16 @@ impl OFSImage {
         buf[2] = 'S' as u8;
 
         // inode count
-        buf[4] = ((self.num_inodes >> 24) & 0xFF) as u8;
-        buf[5] = ((self.num_inodes >> 16) & 0xFF) as u8;
-        buf[6] = ((self.num_inodes >>  8) & 0xFF) as u8;
-        buf[7] = ((self.num_inodes      ) & 0xFF) as u8;
+        buf[7] = ((self.num_inodes >> 24) & 0xFF) as u8;
+        buf[6] = ((self.num_inodes >> 16) & 0xFF) as u8;
+        buf[5] = ((self.num_inodes >>  8) & 0xFF) as u8;
+        buf[4] = ((self.num_inodes      ) & 0xFF) as u8;
 
         // dnode count
-        buf[8]  = ((self.num_dnodes >> 24) & 0xFF) as u8;
-        buf[9]  = ((self.num_dnodes >> 16) & 0xFF) as u8;
-        buf[10] = ((self.num_dnodes >>  8) & 0xFF) as u8;
-        buf[11] = ((self.num_dnodes      ) & 0xFF) as u8;
+        buf[11] = ((self.num_dnodes >> 24) & 0xFF) as u8;
+        buf[10]= ((self.num_dnodes >> 16) & 0xFF) as u8;
+        buf[9] = ((self.num_dnodes >>  8) & 0xFF) as u8;
+        buf[8] = ((self.num_dnodes      ) & 0xFF) as u8;
 
         let _ = wbuf.write_all(&buf);
 
@@ -316,14 +316,22 @@ impl OFSImage {
 
         for dnode_opt in self.dnodes.iter() {
             dnode_buf[dnode_ct % dnodes_per_sector] = match *dnode_opt {
-                Some(ref dnode) => (*dnode).clone(),
+                Some(ref dnode) => {
+                    (*dnode).clone()
+                },
                 None => Dnode { bytes: [0; DNODE_SIZE] },
             };
 
             dnode_ct += 1;
 
-            if dnode_ct % (SECTOR_SIZE as usize / DNODE_SIZE) == 0 {
-                let _ = wbuf.write_all(unsafe { &mem::transmute::<_, [u8; SECTOR_SIZE as usize]>(dnode_buf) });
+            if dnode_ct % dnodes_per_sector == 0 {
+                //let _ = wbuf.write_all(unsafe { &mem::transmute::<_, [u8; SECTOR_SIZE as usize]>(dnode_buf) });
+                wbuf.write_all(&dnode_buf[0].bytes);
+            }
+
+            if dnode_ct == 6 {
+                wbuf.flush();
+                return
             }
         }
 

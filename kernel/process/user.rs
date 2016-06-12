@@ -224,7 +224,7 @@ fn run5(_: &Process) -> usize {
     buf.set_offset(0);
     f.read(&mut buf);
     let val1 = unsafe { *buf.get_ref::<usize>(0) };
-    let val2 = unsafe { *buf.get_ref::<usize>(126) | *buf.get_ref::<usize>(127) };
+    let val2 = unsafe { (*buf.get_ref::<usize>(126) & 0xFFFF_0000) | (*buf.get_ref::<usize>(127) & 0x0000_FFFF) };
 
     let mut b = Rectangle::new(70, 10, (12, 1));
     b.set_bg(Color::LightGray);
@@ -264,6 +264,8 @@ fn run5(_: &Process) -> usize {
     //let btct = unsafe { *buf2.get_ref::<usize>(0) };
     let version_major = unsafe { *buf2.get_ref::<usize>(0) };
     let version_minor = unsafe { *buf2.get_ref::<usize>(1) };
+
+    printf!("v{}.{}", version_major, version_minor);
 
     //unsafe { *buf2.get_ref_mut::<usize>(0) = btct+1 };
     //
