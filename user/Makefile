@@ -9,7 +9,7 @@ DEPS=crt0.o
 all: $(EXECLIST)
 
 %.o: %.S
-	gcc -c -MD -m32 $^ 
+	gcc -c -m32 $^ 
 
 %.o: %.c
 	gcc -c -MD $(CFLAGS) $^

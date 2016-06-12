@@ -325,13 +325,7 @@ impl OFSImage {
             dnode_ct += 1;
 
             if dnode_ct % dnodes_per_sector == 0 {
-                //let _ = wbuf.write_all(unsafe { &mem::transmute::<_, [u8; SECTOR_SIZE as usize]>(dnode_buf) });
-                wbuf.write_all(&dnode_buf[0].bytes);
-            }
-
-            if dnode_ct == 6 {
-                wbuf.flush();
-                return
+                let _ = wbuf.write_all(unsafe { &mem::transmute::<_, [u8; SECTOR_SIZE as usize]>(dnode_buf) });
             }
         }
 
