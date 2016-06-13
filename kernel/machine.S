@@ -1,83 +1,83 @@
-# #define ASSEMBLY
-#
-# 	# syscallTrap()
-# 	# the user implicitly passes 3 arguments in %eax, %ecx, %edx
-# 	# %eax is syscall number
-# 	# the rest of the arguments depend on %eax
-# 	.global syscallTrap
-# syscallTrap:
-# 	push %ds
-#
-# 	push %ebp
-# 	push %edi
-# 	push %esi
-# 	push %ebx
-#
-# 	push %edx
-# 	push %ecx
-# 	push %eax
-#
-# 	mov %esp,%eax                         // why?
-# 	push %eax
-#
-# /*
-#     Arguments:
-#
-#             context
-# context->   syscall #
-#             a0
-#             a1
-#             user %ebx
-#             user %esi
-#             user %edi
-#             user %ebp
-#             user %ds
-#             user %eip
-#             user %cs
-#             user %eflags
-#             user %esp
-#             user %ss
-#
-# */
-#
-#
-# 	mov kernelDataSeg,%eax
-# 	movw %ax,%ds
-#
-# 	.extern syscallHandler
-# 	call syscallHandler
-#
-# 	add $32,%esp
-#
-# 	pop %ds
-# 	iret
-#
-#
-# 	# switchToUser(pc,esp,eax)
-# 	.global switchToUser
-# switchToUser:
-# 	mov 4(%esp),%ecx	# pc
-# 	mov 8(%esp),%ebx        # esp
-# 	mov 12(%esp),%eax       # eax
-#
-# 	mov userDataSeg,%edx    # for user SS = DS
-# 	push %edx               # ring 3 SS
-#
-# 	push %ebx               # user ESP
-#
-# 	pushf                   # ring 3 flags
-#         orl $0x200,(%esp)       # enable interrupts
-#
-# 	mov userCodeSeg,%edx
-#         push %edx               # ring 3 CS
-#
-# 	mov userDataSeg,%edx
-#
-# 	push %ecx               # user EIP
-#
-# 	movw %dx,%ds            # no more memory refs until iret
-#
-#         iret
+#define ASSEMBLY
+
+	# syscallTrap()
+	# the user implicitly passes 3 arguments in %eax, %ecx, %edx
+	# %eax is syscall number
+	# the rest of the arguments depend on %eax
+	.global syscall_trap
+syscall_trap:
+	push %ds
+
+	push %ebp
+	push %edi
+	push %esi
+	push %ebx
+
+	push %edx
+	push %ecx
+	push %eax
+
+	mov %esp,%eax                         // why?
+	push %eax
+
+/*
+    Arguments:
+
+            context
+context->   syscall #
+            a0
+            a1
+            user %ebx
+            user %esi
+            user %edi
+            user %ebp
+            user %ds
+            user %eip
+            user %cs
+            user %eflags
+            user %esp
+            user %ss
+
+*/
+
+
+	mov kernelDataSeg,%eax
+	movw %ax,%ds
+
+	.extern syscall_handler
+	call syscall_handler
+
+	add $32,%esp
+
+	pop %ds
+	iret
+
+
+	# switchToUser(pc,esp,eax)
+	.global switch_to_user
+switch_to_user:
+	mov 4(%esp),%ecx	# pc
+	mov 8(%esp),%ebx        # esp
+	mov 12(%esp),%eax       # eax
+
+	mov userDataSeg,%edx    # for user SS = DS
+	push %edx               # ring 3 SS
+
+	push %ebx               # user ESP
+
+	pushf                   # ring 3 flags
+    orl $0x200,(%esp)       # enable interrupts
+
+	mov userCodeSeg,%edx
+    push %edx               # ring 3 CS
+
+	mov userDataSeg,%edx
+
+	push %ecx               # user EIP
+
+	movw %dx,%ds            # no more memory refs until iret
+
+    iret
 
     # pub fn load_gdt(size: u16, offset: &u32)
 #     .global load_gdt
@@ -223,15 +223,15 @@ vmm_on:
 	mov %eax,%cr0
 	ret
 #
-# 	.global getcr0
+#	.global getcr0
 # getcr0:
-# 	mov %cr0,%eax
-# 	ret
+#	mov %cr0,%eax
+#	ret
 #
-# 	.global getcr3
+#	.global getcr3
 # getcr3:
-# 	mov %cr3,%eax
-# 	ret
+#	mov %cr3,%eax
+#	ret
 #
 	.global invlpg
 invlpg:
@@ -398,7 +398,7 @@ pit_do_init:
 				# 100 (rate generator)
 	outb %al,$0x43		# write command
 	movb 8(%esp),%al	# divide
-        outb %al,$0x40
+	outb %al,$0x40
 	movb 9(%esp),%al
 	outb %al,$0x40
 	popf			# pop IF
@@ -407,13 +407,13 @@ pit_do_init:
 
 	.global page_fault_handler
 page_fault_handler:
-        push %eax
-        push %ebx
-        push %ecx
-        push %edx
-        push %esi
-        push %edi
-        push %ebp
+	push %eax
+	push %ebx
+	push %ecx
+	push %edx
+	push %esi
+	push %edi
+	push %ebp
 
 	/* switch to kernel DS */
 	push %ds
@@ -421,62 +421,62 @@ page_fault_handler:
 	mov %ax,%ds
 
 
-        mov %cr2,%eax   /* address */
-        push %eax
+	mov %cr2,%eax   /* address */
+	push %eax
 
 	#mov %esp, %eax
 	#push %eax
 
-        .extern vmm_page_fault
-        call vmm_page_fault
+	.extern vmm_page_fault
+	call vmm_page_fault
 
-        #add $8,%esp    /* pop argument */
-        add $4,%esp    /* pop argument */
+	#add $8,%esp    /* pop argument */
+	add $4,%esp    /* pop argument */
 
-        /* restore DS */
-        pop %ds
+	/* restore DS */
+	pop %ds
 
-        pop %ebp
-        pop %edi
-        pop %esi
-        pop %edx
-        pop %ecx
-        pop %ebx
-        pop %eax
-        add $4,%esp   /* pop error */
-        iret
-#
+	pop %ebp
+	pop %edi
+	pop %esi
+	pop %edx
+	pop %ecx
+	pop %ebx
+	pop %eax
+	add $4,%esp   /* pop error */
+	iret
+
 #     # void sys_sigret(sigcontext context)
 #     .global sys_sigret
 # sys_sigret:
 #     mov 4(%esp), %eax   # load the frame pointer
 #     mov %eax, %esp
 #
-# 	pop %ebp
-# 	mov %ebp,%cr2
+#	pop %ebp
+#	mov %ebp,%cr2
 #
-# 	pop %ds
+#	pop %ds
 #
-# 	pop %ebp
-# 	pop %edi
-# 	pop %esi
-# 	pop %edx
-# 	pop %ecx
-# 	pop %ebx
-# 	pop %eax
-# 	iret
+#	pop %ebp
+#	pop %edi
+#	pop %esi
+#	pop %edx
+#	pop %ecx
+#	pop %ebx
+#	pop %eax
+#	iret
 #
 #     #    cr2 <= context
-# 	#    ds;
-# 	#    ebp;
-# 	#    edi;
-# 	#    esi;
-# 	#    edx;
-# 	#    ecx;
-# 	#    ebx;
-# 	#    eax;
-# 	#    eip;
-# 	#    cs;
-# 	#    flags;
-# 	#    esp;
-# 	#    ss;
+#	#    ds;
+#	#    ebp;
+#	#    edi;
+#	#    esi;
+#	#    edx;
+#	#    ecx;
+#	#    ebx;
+#	#    eax;
+#	#    eip;
+#	#    cs;
+#	#    flags;
+#	#    esp;
+#	#    ss;

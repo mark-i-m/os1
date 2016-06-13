@@ -103,12 +103,16 @@ extern "C" {
     /// Returns the value of eflags
     pub fn eflags() -> usize;
 
-    // pub fn switchToUser(pc: usize, esp: usize, eax: usize);
+    /// Switch to usermode with the given PC, stack pointer, and %eax
+    pub fn switch_to_user(pc: usize, esp: usize, eax: usize);
 
     /// The assembly handle for the page fault handler. This function calls
     /// `vmm_page_fault`.
     pub fn page_fault_handler();
-    // pub fn syscallTrap();
+
+    /// The assembly handle for the system call trap handler. This function calls
+    /// `syscall_handler`
+    pub fn syscall_trap();
 
     //pub fn sys_sigret(uint32_t);
 }

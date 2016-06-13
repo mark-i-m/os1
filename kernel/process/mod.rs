@@ -1,5 +1,7 @@
 //! A module for process management
 
+pub use self::syscall::syscall_handler;
+
 use alloc::boxed::Box;
 
 use core::fmt::{Debug, Formatter, Result};
@@ -18,14 +20,15 @@ use self::proc_table::PROCESS_TABLE;
 
 pub mod context;
 pub mod focus;
+pub mod load;
 pub mod proc_table;
 pub mod ready_queue;
-pub mod load;
 
 mod elf;
 mod idle;
 mod init;
 mod reaper;
+mod syscall;
 mod user;
 
 /// Size of a kernel stack (number of words)
@@ -258,6 +261,9 @@ pub fn init() {
 
     // Create the reaper process
     reaper::init();
+
+    // Initialize system calls
+    syscall::init();
 
     printf!("processes inited\n");
 }

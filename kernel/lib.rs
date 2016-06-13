@@ -53,7 +53,7 @@ mod vga;
 
 // exported functions -- to use in asm functions
 pub use self::process::context::store_kcontext;
-pub use self::process::_proc_yield;
+pub use self::process::{_proc_yield, syscall_handler};
 pub use self::interrupts::pic::pic_irq;
 pub use self::memory::vmm_page_fault;
 

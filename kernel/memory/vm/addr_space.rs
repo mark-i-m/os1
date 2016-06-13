@@ -106,7 +106,7 @@ impl AddressSpace {
 
             // set pde
             pde.set_read_write(true); // read/write
-            pde.set_privelege_level(false); // kernel only
+            pde.set_privelege_level(virt >= 0xD00000); // kernel only if vaddr < 0xD00000
             pde.set_caching(false); // write-back
             pde.set_address(Frame::alloc()); // alloc a new frame
             pde.set_present(true); // present
@@ -133,7 +133,7 @@ impl AddressSpace {
 
             // set pte
             pte.set_read_write(true); // read/write
-            pte.set_privelege_level(false); // kernel only
+            pte.set_privelege_level(virt >= 0xD00000); // kernel only if vaddr < 0xD00000
             pte.set_caching(false); // write-back
             pte.set_address(phys); // point to frame
             pte.set_present(true); // present

@@ -5,4 +5,7 @@ start:
 	.extern main
 	call main
 
-	ret
+	push %eax
+loop:
+	call exit
+	jmp loop

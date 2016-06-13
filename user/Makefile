@@ -4,7 +4,7 @@ CFLAGS = -std=c99 -m32 -ffreestanding -nostdlib -nodefaultlibs -Wall -Werror $(D
 FILELIST=$(wildcard *.c)
 EXECLIST=$(patsubst %.c, files/%, $(FILELIST))
 
-DEPS=crt0.o
+DEPS=crt0.o sys.o
 
 all: $(EXECLIST)
 

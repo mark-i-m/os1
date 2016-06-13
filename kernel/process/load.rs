@@ -5,7 +5,7 @@ use core::ptr;
 
 use io::block::BlockDataBuffer;
 use fs::ROOT_FS;
-use machine;
+use machine::switch_to_user;
 use super::elf::*;
 
 /// Exec the given file
@@ -65,8 +65,11 @@ pub fn exec(inode: usize) -> usize {
         *(0xFFFF_FFF0 as *mut u8) = 0;
     }
 
-    // TODO: yield control to the program
-    // TODO: switch to user mode
+    // Yield control to the program and switch to user mode
+    unsafe {
+        switch_to_user(ehdr.e_entry, 0xFFFF_FFF0, 0);
+    }
 
-    return 0;
+    // should not get here!
+    0xDEAD_BEEF // ???
 }
