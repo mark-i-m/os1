@@ -412,7 +412,7 @@ pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: 
     }
 
     // memclr an alloced frame
-    let page = &mut *(fault_addr as *mut Frame);
+    let page = &mut *((fault_addr & 0xFFFF_F000) as *mut Frame);
     for i in 0..1024 {
         page[i] = 0;
     }
