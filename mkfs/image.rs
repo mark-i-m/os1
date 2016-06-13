@@ -31,7 +31,7 @@ pub struct OFSImage {
 
 #[derive(Clone, Copy)]
 #[repr(C, packed)]
-struct Inode {
+pub struct Inode {
     name: [u8; 12],         // file name (up to 12B)
     uid: u32,             // owner UID
     gid: u32,             // group GID
@@ -39,12 +39,11 @@ struct Inode {
     group_perm: u8,         // group permissions
     all_perm: u8,           // everyone permissions
     flags:u8,               // various flags
-    size: u32,            // file size in bytes
+    size: u32,            // file size in bytes TODO: for now this must a multiple of 4
     data: u32,            // index of Dnode with contents
     created: u32,       // date created
     modified: u32,      // date last modified
-    parents: [u32; 10],
-    children: [u32; 12],
+    links: [u32; 22],
 }
 
 impl Inode {
@@ -61,8 +60,7 @@ impl Inode {
             data: 0,
             created: 0,
             modified: 0,
-            parents: [0; 10],
-            children: [0; 12],
+            links: [0; 22],
         }
     }
 }
