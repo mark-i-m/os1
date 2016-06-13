@@ -23,8 +23,6 @@ pub fn exec(inode: usize) -> usize {
         (*buf.get_ptr::<Elf32Ehdr>(0)).clone()
     };
 
-    printf!("{:#?}\n", ehdr);
-
     // check the ELF header
     if ehdr.e_ident[EI_MAG0] != ELFMAG0 ||
        ehdr.e_ident[EI_MAG1] != ELFMAG1 ||
@@ -52,7 +50,6 @@ pub fn exec(inode: usize) -> usize {
     // load loadable segments into memory
     for phdr in phdr_table {
         if phdr.p_type == PT_LOAD {
-            printf!("load segment at {:x} with size {:x} from file at {:X}\n", phdr.p_vaddr, phdr.p_memsz, phdr.p_offset);
             let mut buf = BlockDataBuffer::new(phdr.p_filesz);
             f.seek(phdr.p_offset);
             f.read(&mut buf);
@@ -63,26 +60,13 @@ pub fn exec(inode: usize) -> usize {
         }
     }
 
-    // set up the stack
+    // TODO: set up the stack
     unsafe {
         *(0xFFFF_FFF0 as *mut u8) = 0;
     }
 
-    printf!("entry {:X}\n", ehdr.e_entry);
-
-    unsafe {
-        machine::exec_jmp(ehdr.e_entry);
-    }
-
-    if ehdr.e_entry == 0 {
-        exec_test(0);
-    }
+    // TODO: yield control to the program
+    // TODO: switch to user mode
 
     return 0;
-}
-
-#[no_mangle]
-#[inline(never)]
-pub fn exec_test(x: usize) {
-    panic!("Exec worked! {}", x);
 }
