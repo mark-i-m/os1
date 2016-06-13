@@ -7,12 +7,8 @@ use super::load::exec;
 use super::Process;
 use super::ready_queue;
 
-use interrupts::{esp0, on, off};
-
 /// The init process routine
 pub fn run(this: &Process) -> usize {
-    off();
-
     // clear the screen
     Rectangle::clear_screen();
 

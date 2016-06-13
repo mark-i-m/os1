@@ -8,8 +8,6 @@ use process::ProcessQueue;
 #[allow(improper_ctypes)]
 #[allow(dead_code)]
 extern "C" {
-    pub fn exec_jmp(loc: usize);
-
     /// a wrapper around inb
     pub fn inb(port: u16) -> u8;
 

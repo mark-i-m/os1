@@ -95,18 +95,6 @@
 #     addl $8, %esp
 #     ret
 
-	.global exec_jmp
-exec_jmp:
-	mov 4(%esp), %eax
-	mov $0, %ebx
-	mov $0, %ecx
-	mov $0, %edx
-	mov $0, %edi
-	mov $0, %esi
-	mov $0xfffffff0, %esp
-	mov %esp, %ebp
-	jmp %eax
-
 
     # pub fn proc_yield(q: Option<&mut ProcessQueue>);
     .extern _proc_yield

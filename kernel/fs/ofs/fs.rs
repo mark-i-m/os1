@@ -73,7 +73,7 @@ impl<B: BlockDevice> OFSHandle<B> {
         } else {
             let i = fs.get_inode(inode);
             let d = i.data;
-            printf!("Open file {:?}: i {}, d {}\n", i.name, inode, d);
+            //printf!("Open file {:?}: i {}, d {}\n", i.name, inode, d);
             Ok(File {
                 inode_num: inode,
                 inode: i,
@@ -196,9 +196,7 @@ impl<B: BlockDevice> OFS<B> {
 
     /// Get the disk offset of the `d`th dnode.
     fn get_dnode_offset(&self, d: usize) -> usize {
-        printf!("get dnode offset({:X})\n", d);
         let dnode_sector = self.get_dnode_start_sector() + d/Dnode::dnodes_per_sector();
-        printf!("dnodes start @ {:X}, {:X}\n", self.get_dnode_start_sector(), dnode_sector);
         let dnode_mod = d % Dnode::dnodes_per_sector();
 
         let dnode_size = mem::size_of::<Dnode>();
@@ -209,8 +207,6 @@ impl<B: BlockDevice> OFS<B> {
     pub fn get_inode(&mut self, i: usize) -> Inode {
         let inode_sector = self.get_inode_start_sector() + i/Inode::inodes_per_sector();
         let inode_mod = i % Inode::inodes_per_sector();
-
-        printf!("get_inode: {:X}, {:X}, {:X}\n", inode_sector, inode_mod, self.get_inode_start_sector());
 
         // read from disk
         let inode_size = mem::size_of::<Inode>();
@@ -357,8 +353,6 @@ impl<B: BlockDevice> File<B> {
         // Where are we in the current dnode?
         let dnode_start = fs.get_dnode_offset(self.offset_dnode);
         let dnode_offset = self.offset % (dnode_size - 4);
-
-        printf!("dnode start: {:X}, offset: {:X}\n", dnode_start, dnode_offset);
 
         // Is this the last dnode of the file?
         let last_dnode = self.inode.size - self.offset <= dnode_size - dnode_offset;
