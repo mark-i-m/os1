@@ -20,7 +20,9 @@ pub mod context;
 pub mod focus;
 pub mod proc_table;
 pub mod ready_queue;
+pub mod load;
 
+mod elf;
 mod idle;
 mod init;
 mod reaper;

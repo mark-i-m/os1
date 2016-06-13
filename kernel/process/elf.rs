@@ -4,6 +4,10 @@
 //!
 //! It only contains definitions sufficient to load an executable ELF.
 
+#![allow(dead_code)]
+
+use io::block::BlockDataBuffer;
+
 /// Unsigned program address
 pub type Elf32Addr = usize;
 /// Unsigned medium integer
@@ -16,176 +20,197 @@ pub type Elf32Sword = isize;
 pub type Elf32Word = usize;
 
 /// The ELF header of an ELF file
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
 pub struct Elf32Ehdr {
     /// The initial bytes of the file mark it as an ELF file, give the type,
     /// and provide information about how to interpret the contents.
-    e_ident:        [u8; EI_NIDENT],
+    pub e_ident:        [u8; EI_NIDENT],
     /// What type of ELF file is this?
-    e_type:         Elf32Half,
+    pub e_type:         Elf32Half,
     /// What type of machine is the ELF designed for?
-    e_machine:      Elf32Half,
+    pub e_machine:      Elf32Half,
     /// What version of the ELF spec?
-    e_version:      Elf32Word,
+    pub e_version:      Elf32Word,
     /// The virtual address of the first instruction of the code to run
-    e_entry:        Elf32Addr,
+    pub e_entry:        Elf32Addr,
     /// The program header table's file offset in bytes
-    e_phoff:        Elf32Off,
+    pub e_phoff:        Elf32Off,
     /// The section header table's file offset in bytes
-    e_shoff:        Elf32Off,
+    pub e_shoff:        Elf32Off,
     /// Processor-specific flags
-    e_flags:        Elf32Word,
+    pub e_flags:        Elf32Word,
     /// Size of the ELF header
-    e_ehsize:       Elf32Half,
+    pub e_ehsize:       Elf32Half,
     /// Size of an entry in the program header table
-    e_phentsize:    Elf32Half,
+    pub e_phentsize:    Elf32Half,
     /// Number of program headers
-    e_phnum:        Elf32Half,
+    pub e_phnum:        Elf32Half,
     /// Size of an entry in the section header table
-    e_shentsize:    Elf32Half,
+    pub e_shentsize:    Elf32Half,
     /// Number of section headers
-    e_shnum:        Elf32Half,
+    pub e_shnum:        Elf32Half,
     /// The section header table index of the entry associated with the
     /// section name string table.
-    e_shstrndx:     Elf32Half,
+    pub e_shstrndx:     Elf32Half,
 }
 
-/// Possible values for e_type. The e_type is still defined
-/// as a Elf32Half above, though, for compatibility. The same
-/// holds for the enums defined in the rest of this module.
-pub enum EType {
-    /// No file type
-    ET_NONE = 0,
-    /// Relocatable file
-    ET_REL = 1,
-    /// Executable file
-    ET_EXEC = 2,
-    /// Shared object file
-    ET_DYN = 3,
-    /// Corefile
-    ET_CORE = 4,
-    /// Processor-specific
-    ET_LOPROC = 0xff00,
-    /// Processor-specific
-    ET_HIPROC = 0xffff,
-}
+// Possible values for e_type. The e_type is still defined
+// as a Elf32Half above, though, for compatibility. The same
+// holds for the enums defined in the rest of this module.
 
-/// Possible values for e_machine
-pub enum EMachine {
-    /// No machine
-    EM_NONE = 0,
-    /// AT&T WE 32100
-    EM_M32 = 1,
-    /// SPARC
-    EM_SPARC = 2,
-    /// Intel 80386
-    EM_386 = 3,
-    /// Motorola 68000
-    EM_68K = 4,
-    /// Motorola 88000
-    EM_88K = 5,
-    /// Intel 80860
-    EM_860 = 6,
-    /// MIPS RS3000
-    EM_MIPS = 7,
-}
+/// No file type
+pub const ET_NONE: u16 = 0;
+/// Relocatable file
+pub const ET_REL: u16 = 1;
+/// Executable file
+pub const ET_EXEC: u16 = 2;
+/// Shared object file
+pub const ET_DYN: u16 = 3;
+/// Corefile
+pub const ET_CORE: u16 = 4;
+/// Processor-specific
+pub const ET_LOPROC: u16 = 0xff00;
+/// Processor-specific
+pub const ET_HIPROC: u16 = 0xffff;
 
-/// Possible value for e_version
-pub enum EVersion {
-    /// Invalid version
-    EV_NONE = 0,
-    /// Current version
-    EV_CURRENT = 1,
-}
+// Possible values for e_machine
+/// No machine
+pub const EM_NONE: u16 = 0;
+/// AT&T WE 32100
+pub const EM_M32: u16 = 1;
+/// SPARC
+pub const EM_SPARC: u16 = 2;
+/// Intel 80386
+pub const EM_386: u16 = 3;
+/// Motorola 68000
+pub const EM_68K: u16 = 4;
+/// Motorola 88000
+pub const EM_88K: u16 = 5;
+/// Intel 80860
+pub const EM_860: u16 = 6;
+/// MIPS RS3000
+pub const EM_MIPS: u16 = 7;
+
+// Possible value for e_version
+/// Invalid version
+pub const EV_NONE: usize = 0;
+/// Current version
+pub const EV_CURRENT: usize = 1;
 
 /// Size of e_ident
 pub const EI_NIDENT: usize = 16;
 
-/// Indices of e_ident
-pub enum EIdent {
-    /// Magic byte 0
-    EI_MAG0 = 0,
-    /// Magic byte 1
-    EI_MAG1 = 1,
-    /// Magic byte 2
-    EI_MAG2 = 2,
-    /// Magic byte 3
-    EI_MAG3 = 3,
-    /// File class
-    EI_CLASS = 4,
-    /// Data encoding
-    EI_DATA = 5,
-    /// File version
-    EI_VERSION = 6,
-    /// Start of padding bytes
-    EI_PAD = 7,
-}
+// Indices of e_ident
+/// Magic byte 0
+pub const EI_MAG0: usize = 0;
+/// Magic byte 1
+pub const EI_MAG1: usize = 1;
+/// Magic byte 2
+pub const EI_MAG2: usize = 2;
+/// Magic byte 3
+pub const EI_MAG3: usize = 3;
+/// File class
+pub const EI_CLASS: usize = 4;
+/// Data encoding
+pub const EI_DATA: usize = 5;
+/// File version
+pub const EI_VERSION: usize = 6;
+/// Start of padding bytes
+pub const EI_PAD: usize = 7;
 
-/// Magic bytes
-pub enum EMagic {
-    ELFMAG0 = 0x7f,
-    ELFMAG1 = 'E',
-    ELFMAG2 = 'L',
-    ELFMAG3 = 'F',
-}
+// Magic bytes
+pub const ELFMAG0: u8 = 0x7f;
+pub const ELFMAG1: u8 = 'E' as u8;
+pub const ELFMAG2: u8 = 'L' as u8;
+pub const ELFMAG3: u8 = 'F' as u8;
 
-/// Possible file classes
-pub enum EClass {
-    /// Invalid class
-    ELFCLASSNONE = 0,
-    /// 32-bit objects
-    ELFCLASS32 = 1,
-    /// 64-bit objects
-    ELFCLASS64 = 2,
-}
+// Possible file classes
+/// Invalid class
+pub const ELFCLASSNONE: u8 = 0;
+/// 32-bit objects
+pub const ELFCLASS32: u8 = 1;
+/// 64-bit objects
+pub const ELFCLASS64: u8 = 2;
 
-/// Possible data encodings
-pub enum EData {
-    /// Invalid encoding
-    ELFDATANONE = 0,
-    /// 2's complement, little endian
-    ELFDATA2LSB = 1,
-    /// 2's complement, big endian
-    ELFDATA2MSB = 2,
-}
+// Possible data encodings
+/// Invalid encoding
+pub const ELFDATANONE: u8 = 0;
+/// 2's complement, little endian
+pub const ELFDATA2LSB: u8 = 1;
+/// 2's complement, big endian
+pub const ELFDATA2MSB: u8 = 2;
 
 /// A single program header in the program header table
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
 pub struct Elf32Phdr{
     /// What kind of segment is this?
-    p_type:     Elf32Word,
+    pub p_type:     Elf32Word,
     /// The segment's file offset in bytes
-    p_offset:   Elf32Off,
+    pub p_offset:   Elf32Off,
     /// The virtual address at which the first byte of the segment goes in memory
-    p_vaddr:    Elf32Addr,
+    pub p_vaddr:    Elf32Addr,
     /// Allows the linker to request a physical address
-    p_paddr:    Elf32Addr,
+    pub p_paddr:    Elf32Addr,
     /// Number of bytes in the file image of the segment
-    p_filesz:   Elf32Word,
+    pub p_filesz:   Elf32Word,
     /// Number of bytes in the memory image of the segment
-    p_memsz:    Elf32Word,
+    pub p_memsz:    Elf32Word,
     /// Flags for the segment
-    p_flags:    Elf32Word,
+    pub p_flags:    Elf32Word,
     /// Request alignment for the segment
-    p_align:    Elf32Word,
+    pub p_align:    Elf32Word,
 }
 
-/// Possible values of p_type
-pub enum PType {
-    /// Null (unused) header
-    PT_NULL = 0,
-    /// Loadable segment
-    PT_LOAD = 1,
-    /// Dynamic linking information
-    PT_DYNAMIC = 2,
-    /// Specifies path to interpreter
-    PT_INTERP = 3,
-    /// Specifies location of auxiliary information
-    PT_NOTE = 4,
-    /// Reserved but has unknown semantics
-    PT_SHLIB = 5,
-    /// The entry specifies the location of the Program header table itself
-    PT_PHDR = 6,
-    /// PT_LOPROC through PT_HIPROC is an inclusive range reserved for processor
-    /// specific semantics
-    PT_LOPROC = 0x7000_0000,
-    PT_HIPROC = 0x7fff_ffff,
+// Possible values of p_type
+/// Null (unused) header
+pub const PT_NULL: usize = 0;
+/// Loadable segment
+pub const PT_LOAD: usize = 1;
+/// Dynamic linking information
+pub const PT_DYNAMIC: usize = 2;
+/// Specifies path to interpreter
+pub const PT_INTERP: usize = 3;
+/// Specifies location of auxiliary information
+pub const PT_NOTE: usize = 4;
+/// Reserved but has unknown semantics
+pub const PT_SHLIB: usize = 5;
+/// The entry specifies the location of the Program header table itself
+pub const PT_PHDR: usize = 6;
+/// PT_LOPROC through PT_HIPROC is an inclusive range reserved for processor
+/// specific semantics
+pub const PT_LOPROC: usize = 0x7000_0000;
+pub const PT_HIPROC: usize = 0x7fff_ffff;
+
+/// A safe wrapper around a pointer to a Phdr table
+pub struct PhdrTable {
+    phdr_table: BlockDataBuffer,
+    phnum: usize,
+    which: usize,
+}
+
+impl PhdrTable {
+    pub fn new(phnum: usize, bdb: BlockDataBuffer) -> PhdrTable {
+        PhdrTable {
+            phdr_table: bdb,
+            phnum: phnum,
+            which: 0,
+        }
+    }
+}
+
+impl Iterator for PhdrTable {
+    type Item = Elf32Phdr;
+
+    fn next(&mut self) -> Option<Elf32Phdr> {
+        if self.which < self.phnum {
+            self.which += 1;
+            unsafe {
+                Some(*self.phdr_table.get_ptr::<Elf32Phdr>(self.which - 1))
+            }
+        } else {
+            None
+        }
+    }
 }
