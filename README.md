@@ -17,7 +17,7 @@ For those that want to build from source, instructions are below.
 
   It needs to be nightly Rust, because the project uses unstable language features.
 
-  `curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly --date=2016-07-25
+  `curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- --channel=nightly --date=2016-07-25`
 
 ###To build:
 
