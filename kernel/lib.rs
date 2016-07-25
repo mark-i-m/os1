@@ -6,17 +6,13 @@
 //! `liballoc` are used, since they provide core Rust functionality.
 
 // To use unstable features of Rust, we need to have nightly rustc
-#![feature(no_std,
-           lang_items,
+#![feature(lang_items,
            alloc,
            heap_api,
            box_syntax,
            box_patterns,
            const_fn,
-           core_str_ext,
-           core_slice_ext,
            dropck_parametricity,
-           ptr_as_ref,
            core_intrinsics,
           )]
 

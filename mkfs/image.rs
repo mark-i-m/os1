@@ -67,7 +67,7 @@ impl Inode {
 
 #[derive(Copy)]
 #[repr(C, packed)]
-struct Dnode {
+pub struct Dnode {
     bytes: [u8; DNODE_SIZE], // contents
 }
 
@@ -225,7 +225,7 @@ impl OFSImage {
 
         inode.size = size as u32;
         for i in 0..min(12, basename.len()) {
-            inode.name[i] = basename.char_at(i) as u8;
+            inode.name[i] = basename.as_bytes()[i];
         }
         inode.data = first_dnode as u32;
 

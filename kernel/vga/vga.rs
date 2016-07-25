@@ -52,7 +52,6 @@ pub struct VGAChar {
 }
 
 /// Abstracts the VGA buffer
-#[allow(raw_pointer_derive)]
 #[derive(Copy, Clone)]
 #[repr(C, packed)]
 pub struct VGABuff {

@@ -12,12 +12,10 @@
 #![crate_type = "rlib"]
 
 #![feature(allocator)]
-#![feature(no_std)]
 #![feature(staged_api)]
 
 #![allocator]
 #![no_std]
-#![staged_api]
 
 // The minimum alignment guaranteed by the architecture. This value is used to
 // add fast paths for low alignment values. In practice, the alignment is a

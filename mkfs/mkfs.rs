@@ -1,7 +1,5 @@
 //! A simple tool for building OFS images
 
-#![feature(braced_empty_structs, convert, read_exact, str_char)]
-
 mod image;
 
 use std::env::args;

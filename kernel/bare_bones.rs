@@ -8,7 +8,6 @@ use debug::Debug;
 use machine::cli;
 
 // For bare-bones rust
-#[lang = "stack_exhausted"] extern fn stack_exhausted() {}
 #[lang = "eh_personality"] extern fn eh_personality() {}
 
 /// This function is used by `panic!` to display an error message.
