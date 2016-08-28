@@ -1,5 +1,5 @@
 //! A module for user processes
-// So far it just contains some test code
+//! So far it just contains some test code
 
 use core::fmt::Write;
 use core::ptr;
@@ -18,10 +18,10 @@ use super::proc_table::PROCESS_TABLE;
 // useful constants
 const ROWS: usize = 25;
 const COLS: usize = 80;
-const NUM_LOOP: usize = (ROWS*2 + COLS*2 - 4) * 3;
+const NUM_LOOP: usize = (ROWS * 2 + COLS * 2 - 4) * 3;
 
 // Some test semaphores
-static mut current: (usize, usize) = (0,0);
+static mut current: (usize, usize) = (0, 0);
 static mut s1: StaticSemaphore = StaticSemaphore::new(1);
 static mut s2: StaticSemaphore = StaticSemaphore::new(1);
 
@@ -34,17 +34,19 @@ pub fn run(this: &Process) -> usize {
     let mut w0 = Rectangle::new(COLS, ROWS, (0, 0));
     let msg_sem = unsafe {
         let s = 0xD000_0000 as *mut Semaphore<Rectangle>;
-        ptr::write(s, Semaphore::new(Rectangle::new(60, 7, (1,1)), 1));
+        ptr::write(s, Semaphore::new(Rectangle::new(60, 7, (1, 1)), 1));
         &*s
     };
 
-    unsafe { *(0xF000_0000 as *mut usize) = this.pid; }
+    unsafe {
+        *(0xF000_0000 as *mut usize) = this.pid;
+    }
 
     w0.set_bg(Color::LightBlue);
     w0.paint();
 
     let mut msg = msg_sem.down();
-    msg.set_cursor((0,0));
+    msg.set_cursor((0, 0));
     msg.set_bg(Color::LightGray);
     msg.set_fg(Color::Black);
 
@@ -53,12 +55,15 @@ pub fn run(this: &Process) -> usize {
 
     for _ in 0..NUM_LOOP {
         ready_queue::make_ready(Process::new("loop_proc", self::run2));
-        unsafe { s1.down(); }
+        unsafe {
+            s1.down();
+        }
 
         // test vm
         if unsafe { *(0xF000_0000 as *mut usize) } != this.pid {
             panic!("Oh no! *0xF000_0000 should be {} but is {}",
-                   this.pid, unsafe { *(0xF000_0000 as *mut usize) });
+                   this.pid,
+                   unsafe { *(0xF000_0000 as *mut usize) });
         }
     }
 
@@ -81,43 +86,56 @@ pub fn run(this: &Process) -> usize {
     0
 }
 
-fn get_prev((r,c): (usize, usize)) -> (usize, usize) {
-    if r == 0 && c > 0 { // top
-        (0, c-1)
-    } else if c == COLS-1 { // right
-        (r-1, c)
-    } else if r == ROWS-1 { // bottom
-        (r, c+1)
-    } else { // left
-        (r+1, c)
+fn get_prev((r, c): (usize, usize)) -> (usize, usize) {
+    if r == 0 && c > 0 {
+        // top
+        (0, c - 1)
+    } else if c == COLS - 1 {
+        // right
+        (r - 1, c)
+    } else if r == ROWS - 1 {
+        // bottom
+        (r, c + 1)
+    } else {
+        // left
+        (r + 1, c)
     }
 }
 
-fn get_next((r,c): (usize, usize)) -> (usize, usize) {
-    if r == 0 && c < COLS-1 { // top
-        (0, c+1)
-    } else if c == COLS-1 && r < ROWS-1 { // right
-        (r+1, c)
-    } else if r == ROWS-1 && c > 0 { // bottom
-        (r, c-1)
-    } else { // left
-        (r-1, c)
+fn get_next((r, c): (usize, usize)) -> (usize, usize) {
+    if r == 0 && c < COLS - 1 {
+        // top
+        (0, c + 1)
+    } else if c == COLS - 1 && r < ROWS - 1 {
+        // right
+        (r + 1, c)
+    } else if r == ROWS - 1 && c > 0 {
+        // bottom
+        (r, c - 1)
+    } else {
+        // left
+        (r - 1, c)
     }
 }
 
 fn run2(this: &Process) -> usize {
 
-    unsafe { *(0xF000_0000 as *mut usize) = this.pid; }
+    unsafe {
+        *(0xF000_0000 as *mut usize) = this.pid;
+    }
 
     // test vm
     if unsafe { *(0xF000_0000 as *mut usize) } != this.pid {
         panic!("Oh no! *0xF000_0000 should be {} but is {}",
-               this.pid, unsafe { *(0xF000_0000 as *mut usize) });
+               this.pid,
+               unsafe { *(0xF000_0000 as *mut usize) });
     }
 
-    unsafe { s2.down(); }
+    unsafe {
+        s2.down();
+    }
 
-    let mut w = Rectangle::new(COLS,ROWS, (0,0));
+    let mut w = Rectangle::new(COLS, ROWS, (0, 0));
 
     let me = unsafe { current };
     let prev = get_prev(me);
@@ -131,17 +149,20 @@ fn run2(this: &Process) -> usize {
     w.set_cursor(prev);
     w.put_char(' ');
 
-    printf!("Draw ({},{})\n", me.0,me.1);
+    printf!("Draw ({},{})\n", me.0, me.1);
     w.set_bg(Color::Red);
     w.set_cursor(me);
     w.put_char(' ');
 
-    unsafe { s2.up(); }
+    unsafe {
+        s2.up();
+    }
 
     // test vm
     if unsafe { *(0xF000_0000 as *mut usize) } != this.pid {
         panic!("Oh no! *0xF000_0000 should be {} but is {}",
-               this.pid, unsafe { *(0xF000_0000 as *mut usize) });
+               this.pid,
+               unsafe { *(0xF000_0000 as *mut usize) });
     }
 
     // test process table
@@ -150,11 +171,14 @@ fn run2(this: &Process) -> usize {
 
         if (me as *const Process) != (this as *const Process) {
             panic!("Oh no! me = 0x{:X}, but should be 0x{:X}",
-                   me as usize, this as *const Process as usize);
+                   me as usize,
+                   this as *const Process as usize);
         }
     }
 
-    unsafe { s1.up(); }
+    unsafe {
+        s1.up();
+    }
 
     0
 }
@@ -186,19 +210,19 @@ fn run3(this: &Process) -> usize {
 fn run4(_: &Process) -> usize {
     // test the keyboard
 
-    let mut label = Rectangle::new(17,1,(8,1));
+    let mut label = Rectangle::new(17, 1, (8, 1));
     label.set_bg(Color::Black);
     label.set_fg(Color::Yellow);
-    label.set_cursor((0,0));
+    label.set_cursor((0, 0));
     label.put_str("Enter your name: ");
 
-    let mut input_box = TextBox::new(40, (8,18));
+    let mut input_box = TextBox::new(40, (8, 18));
     let string = input_box.get_str();
 
     let mut b = Rectangle::new(70, 10, (10, 1));
     b.set_bg(Color::LightGray);
     b.set_fg(Color::Black);
-    b.set_cursor((0,0));
+    b.set_cursor((0, 0));
 
     let _ = write!(&mut b, "Hello, {}!\n", string);
 
@@ -224,17 +248,22 @@ fn run5(_: &Process) -> usize {
     buf.set_offset(0);
     f.read(&mut buf);
     let val1 = unsafe { *buf.get_ref::<usize>(0) };
-    let val2 = unsafe { (*buf.get_ref::<usize>(126) & 0xFFFF_0000) | (*buf.get_ref::<usize>(127) & 0x0000_FFFF) };
+    let val2 = unsafe {
+        (*buf.get_ref::<usize>(126) & 0xFFFF_0000) | (*buf.get_ref::<usize>(127) & 0x0000_FFFF)
+    };
 
     let mut b = Rectangle::new(70, 10, (12, 1));
     b.set_bg(Color::LightGray);
     b.set_fg(Color::Black);
-    b.set_cursor((0,0));
+    b.set_cursor((0, 0));
 
-    let _ = write!(&mut b, "Read values from file {}: {:8X}, {:8X}, {:8X} ... ", f.get_filename(), val1, val2, val3);
-    if val1 == 0xDEADBEEF &&
-       val2 == 0xDEADBEB0 &&
-       val3 == 0xDEADBEBE {
+    let _ = write!(&mut b,
+                   "Read values from file {}: {:8X}, {:8X}, {:8X} ... ",
+                   f.get_filename(),
+                   val1,
+                   val2,
+                   val3);
+    if val1 == 0xDEADBEEF && val2 == 0xDEADBEB0 && val3 == 0xDEADBEBE {
         let _ = write!(&mut b, "Success!\n");
     } else {
         let _ = write!(&mut b, "Failure :[");
@@ -243,7 +272,7 @@ fn run5(_: &Process) -> usize {
     f.seek(516);
 
     let mut buf2 = BlockDataBuffer::new(32);
-    //unsafe {
+    // unsafe {
     //    *buf2.get_ref_mut::<usize>(0) = 0xCAFEBABE;
     //    *buf2.get_ref_mut::<usize>(2) = 0xCAFEBABE;
     //    *buf2.get_ref_mut::<usize>(4) = 0xCAFEBABE;
@@ -252,32 +281,32 @@ fn run5(_: &Process) -> usize {
     //    *buf2.get_ref_mut::<usize>(3) = 0xBAADFACE;
     //    *buf2.get_ref_mut::<usize>(5) = 0xBAADFACE;
     //    *buf2.get_ref_mut::<usize>(7) = 0xBAADFACE;
-    //}
+    // }
 
-    //f.write(32, &mut buf2);
+    // f.write(32, &mut buf2);
 
     f.seek(32);
     buf2.set_offset(0);
     f.read(&mut buf2);
-    //buf2.set_offset(0);
+    // buf2.set_offset(0);
 
-    //let btct = unsafe { *buf2.get_ref::<usize>(0) };
+    // let btct = unsafe { *buf2.get_ref::<usize>(0) };
     let version_major = unsafe { *buf2.get_ref::<usize>(0) };
     let version_minor = unsafe { *buf2.get_ref::<usize>(1) };
 
     printf!("v{}.{}", version_major, version_minor);
 
-    //unsafe { *buf2.get_ref_mut::<usize>(0) = btct+1 };
+    // unsafe { *buf2.get_ref_mut::<usize>(0) = btct+1 };
     //
-    //f.seek(32);
-    //f.write(4, &mut buf2);
+    // f.seek(32);
+    // f.write(4, &mut buf2);
 
-    //let _ = write!(&mut b, "\nBoot #{}\n", btct);
-    
+    // let _ = write!(&mut b, "\nBoot #{}\n", btct);
+
     let mut v = Rectangle::new(15, 1, (24, 64));
     v.set_bg(Color::LightBlue);
     v.set_fg(Color::Red);
-    v.set_cursor((0,0));
+    v.set_cursor((0, 0));
     let _ = write!(&mut v, "os1 v{}.{}", version_major, version_minor);
 
     0

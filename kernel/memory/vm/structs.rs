@@ -29,9 +29,7 @@ impl PagingEntry {
     /// Get a blank entry
     #[inline(always)]
     pub const fn new() -> PagingEntry {
-        PagingEntry {
-            entry: 0,
-        }
+        PagingEntry { entry: 0 }
     }
 
     // common flags
@@ -72,7 +70,7 @@ impl PagingEntry {
     pub fn set_flag(&mut self, index: u8, value: bool) {
         let mask = 1_usize << index;
         let entry = self.entry & !mask;
-        self.entry = entry | if value {mask} else {0};
+        self.entry = entry | if value { mask } else { 0 };
     }
 
     /// Set the upper 20 bits of the entry to the upper 20 bits of `address`
@@ -160,15 +158,16 @@ impl Index<usize> for VMTable {
     type Output = PagingEntry;
 
     fn index<'a>(&'a self, index: usize) -> &'a PagingEntry {
-        unsafe { transmute::<&usize, &PagingEntry>(
-                &transmute::<&VMTable, &Frame>(self)[index]) }
+        unsafe { transmute::<&usize, &PagingEntry>(&transmute::<&VMTable, &Frame>(self)[index]) }
     }
 }
 
 /// Make `VMTable` indexable
 impl IndexMut<usize> for VMTable {
     fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut PagingEntry {
-        unsafe { transmute::<&mut usize, &mut PagingEntry>(
-                &mut transmute::<&mut VMTable, &mut Frame>(self)[index]) }
+        unsafe {
+            transmute::<&mut usize,
+                        &mut PagingEntry>(&mut transmute::<&mut VMTable, &mut Frame>(self)[index])
+        }
     }
 }

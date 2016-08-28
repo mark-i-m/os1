@@ -102,9 +102,7 @@ impl<T> Index<usize> for Vec<T> {
             panic!("Out of bounds! {} out of {}", index, self.len);
         }
 
-        unsafe {
-            &*self.buf.ptr().offset(index as isize)
-        }
+        unsafe { &*self.buf.ptr().offset(index as isize) }
     }
 }
 
@@ -114,9 +112,7 @@ impl<T> IndexMut<usize> for Vec<T> {
             panic!("Out of bounds! {} out of {}", index, self.len);
         }
 
-        unsafe {
-            &mut *self.buf.ptr().offset(index as isize)
-        }
+        unsafe { &mut *self.buf.ptr().offset(index as isize) }
     }
 }
 
@@ -248,12 +244,7 @@ impl<T> Iterator for IntoIter<T> {
     fn size_hint(&self) -> (usize, Option<usize>) {
         let diff = (self.end as usize) - (self.ptr as usize);
         let size = mem::size_of::<T>();
-        let exact = diff /
-                    (if size == 0 {
-                         1
-                     } else {
-                         size
-                     });
+        let exact = diff / (if size == 0 { 1 } else { size });
         (exact, Some(exact))
     }
 

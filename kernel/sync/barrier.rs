@@ -1,6 +1,6 @@
 //! A module containing a barrier implementation
 
-use super::super::interrupts::{on,off};
+use super::super::interrupts::{on, off};
 use super::Event;
 
 /// A Barrier implementation.

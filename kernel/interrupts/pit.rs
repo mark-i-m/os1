@@ -14,26 +14,28 @@ pub static mut JIFFIES: usize = 0;
 
 /// Initialize the PIT to the given frequency
 pub fn init(pit_hz: usize) {
-     let d = FREQ / pit_hz;
+    let d = FREQ / pit_hz;
 
-     if (d & 0xffff) != d {
-         panic!("PIT init d={} doesn't fit in 16 bits", d);
-     }
+    if (d & 0xffff) != d {
+        panic!("PIT init d={} doesn't fit in 16 bits", d);
+    }
 
-     unsafe {
-         hz = FREQ / d;
-         bootlog!("pit inited - requested {} hz, actual {} hz\n", pit_hz, hz);
-         pit_do_init(d);
-     }
+    unsafe {
+        hz = FREQ / d;
+        bootlog!("pit inited - requested {} hz, actual {} hz\n", pit_hz, hz);
+        pit_do_init(d);
+    }
 }
 
 /// Handle a PIT interrupt. Increments `JIFFIES`
 pub fn handler() {
-    unsafe {JIFFIES += 1;}
+    unsafe {
+        JIFFIES += 1;
+    }
 }
 
 /// Calculate the number of seconds since boot
 #[allow(dead_code)]
 pub fn seconds() -> usize {
-    unsafe {JIFFIES / hz}
+    unsafe { JIFFIES / hz }
 }

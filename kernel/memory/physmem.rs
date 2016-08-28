@@ -27,7 +27,7 @@ pub struct Frame {
 /// There is one frame info for each frame, associated by frame index
 #[repr(C, packed)]
 pub struct FrameInfoSection {
-    arr: [FrameInfo; 1<<20],
+    arr: [FrameInfo; 1 << 20],
 }
 
 /// Frame info
@@ -63,12 +63,12 @@ pub struct SharedFrameInfo {
 impl Frame {
     /// Allocate a frame and return its physical address
     pub fn alloc() -> usize {
-        let all_frames = unsafe {&mut *FRAME_INFO};
+        let all_frames = unsafe { &mut *FRAME_INFO };
 
         off();
 
         // get a frame
-        let free = unsafe{FREE_FRAMES};
+        let free = unsafe { FREE_FRAMES };
 
         if free == 0 {
             // TODO: page out
@@ -84,7 +84,7 @@ impl Frame {
 
     /// Free the frame with the given index
     pub fn free(index: usize) {
-        let all_frames = unsafe {&mut *FRAME_INFO};
+        let all_frames = unsafe { &mut *FRAME_INFO };
 
         off();
         all_frames[index].free();
@@ -97,7 +97,7 @@ impl Frame {
         // TODO: deal with a frame being shared multiple times
         // by the same process
 
-        let all_frames = unsafe {&mut *FRAME_INFO};
+        let all_frames = unsafe { &mut *FRAME_INFO };
         let index = paddr >> 12;
 
         off();
@@ -115,7 +115,7 @@ impl Frame {
 
         on();
 
-        //printf!("Shared {:X} {:X}\n", vaddr, paddr);
+        // printf!("Shared {:X} {:X}\n", vaddr, paddr);
     }
 }
 
@@ -155,7 +155,7 @@ impl FrameInfo {
     /// Allocate the frame referred to by this `FrameInfo`.
     /// NOTE: this should only be called on the first frame in the free list
     pub fn alloc(&mut self) {
-        if self.get_index() != unsafe {FREE_FRAMES} {
+        if self.get_index() != unsafe { FREE_FRAMES } {
             panic!("Attempt to alloc middle free frame {}", self.get_index());
         }
 
@@ -181,12 +181,10 @@ impl FrameInfo {
         let pid = unsafe { (*CURRENT_PROCESS).get_pid() };
         let mut dealloced = false;
         if self.has_shared_info() {
-            let sfi_list = &mut self
-                .get_shared_info()
+            let sfi_list = &mut self.get_shared_info()
                 .expect("No shared frame info to free")
                 .list;
-            let i = sfi_list
-                .iter()
+            let i = sfi_list.iter()
                 .position(|&(req_pid, _)| req_pid == pid)
                 .expect("Attempt to free shared page which this process is not sharing!");
             let _ = sfi_list.remove(i);
@@ -196,7 +194,9 @@ impl FrameInfo {
                 let addr = self.info & !3;
                 let ptr = addr as *mut SharedFrameInfo;
                 off();
-                unsafe { Box::from_raw(ptr); }
+                unsafe {
+                    Box::from_raw(ptr);
+                }
                 dealloced = true;
             }
         }
@@ -262,9 +262,7 @@ impl FrameInfo {
         if ptr.is_null() {
             None
         } else {
-            unsafe {
-                Some(&mut *ptr)
-            }
+            unsafe { Some(&mut *ptr) }
         }
     }
 
@@ -311,19 +309,21 @@ pub fn init(start: usize) {
         } as *mut FrameInfoSection;
     }
 
-    let all_frames = unsafe {&mut *FRAME_INFO};
+    let all_frames = unsafe { &mut *FRAME_INFO };
 
     // Detect available memory
-    let mem = RegionMap::new((8<<20) as *mut Frame);
+    let mem = RegionMap::new((8 << 20) as *mut Frame);
     let mut num_frames = 0;
 
     // add all available frames to free list
     for (base, num) in mem {
-        for i in base..(base+num) {
+        for i in base..(base + num) {
             all_frames[i].free();
         }
         num_frames += num;
     }
 
-    bootlog!("phys mem inited - metadata @ 0x{:X}, {} frames\n", start, num_frames);
+    bootlog!("phys mem inited - metadata @ 0x{:X}, {} frames\n",
+             start,
+             num_frames);
 }

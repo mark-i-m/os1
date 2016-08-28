@@ -2,7 +2,7 @@
 
 pub use super::vga::Color;
 
-use core::fmt::{Write,Error};
+use core::fmt::{Write, Error};
 
 use super::vga::VGA;
 
@@ -81,7 +81,7 @@ impl Rectangle {
                 } else {
                     cc += 1;
                 }
-                self.set_cursor((cr,cc));
+                self.set_cursor((cr, cc));
             }
 
             for ch in word.chars() {
@@ -91,7 +91,7 @@ impl Rectangle {
                         // don't draw a new line, just move the cursor
                         cr += 1;
                         cc = 0;
-                    },
+                    }
                     _ => {
                         // draw char
                         self.put_char(ch);
@@ -126,10 +126,10 @@ impl Rectangle {
 
     /// Set the cursor position
     pub fn set_cursor(&mut self, (crow, ccol): (usize, usize)) {
-        let (row,col) = self.pos;
+        let (row, col) = self.pos;
 
         self.cursor = (crow, ccol);
-        self.vga.set_cursor((row+crow, col+ccol));
+        self.vga.set_cursor((row + crow, col + ccol));
     }
 }
 

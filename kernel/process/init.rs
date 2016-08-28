@@ -13,8 +13,8 @@ pub fn run(this: &Process) -> usize {
     Rectangle::clear_screen();
 
     // start another process
-    //ready_queue::make_ready(Process::new("p0", super::user::run));
-    
+    // ready_queue::make_ready(Process::new("p0", super::user::run));
+
     exec(1);
 
     panic!("Oh no!");

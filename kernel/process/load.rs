@@ -24,19 +24,14 @@ pub fn exec(inode: usize) -> usize {
     };
 
     // check the ELF header
-    if ehdr.e_ident[EI_MAG0] != ELFMAG0 ||
-       ehdr.e_ident[EI_MAG1] != ELFMAG1 ||
-       ehdr.e_ident[EI_MAG2] != ELFMAG2 ||
-       ehdr.e_ident[EI_MAG3] != ELFMAG3 ||
-       ehdr.e_ident[EI_CLASS] != ELFCLASS32 ||
-       ehdr.e_ident[EI_DATA] != ELFDATA2LSB ||
-       ehdr.e_ident[EI_VERSION] != EV_CURRENT as u8 ||
-       ehdr.e_type != ET_EXEC ||
-       ehdr.e_machine != EM_386 ||
-       ehdr.e_version != EV_CURRENT ||
+    if ehdr.e_ident[EI_MAG0] != ELFMAG0 || ehdr.e_ident[EI_MAG1] != ELFMAG1 ||
+       ehdr.e_ident[EI_MAG2] != ELFMAG2 || ehdr.e_ident[EI_MAG3] != ELFMAG3 ||
+       ehdr.e_ident[EI_CLASS] != ELFCLASS32 || ehdr.e_ident[EI_DATA] != ELFDATA2LSB ||
+       ehdr.e_ident[EI_VERSION] != EV_CURRENT as u8 || ehdr.e_type != ET_EXEC ||
+       ehdr.e_machine != EM_386 || ehdr.e_version != EV_CURRENT ||
        ehdr.e_phentsize != size_of::<Elf32Phdr>() as u16 {
-            return 1;
-       }
+        return 1;
+    }
 
     // load the program header table
     f.seek(ehdr.e_phoff);

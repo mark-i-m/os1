@@ -23,11 +23,11 @@ struct TSSDescriptor {
 struct TSS {
     prev: usize,
     esp0: usize,
-    ss0:  usize,
+    ss0: usize,
     esp1: usize,
-    ss1:  usize,
+    ss1: usize,
     esp2: usize,
-    ss2:  usize,
+    ss2: usize,
     unused: [usize; 19],
 }
 
@@ -44,8 +44,8 @@ impl TSSDescriptor {
         // f1 [bbbbbbbb    llllp   ttttbbbbbbbb]
 
         // set base
-        self.f0 = (self.f0 & 0x0000_FFFF) | ((base_usize<<16) & 0xFFFF_0000);
-        self.f1 = (self.f1 & 0xFFFF_FF00) | ((base_usize>>16) & 0x0000_00FF);
+        self.f0 = (self.f0 & 0x0000_FFFF) | ((base_usize << 16) & 0xFFFF_0000);
+        self.f1 = (self.f1 & 0xFFFF_FF00) | ((base_usize >> 16) & 0x0000_00FF);
         self.f1 = (self.f1 & 0x00FF_FFFF) | (base_usize & 0xFF00_0000);
 
         // set limit
@@ -73,11 +73,11 @@ impl TSS {
         TSS {
             prev: 0,
             esp0: 0,
-            ss0:  0,
+            ss0: 0,
             esp1: 0,
-            ss1:  0,
+            ss1: 0,
             esp2: 0,
-            ss2:  0,
+            ss2: 0,
             unused: [0; 19],
         }
     }
@@ -96,5 +96,7 @@ pub fn init() {
 }
 
 pub fn esp0(v: usize) {
-    unsafe { TSS_.esp0(v); }
+    unsafe {
+        TSS_.esp0(v);
+    }
 }

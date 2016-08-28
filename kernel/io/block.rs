@@ -133,8 +133,10 @@ pub trait BlockDevice {
         self.read_fully(offset, tmp);
         unsafe {
             let buf_offset = buffer.offset();
-            copy(tmp.get_ptr::<u8>(0), buffer.get_ptr::<u8>(buf_offset), bytes);
-            buffer.set_offset(buf_offset+bytes);
+            copy(tmp.get_ptr::<u8>(0),
+                 buffer.get_ptr::<u8>(buf_offset),
+                 bytes);
+            buffer.set_offset(buf_offset + bytes);
         }
     }
 
@@ -146,8 +148,10 @@ pub trait BlockDevice {
         let tmp = &mut BlockDataBuffer::new(bytes);
         unsafe {
             let buf_offset = buffer.offset();
-            copy(buffer.get_ptr::<u8>(buf_offset), tmp.get_ptr::<u8>(0), bytes);
-            buffer.set_offset(buf_offset+bytes);
+            copy(buffer.get_ptr::<u8>(buf_offset),
+                 tmp.get_ptr::<u8>(0),
+                 bytes);
+            buffer.set_offset(buf_offset + bytes);
         }
         self.write_fully(offset, tmp);
     }
@@ -192,7 +196,10 @@ impl BlockDataBuffer {
         let num_ts = self.size() / t_size;
 
         if offset >= num_ts {
-            panic!("Out of bounds {} * {} out of {}", offset, t_size, self.size());
+            panic!("Out of bounds {} * {} out of {}",
+                   offset,
+                   t_size,
+                   self.size());
         }
 
         self.buf.offset((offset * t_size) as isize) as *mut T

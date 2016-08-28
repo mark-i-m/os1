@@ -25,34 +25,34 @@ pub type Elf32Word = usize;
 pub struct Elf32Ehdr {
     /// The initial bytes of the file mark it as an ELF file, give the type,
     /// and provide information about how to interpret the contents.
-    pub e_ident:        [u8; EI_NIDENT],
+    pub e_ident: [u8; EI_NIDENT],
     /// What type of ELF file is this?
-    pub e_type:         Elf32Half,
+    pub e_type: Elf32Half,
     /// What type of machine is the ELF designed for?
-    pub e_machine:      Elf32Half,
+    pub e_machine: Elf32Half,
     /// What version of the ELF spec?
-    pub e_version:      Elf32Word,
+    pub e_version: Elf32Word,
     /// The virtual address of the first instruction of the code to run
-    pub e_entry:        Elf32Addr,
+    pub e_entry: Elf32Addr,
     /// The program header table's file offset in bytes
-    pub e_phoff:        Elf32Off,
+    pub e_phoff: Elf32Off,
     /// The section header table's file offset in bytes
-    pub e_shoff:        Elf32Off,
+    pub e_shoff: Elf32Off,
     /// Processor-specific flags
-    pub e_flags:        Elf32Word,
+    pub e_flags: Elf32Word,
     /// Size of the ELF header
-    pub e_ehsize:       Elf32Half,
+    pub e_ehsize: Elf32Half,
     /// Size of an entry in the program header table
-    pub e_phentsize:    Elf32Half,
+    pub e_phentsize: Elf32Half,
     /// Number of program headers
-    pub e_phnum:        Elf32Half,
+    pub e_phnum: Elf32Half,
     /// Size of an entry in the section header table
-    pub e_shentsize:    Elf32Half,
+    pub e_shentsize: Elf32Half,
     /// Number of section headers
-    pub e_shnum:        Elf32Half,
+    pub e_shnum: Elf32Half,
     /// The section header table index of the entry associated with the
     /// section name string table.
-    pub e_shstrndx:     Elf32Half,
+    pub e_shstrndx: Elf32Half,
 }
 
 // Possible values for e_type. The e_type is still defined
@@ -144,23 +144,23 @@ pub const ELFDATA2MSB: u8 = 2;
 /// A single program header in the program header table
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct Elf32Phdr{
+pub struct Elf32Phdr {
     /// What kind of segment is this?
-    pub p_type:     Elf32Word,
+    pub p_type: Elf32Word,
     /// The segment's file offset in bytes
-    pub p_offset:   Elf32Off,
+    pub p_offset: Elf32Off,
     /// The virtual address at which the first byte of the segment goes in memory
-    pub p_vaddr:    Elf32Addr,
+    pub p_vaddr: Elf32Addr,
     /// Allows the linker to request a physical address
-    pub p_paddr:    Elf32Addr,
+    pub p_paddr: Elf32Addr,
     /// Number of bytes in the file image of the segment
-    pub p_filesz:   Elf32Word,
+    pub p_filesz: Elf32Word,
     /// Number of bytes in the memory image of the segment
-    pub p_memsz:    Elf32Word,
+    pub p_memsz: Elf32Word,
     /// Flags for the segment
-    pub p_flags:    Elf32Word,
+    pub p_flags: Elf32Word,
     /// Request alignment for the segment
-    pub p_align:    Elf32Word,
+    pub p_align: Elf32Word,
 }
 
 // Possible values of p_type
@@ -206,9 +206,7 @@ impl Iterator for PhdrTable {
     fn next(&mut self) -> Option<Elf32Phdr> {
         if self.which < self.phnum {
             self.which += 1;
-            unsafe {
-                Some(*self.phdr_table.get_ptr::<Elf32Phdr>(self.which - 1))
-            }
+            unsafe { Some(*self.phdr_table.get_ptr::<Elf32Phdr>(self.which - 1)) }
         } else {
             None
         }

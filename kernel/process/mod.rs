@@ -237,8 +237,11 @@ impl Drop for Process {
 impl Debug for Process {
     /// Allow processes to be printed elegantly in format strings
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "Process #{} @ 0x{:x}: {}",
-               self.pid, self as *const Process as usize, self.name)
+        write!(f,
+               "Process #{} @ 0x{:x}: {}",
+               self.pid,
+               self as *const Process as usize,
+               self.name)
     }
 }
 
@@ -315,7 +318,7 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     if !CURRENT_PROCESS.is_null() {
         if let Some(queue) = q {
             (*CURRENT_PROCESS).set_state(State::BLOCKED);
-            //bootlog!("{:?} [Blocking]\n", *CURRENT_PROCESS);
+            // bootlog!("{:?} [Blocking]\n", *CURRENT_PROCESS);
             queue.push_back(CURRENT_PROCESS);
         } else {
             ready_queue::make_ready(CURRENT_PROCESS);
@@ -336,12 +339,12 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     (*next).addr_space.activate();
 
     // switch stacks
-    esp0((*next).stack + STACK_SIZE*4);
+    esp0((*next).stack + STACK_SIZE * 4);
 
     // set the CURRENT_PROCESS
     CURRENT_PROCESS = next;
 
-    //bootlog!("{:?} [Switching]\n", *CURRENT_PROCESS);
+    // bootlog!("{:?} [Switching]\n", *CURRENT_PROCESS);
 
     // context switch
     context_switch((*CURRENT_PROCESS).kcontext,

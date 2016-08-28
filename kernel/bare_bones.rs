@@ -8,16 +8,18 @@ use debug::Debug;
 use machine::cli;
 
 // For bare-bones rust
-#[lang = "eh_personality"] extern fn eh_personality() {}
+#[lang = "eh_personality"]
+extern "C" fn eh_personality() {}
 
 /// This function is used by `panic!` to display an error message.
 #[lang = "panic_fmt"]
-pub extern fn rust_begin_unwind(args: fmt::Arguments,
-                                file: &'static str, line: u32) -> ! {
+pub extern "C" fn rust_begin_unwind(args: fmt::Arguments, file: &'static str, line: u32) -> ! {
     use core::fmt::Write;
-    unsafe { cli(); } // we should no be interrupting any more
+    unsafe {
+        cli();
+    } // we should no be interrupting any more
     bootlog!("\nPanic at {}:{}: ", file, line);
     let _ = Debug.write_fmt(args);
     bootlog!("\n");
-    loop {};
+    loop {}
 }

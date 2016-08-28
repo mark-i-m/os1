@@ -16,7 +16,7 @@ pub fn init() {
 /// Just waste a quantum and hopefully there will be something to do
 #[allow(unused_variables)]
 pub fn run(this: &Process) -> usize {
-    loop{
+    loop {
         super::proc_yield(None);
         panic!("idle");
     }

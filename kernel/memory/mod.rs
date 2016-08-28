@@ -17,5 +17,5 @@ mod vm;
 pub fn init(kheap_start: usize, kheap_size: usize) {
     heap::init(kheap_start, kheap_size);
     physmem::init(kheap_start + kheap_size);
-    vm::init(kheap_start + kheap_size + (4<<20));
+    vm::init(kheap_start + kheap_size + (4 << 20));
 }

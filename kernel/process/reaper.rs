@@ -34,7 +34,7 @@ pub fn run(this: &Process) -> usize {
 
                 PROCESS_TABLE.remove((*dead_proc).pid);
 
-                //printf!("{:?} [Reaping]\n", *dead_proc);
+                // printf!("{:?} [Reaping]\n", *dead_proc);
                 Box::from_raw(dead_proc);
                 // let the box go out of scope to dealloc
             }

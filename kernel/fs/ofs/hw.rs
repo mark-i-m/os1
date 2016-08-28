@@ -1,7 +1,7 @@
 //! A module of low-level abstractions for disk-level representations of data for OFS.
 
 use core::mem;
-//use core::ops::Index;
+// use core::ops::Index;
 
 use string::String;
 use io::ide::SECTOR_SIZE;
@@ -25,7 +25,7 @@ pub struct OFSDate {
 #[repr(C, packed)]
 pub struct Metadata {
     magic: [u8; 4],
-    //pub root_inode: usize, // NOTE: inode 0 is always root
+    // pub root_inode: usize, // NOTE: inode 0 is always root
     pub num_inode: usize,
     pub num_dnode: usize,
 }
@@ -34,17 +34,17 @@ pub struct Metadata {
 #[derive(Clone)]
 #[repr(C, packed)]
 pub struct Inode {
-    pub name: [u8; 12],         // file name (up to 12B)
-    pub uid: usize,             // owner UID
-    pub gid: usize,             // group GID
-    pub user_perm: u8,          // user permissions
-    pub group_perm: u8,         // group permissions
-    pub all_perm: u8,           // everyone permissions
-    pub flags:u8,               // various flags
-    pub size: usize,            // file size in bytes TODO: for now this must a multiple of 4
-    pub data: usize,            // index of Dnode with contents
-    pub created: OFSDate,       // date created
-    pub modified: OFSDate,      // date last modified
+    pub name: [u8; 12], // file name (up to 12B)
+    pub uid: usize, // owner UID
+    pub gid: usize, // group GID
+    pub user_perm: u8, // user permissions
+    pub group_perm: u8, // group permissions
+    pub all_perm: u8, // everyone permissions
+    pub flags: u8, // various flags
+    pub size: usize, // file size in bytes TODO: for now this must a multiple of 4
+    pub data: usize, // index of Dnode with contents
+    pub created: OFSDate, // date created
+    pub modified: OFSDate, // date last modified
     pub links: [usize; 22],
 }
 
@@ -54,23 +54,13 @@ pub struct Dnode {
     pub data: [usize; 128],
 }
 
-pub const UNNAMED: [u8; 12] = [
-    'u' as u8,
-    'n' as u8,
-    'n' as u8,
-    'a' as u8,
-    'm' as u8,
-    'e' as u8,
-    'd' as u8,
-    0,0,0,0,0,
-];
+pub const UNNAMED: [u8; 12] = ['u' as u8, 'n' as u8, 'n' as u8, 'a' as u8, 'm' as u8, 'e' as u8,
+                               'd' as u8, 0, 0, 0, 0, 0];
 
 impl OFSDate {
     pub fn now() -> OFSDate {
         // TODO
-        OFSDate {
-            date: 0,
-        }
+        OFSDate { date: 0 }
     }
 }
 
@@ -115,7 +105,7 @@ impl Dnode {
     /// Return the last word of this dnode. If the file
     /// has another dnode, this will be its index.
     pub fn get_next(&self) -> usize {
-        self.data[self.data.len()-1]
+        self.data[self.data.len() - 1]
     }
 }
 
@@ -127,8 +117,6 @@ impl Clone for Dnode {
             data[i] = self.data[i];
         }
 
-        Dnode {
-            data: data,
-        }
+        Dnode { data: data }
     }
 }

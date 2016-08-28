@@ -57,14 +57,17 @@ fn find(addr: usize) -> Option<(usize, usize)> {
             length = end - start;
             most = region_type;
             region_start = start;
-            if most > 1 { break; }
+            if most > 1 {
+                break;
+            }
         }
     }
 
-    if most == 0 { // not found
+    if most == 0 {
+        // not found
         None
     } else {
-        Some((length+1-(addr-region_start), most))
+        Some((length + 1 - (addr - region_start), most))
     }
 }
 
@@ -90,8 +93,7 @@ impl Region {
         bootlog!("0x{:08X} - 0x{:08X} : {}\n",
                  self.start,
                  self.end,
-                 if self.usable { "usable" } else { "reserved" }
-                );
+                 if self.usable { "usable" } else { "reserved" });
     }
 }
 
@@ -109,14 +111,14 @@ impl RegionMap {
         loop {
             let end;
 
-            let region = if let Some((length,region_type)) = find(start) {
+            let region = if let Some((length, region_type)) = find(start) {
                 // avoid overflow and underflow
                 end = if start == 0 {
                     (start + length) - 1
                 } else {
                     (start - 1) + length
                 };
-                //bootlog!("--{:x},{:x}==\n",start, length);
+                // bootlog!("--{:x},{:x}==\n",start, length);
 
                 Region {
                     start: start,
@@ -125,7 +127,7 @@ impl RegionMap {
                 }
             } else {
                 end = find_next(start);
-                //bootlog!("--{:x},{:x}==\n",start, end - start + 1);
+                // bootlog!("--{:x},{:x}==\n",start, end - start + 1);
 
                 Region {
                     start: start,
@@ -191,7 +193,7 @@ impl Iterator for RegionMap {
 
         // generate bounds
         let f_start = self.list[start].start;
-        let f_end = self.list[end-1].end;
+        let f_end = self.list[end - 1].end;
 
         Some((f_start >> 12, (f_end - f_start + 1) >> 12))
     }

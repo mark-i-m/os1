@@ -8,8 +8,6 @@ pub struct Error<'err> {
 
 impl<'err> Error<'err> {
     pub fn new(msg: &'err str) -> Error {
-        Error {
-            msg: msg
-        }
+        Error { msg: msg }
     }
 }

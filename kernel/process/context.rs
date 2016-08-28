@@ -27,7 +27,7 @@ impl KContext {
     /// Create a new empty context struct
     pub fn new() -> KContext {
         KContext {
-            eax: 0, //These values will never be used, but they are useful for debugging
+            eax: 0, // These values will never be used, but they are useful for debugging
             ecx: 1,
             edx: 2,
             ebx: 3,
@@ -41,7 +41,7 @@ impl KContext {
 
 /// Save the `KContext` of the current process to its process struct
 #[no_mangle]
-pub fn store_kcontext (context_ptr: *mut KContext) {
+pub fn store_kcontext(context_ptr: *mut KContext) {
     if context_ptr.is_null() {
         panic!("null context ptr!");
     }

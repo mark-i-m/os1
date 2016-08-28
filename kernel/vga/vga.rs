@@ -8,22 +8,22 @@ use machine::outb;
 #[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub enum Color {
-    Black      = 0,
-    Blue       = 1,
-    Green      = 2,
-    Cyan       = 3,
-    Red        = 4,
-    Pink       = 5,
-    Brown      = 6,
-    LightGray  = 7,
-    DarkGray   = 8,
-    LightBlue  = 9,
+    Black = 0,
+    Blue = 1,
+    Green = 2,
+    Cyan = 3,
+    Red = 4,
+    Pink = 5,
+    Brown = 6,
+    LightGray = 7,
+    DarkGray = 8,
+    LightBlue = 9,
     LightGreen = 10,
-    LightCyan  = 11,
-    LightRed   = 12,
-    LightPink  = 13,
-    Yellow     = 14,
-    White      = 15,
+    LightCyan = 11,
+    LightRed = 12,
+    LightPink = 13,
+    Yellow = 14,
+    White = 15,
 }
 
 /// Number of rows in the VGA buffer
@@ -108,7 +108,7 @@ impl VGA {
         VGA {
             fg: Color::White,
             bg: Color::Black,
-            cursor: (0,0)
+            cursor: (0, 0),
         }
     }
 
@@ -119,15 +119,23 @@ impl VGA {
             return;
         }
 
-        let rend = if row + height > ROWS { ROWS } else {row + height};
-        let cend = if col + width  > COLS { COLS } else {col + width };
+        let rend = if row + height > ROWS {
+            ROWS
+        } else {
+            row + height
+        };
+        let cend = if col + width > COLS {
+            COLS
+        } else {
+            col + width
+        };
 
         for r in row..rend {
             for c in col..cend {
                 unsafe {
-                    (*VGA_BUFFER)[(r,c)].set_bg(self.bg);
-                    (*VGA_BUFFER)[(r,c)].set_fg(self.fg);
-                    (*VGA_BUFFER)[(r,c)].set_char(' ');
+                    (*VGA_BUFFER)[(r, c)].set_bg(self.bg);
+                    (*VGA_BUFFER)[(r, c)].set_fg(self.fg);
+                    (*VGA_BUFFER)[(r, c)].set_char(' ');
                 }
             }
         }
@@ -135,7 +143,7 @@ impl VGA {
 
     /// Paint the whole screen black
     pub fn clear_screen(&self) {
-        self.fill_rect((0 as usize,0 as usize), ROWS as usize, COLS as usize);
+        self.fill_rect((0 as usize, 0 as usize), ROWS as usize, COLS as usize);
     }
 
     /// Set character at the cursor

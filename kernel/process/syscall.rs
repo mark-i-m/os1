@@ -15,7 +15,8 @@ pub fn init() {
 #[inline(never)]
 pub unsafe fn syscall_handler(context: *mut usize, syscall_num: usize, a0: usize, a1: usize) {
     match syscall_num {
-        0 => { // exit
+        0 => {
+            // exit
             process::exit(a0);
         }
         _ => {

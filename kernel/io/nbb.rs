@@ -67,7 +67,9 @@ impl OutputStream<char> for NonBlockingBuffer {
         off();
         if self.size < self.buffer.cap() {
             let next = (self.front + self.size) % self.buffer.cap();
-            unsafe { ptr::write(self.buffer.ptr().offset(next as isize), c); }
+            unsafe {
+                ptr::write(self.buffer.ptr().offset(next as isize), c);
+            }
             self.size += 1;
         }
         on();

@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 
 use core::fmt;
-use core::ops::{Deref};
+use core::ops::Deref;
 use core::str;
 
 use vec::Vec;
@@ -16,9 +16,7 @@ pub struct String {
 impl String {
     /// Return a new empty string: ""
     pub fn new() -> String {
-        String {
-            vec: Vec::new(),
-        }
+        String { vec: Vec::new() }
     }
 
     /// Push a character to the end

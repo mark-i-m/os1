@@ -53,7 +53,8 @@ pub fn end_irq() {
     unsafe {
         if !CURRENT_PROCESS.is_null() {
             if (*CURRENT_PROCESS).disable_cnt != 1 {
-                panic!("end_irq with disable_cnt = {} > 1", (*CURRENT_PROCESS).disable_cnt);
+                panic!("end_irq with disable_cnt = {} > 1",
+                       (*CURRENT_PROCESS).disable_cnt);
             }
             (*CURRENT_PROCESS).disable_cnt = 0;
             // bootlog!("{:?} [End irq]\n", *CURRENT_PROCESS);

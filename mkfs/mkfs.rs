@@ -12,7 +12,7 @@ pub fn main() {
     args.next(); // drop the first arg (./mkfs)
 
     // create a new image
-    let mut image = OFSImage::new(image::SECTOR_SIZE*8, image::SECTOR_SIZE*8);
+    let mut image = OFSImage::new(image::SECTOR_SIZE * 8, image::SECTOR_SIZE * 8);
 
     // add the files to the image
     for arg in args {

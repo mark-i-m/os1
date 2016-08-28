@@ -6,7 +6,7 @@ use core::sync::atomic::{AtomicIsize, Ordering};
 use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
 
-use super::super::interrupts::{on,off};
+use super::super::interrupts::{on, off};
 use super::super::process::{ready_queue, proc_yield, ProcessQueue};
 
 /// `Semaphore` is a much more Rustic semaphore. It returns an RAII
@@ -103,7 +103,7 @@ impl StaticSemaphore {
             if let Some(next) = (*self.queue.get()).pop_front() {
                 ready_queue::make_ready(next);
             } else {
-                (*self.count.get()).fetch_add(1,Ordering::AcqRel);
+                (*self.count.get()).fetch_add(1, Ordering::AcqRel);
             }
         }
         on();
@@ -125,7 +125,8 @@ impl StaticSemaphore {
 impl<'semaphore, T> SemaphoreGuard<'semaphore, T> {
     /// Create a guard referring to the given semaphore and data
     fn new(semaphore: &'semaphore StaticSemaphore,
-               data: &'semaphore UnsafeCell<T>) -> SemaphoreGuard<'semaphore, T>{
+           data: &'semaphore UnsafeCell<T>)
+           -> SemaphoreGuard<'semaphore, T> {
         SemaphoreGuard {
             semaphore: semaphore,
             data: data,
@@ -159,4 +160,3 @@ impl<'semaphore, T> DerefMut for SemaphoreGuard<'semaphore, T> {
         unsafe { &mut *self.data.get() }
     }
 }
-

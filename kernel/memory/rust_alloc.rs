@@ -21,7 +21,7 @@ use super::heap::{malloc, free, usable_size, print_stats};
 /// power of 2. The alignment must be no larger than the largest supported page
 /// size on the platform.
 #[no_mangle]
-pub unsafe extern fn __rust_allocate(size: usize, align: usize) -> *mut u8 {
+pub unsafe extern "C" fn __rust_allocate(size: usize, align: usize) -> *mut u8 {
     off();
     let ret = malloc(size, align);
     on();
@@ -36,7 +36,7 @@ pub unsafe extern fn __rust_allocate(size: usize, align: usize) -> *mut u8 {
 /// create the allocation referenced by `ptr`. The `old_size` parameter may be
 /// any value in range_inclusive(requested_size, usable_size).
 #[no_mangle]
-pub unsafe extern fn __rust_deallocate(ptr: *mut u8, old_size: usize, align: usize) {
+pub unsafe extern "C" fn __rust_deallocate(ptr: *mut u8, old_size: usize, align: usize) {
     off();
     let ret = free(ptr, old_size);
     on();
@@ -58,7 +58,11 @@ pub unsafe extern fn __rust_deallocate(ptr: *mut u8, old_size: usize, align: usi
 /// create the allocation referenced by `ptr`. The `old_size` parameter may be
 /// any value in range_inclusive(requested_size, usable_size).
 #[no_mangle]
-pub unsafe extern fn __rust_reallocate(ptr: *mut u8, old_size: usize, size: usize, align: usize) -> *mut u8 {
+pub unsafe extern "C" fn __rust_reallocate(ptr: *mut u8,
+                                           old_size: usize,
+                                           size: usize,
+                                           align: usize)
+                                           -> *mut u8 {
     if size <= old_size {
         return ptr;
     }
@@ -90,7 +94,11 @@ pub unsafe extern fn __rust_reallocate(ptr: *mut u8, old_size: usize, size: usiz
 /// create the allocation referenced by `ptr`. The `old_size` parameter may be
 /// any value in range_inclusive(requested_size, usable_size).
 #[no_mangle]
-pub unsafe extern fn __rust_reallocate_inplace(ptr: *mut u8, old_size: usize, size: usize, align: usize) -> usize {
+pub unsafe extern "C" fn __rust_reallocate_inplace(ptr: *mut u8,
+                                                   old_size: usize,
+                                                   size: usize,
+                                                   align: usize)
+                                                   -> usize {
     off();
     let ret = usable_size(old_size, align);
     on();
@@ -100,7 +108,7 @@ pub unsafe extern fn __rust_reallocate_inplace(ptr: *mut u8, old_size: usize, si
 /// Returns the usable size of an allocation created with the specified the
 /// `size` and `align`.
 #[no_mangle]
-pub unsafe extern fn __rust_usable_size(size: usize, align: usize) -> usize {
+pub unsafe extern "C" fn __rust_usable_size(size: usize, align: usize) -> usize {
     off();
     let ret = usable_size(size, align);
     on();
@@ -112,7 +120,7 @@ pub unsafe extern fn __rust_usable_size(size: usize, align: usize) -> usize {
 /// These statistics may be inconsistent if other threads use the allocator
 /// during the call.
 #[no_mangle]
-pub unsafe extern fn __rust_stats_print() {
+pub unsafe extern "C" fn __rust_stats_print() {
     off();
     print_stats();
     on();

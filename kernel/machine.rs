@@ -114,5 +114,5 @@ extern "C" {
     /// `syscall_handler`
     pub fn syscall_trap();
 
-    //pub fn sys_sigret(uint32_t);
+// pub fn sys_sigret(uint32_t);
 }

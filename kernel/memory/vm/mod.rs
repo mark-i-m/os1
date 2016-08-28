@@ -61,13 +61,13 @@ unsafe fn init_shared_pdes(n: usize, mut i: usize) {
 
         // map direct map except page 0
         let pt = &mut *(pde.get_address() as *mut VMTable);
-        for e in (if i == 0 {1} else {0})..1024 {
+        for e in (if i == 0 { 1 } else { 0 })..1024 {
             pt[e] = PagingEntry::new();
             pt[e].set_present(true); // present
             pt[e].set_read_write(true); // read/write
             pt[e].set_privelege_level(false); // kernel only
             pt[e].set_caching(false); // write-back
-            pt[e].set_address(((i<<10)+e) << 12); // PD paddr
+            pt[e].set_address(((i << 10) + e) << 12); // PD paddr
         }
 
         SHARED_PDES.push_back(pde);
@@ -86,7 +86,7 @@ unsafe fn init_shared_pdes(n: usize, mut i: usize) {
 /// `start` must be 4MiB aligned.
 pub fn init(start: usize) {
 
-    if start % (4<<20) != 0 {
+    if start % (4 << 20) != 0 {
         panic!("virt mem start must be 4MiB aligned");
     }
 
@@ -95,9 +95,9 @@ pub fn init(start: usize) {
     unsafe {
         init_shared_pdes(start >> 22, 0);
         NUM_SHARED = SHARED_PDES.len();
-        PD_ADDRESS = ((NUM_SHARED<<22) | (NUM_SHARED<<12)) as *mut VMTable;
-        KMAP_ADDRESS = (NUM_SHARED+1) << 22;
-        USER_ADDRESS = ((NUM_SHARED+1) << 22) + (1<<20);
+        PD_ADDRESS = ((NUM_SHARED << 22) | (NUM_SHARED << 12)) as *mut VMTable;
+        KMAP_ADDRESS = (NUM_SHARED + 1) << 22;
+        USER_ADDRESS = ((NUM_SHARED + 1) << 22) + (1 << 20);
     }
 
     // Register page fault handler

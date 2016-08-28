@@ -52,7 +52,7 @@ static mut SUCC_MALLOCS: usize = 0;
 /// The number of unsuccessful mallocs (for stats purposes)
 static mut FAIL_MALLOCS: usize = 0;
 /// The number of successful frees (for stats purposes)
-static mut FREES:        usize = 0;
+static mut FREES: usize = 0;
 
 /// A struct representing a heap block.
 ///
@@ -106,8 +106,8 @@ impl Block {
 
     /// Set the forward pointer (but not the free bits)
     unsafe fn set_next(&mut self, next: *mut Block) {
-        *(self as *mut Block as *mut usize).offset(1) =
-            ((next as usize) & !0xF) | (self.get_free_bits() as usize);
+        *(self as *mut Block as *mut usize).offset(1) = ((next as usize) & !0xF) |
+                                                        (self.get_free_bits() as usize);
     }
 
     /// Set the backward pointer
@@ -120,18 +120,14 @@ impl Block {
     pub unsafe fn is_free(&self) -> bool {
         // make sure the block addr is reasonable
         let self_usize = self as *const Block as usize;
-        if self_usize < START ||
-           self_usize >= END ||
-           self_usize % BLOCK_ALIGN != 0 {
+        if self_usize < START || self_usize >= END || self_usize % BLOCK_ALIGN != 0 {
             return false;
         }
 
         let head = self.get_head();
 
         // make sure the block size is reasonable
-        if head < BLOCK_ALIGN ||
-           head % BLOCK_ALIGN != 0 ||
-           head > END - START {
+        if head < BLOCK_ALIGN || head % BLOCK_ALIGN != 0 || head > END - START {
             return false;
         }
 
@@ -146,12 +142,10 @@ impl Block {
         let forward_ptr = self.get_free_next();
         let backward_ptr = self.get_free_prev();
 
-        if (forward_ptr < (START as *mut Block) &&
-            !forward_ptr.is_null()) ||
+        if (forward_ptr < (START as *mut Block) && !forward_ptr.is_null()) ||
            forward_ptr >= (END as *mut Block) ||
-           (backward_ptr < (START as *mut Block) &&
-            !backward_ptr.is_null()) ||
-           backward_ptr >= (END as *mut Block){
+           (backward_ptr < (START as *mut Block) && !backward_ptr.is_null()) ||
+           backward_ptr >= (END as *mut Block) {
             return false;
         }
 
@@ -207,8 +201,7 @@ impl Block {
         let prev_size = *prev_size_ptr;
 
         // check that the size is reasonable
-        if prev_size >= END - START ||
-           prev_size == 0 {
+        if prev_size >= END - START || prev_size == 0 {
             return 0 as *mut Block;
         }
 
@@ -260,7 +253,7 @@ impl Block {
         if !self.is_free() {
             print_stats();
             panic!("Adding taken block to free list: {:x}",
-                  self as *const Block as usize);
+                   self as *const Block as usize);
         }
 
         free_list = self as *mut Block;
@@ -279,14 +272,14 @@ impl Block {
         // make sure both blocks are free and valid
         if !self.is_free() {
             panic!("Attempt to merge non-free block 0x{:x} with next",
-                  self as *const Block as usize);
+                   self as *const Block as usize);
         }
 
         let next = self.get_contiguous_next();
         if !(*next).is_free() {
             panic!("Attempt to merge 0x{:x} with non-free block 0x{:x}",
-                  self as *const Block as usize,
-                  next as usize);
+                   self as *const Block as usize,
+                   next as usize);
         }
 
         // remove next block from free list
@@ -306,7 +299,7 @@ impl Block {
         // make sure the block is free and valid
         if !self.is_free() {
             panic!("Attempt to split non-free block: {:x}",
-                  self as *const Block as usize);
+                   self as *const Block as usize);
         }
 
         let old_size = self.get_size();
@@ -314,12 +307,13 @@ impl Block {
         // make sure the block is large enough
         if old_size < 32 {
             panic!("Block is to small to split: {:x}",
-                  self as *const Block as usize);
+                   self as *const Block as usize);
         }
 
         if old_size < size + BLOCK_ALIGN {
             panic!("Block is to small to split at {}: {:x}",
-                  size, self as *const Block as usize);
+                   size,
+                   self as *const Block as usize);
         }
 
         let new_block_size = old_size - size;
@@ -355,14 +349,16 @@ impl Block {
 
 /// Round up to the nearest multiple of `BLOCK_ALIGN`
 fn round_to_block_align(size: usize) -> usize {
-    unsafe {
-        round_to_n(size, BLOCK_ALIGN)
-    }
+    unsafe { round_to_n(size, BLOCK_ALIGN) }
 }
 
 /// Round the size to `n`. `n` must be a power of 2
 fn round_to_n(size: usize, n: usize) -> usize {
-    if size % n == 0 { size } else { size - (size % n) + n }
+    if size % n == 0 {
+        size
+    } else {
+        size - (size % n) + n
+    }
 }
 
 /// Initialize the kernel heap
@@ -392,8 +388,10 @@ pub fn init(start: usize, size: usize) {
 
         free_list = first;
 
-        bootlog! ("heap inited - start addr: 0x{:x}, end addr: 0x{:x}, {} bytes\n",
-                 START, END, END - START);
+        bootlog!("heap inited - start addr: 0x{:x}, end addr: 0x{:x}, {} bytes\n",
+                 START,
+                 END,
+                 END - START);
     }
 }
 
@@ -405,7 +403,9 @@ pub fn init(start: usize, size: usize) {
 /// power of 2. The alignment must be no larger than the largest supported page
 /// size on the platform.
 pub unsafe fn malloc(mut size: usize, mut align: usize) -> *mut u8 {
-    if DEBUG {bootlog!("malloc {}, {} -> ", size, align);}
+    if DEBUG {
+        bootlog!("malloc {}, {} -> ", size, align);
+    }
 
     if size == 0 {
         return 0 as *mut u8;
@@ -436,13 +436,14 @@ pub unsafe fn malloc(mut size: usize, mut align: usize) -> *mut u8 {
             // NOTE: fail for now because rustc does not know
             // how to handle failed mallocs
             panic!("malloc({}, {}) -> *** malloc failed, rustc cannot handle this :( ***\n",
-                size, align);
+                   size,
+                   align);
         }
 
         // update stats
-        //FAIL_MALLOCS += 1;
+        // FAIL_MALLOCS += 1;
 
-        //return 0 as *mut u8;
+        // return 0 as *mut u8;
     }
 
     // split block if needed
@@ -467,7 +468,9 @@ pub unsafe fn malloc(mut size: usize, mut align: usize) -> *mut u8 {
     // update stats
     SUCC_MALLOCS += 1;
 
-    if DEBUG {bootlog!("0x{:X}\n", begin as *const u8 as usize);}
+    if DEBUG {
+        bootlog!("0x{:X}\n", begin as *const u8 as usize);
+    }
 
     begin as *mut u8
 }
@@ -481,7 +484,9 @@ pub unsafe fn malloc(mut size: usize, mut align: usize) -> *mut u8 {
 /// any value in range_inclusive(requested_size, usable_size).
 pub unsafe fn free(ptr: *mut u8, mut old_size: usize) {
 
-    if DEBUG {bootlog!("free 0x{:X}, {}\n", ptr as usize, old_size);}
+    if DEBUG {
+        bootlog!("free 0x{:X}, {}\n", ptr as usize, old_size);
+    }
 
     // check input
     if ptr == (0 as *mut u8) {
@@ -511,10 +516,10 @@ pub unsafe fn free(ptr: *mut u8, mut old_size: usize) {
     }
 
     // TODO: fix me
-    //let prev_block = (*block).get_contiguous_prev();
-    //if !prev_block.is_null() && (*prev_block).is_free() {
+    // let prev_block = (*block).get_contiguous_prev();
+    // if !prev_block.is_null() && (*prev_block).is_free() {
     //    (*prev_block).merge_with_next();
-    //}
+    // }
 
     // update stats
     FREES += 1;
@@ -532,17 +537,21 @@ pub fn usable_size(size: usize, align: usize) -> usize {
 /// These statistics may be inconsistent if other threads use the allocator
 /// during the call.
 pub fn print_stats() {
-    unsafe{
+    unsafe {
         bootlog!("\nHeap stats\n----------\n");
 
         // Number of free blocks and amount of free memory
         let (num_free, size_free, size_used) = get_block_stats();
         bootlog!("{} free blocks; {} bytes free, {} bytes used\n",
-                num_free, size_free, size_used);
+                 num_free,
+                 size_free,
+                 size_used);
 
         // Number of mallocs and frees
         bootlog!("Successfull mallocs: {}; Failed mallocs: {}; Frees: {}\n\n",
-                SUCC_MALLOCS, FAIL_MALLOCS, FREES);
+                 SUCC_MALLOCS,
+                 FAIL_MALLOCS,
+                 FREES);
     }
 }
 

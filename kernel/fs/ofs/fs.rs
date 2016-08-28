@@ -57,9 +57,10 @@ impl<B: BlockDevice> OFSHandle<B> {
 
         OFSHandle {
             fs: Arc::new(Semaphore::new(OFS {
-                device: device,
-                meta: meta,
-            }, 1)),
+                                            device: device,
+                                            meta: meta,
+                                        },
+                                        1)),
         }
     }
 
@@ -73,7 +74,7 @@ impl<B: BlockDevice> OFSHandle<B> {
         } else {
             let i = fs.get_inode(inode);
             let d = i.data;
-            //printf!("Open file {:?}: i {}, d {}\n", i.name, inode, d);
+            // printf!("Open file {:?}: i {}, d {}\n", i.name, inode, d);
             Ok(File {
                 inode_num: inode,
                 inode: i,
@@ -182,55 +183,53 @@ impl<B: BlockDevice> OFS<B> {
     ///
     /// NOTE: Assume that the first dnode starts at the beginning of a sector
     fn get_dnode_start_sector(&self) -> usize {
-        self.get_inode_start_sector() + self.meta.num_inode/Inode::inodes_per_sector()
+        self.get_inode_start_sector() + self.meta.num_inode / Inode::inodes_per_sector()
     }
 
     /// Get the disk offset of the `i`th inode.
     fn get_inode_offset(&self, i: usize) -> usize {
-        let inode_sector = self.get_inode_start_sector() + i/Inode::inodes_per_sector();
+        let inode_sector = self.get_inode_start_sector() + i / Inode::inodes_per_sector();
         let inode_mod = i % Inode::inodes_per_sector();
 
         let inode_size = mem::size_of::<Inode>();
-        inode_sector*SECTOR_SIZE+inode_mod*inode_size
+        inode_sector * SECTOR_SIZE + inode_mod * inode_size
     }
 
     /// Get the disk offset of the `d`th dnode.
     fn get_dnode_offset(&self, d: usize) -> usize {
-        let dnode_sector = self.get_dnode_start_sector() + d/Dnode::dnodes_per_sector();
+        let dnode_sector = self.get_dnode_start_sector() + d / Dnode::dnodes_per_sector();
         let dnode_mod = d % Dnode::dnodes_per_sector();
 
         let dnode_size = mem::size_of::<Dnode>();
-        dnode_sector*SECTOR_SIZE+dnode_mod*dnode_size
+        dnode_sector * SECTOR_SIZE + dnode_mod * dnode_size
     }
 
     /// Get the `i`th inode
     pub fn get_inode(&mut self, i: usize) -> Inode {
-        let inode_sector = self.get_inode_start_sector() + i/Inode::inodes_per_sector();
+        let inode_sector = self.get_inode_start_sector() + i / Inode::inodes_per_sector();
         let inode_mod = i % Inode::inodes_per_sector();
 
         // read from disk
         let inode_size = mem::size_of::<Inode>();
         let mut buf = BlockDataBuffer::new(inode_size);
-        self.device.read_fully(inode_sector*SECTOR_SIZE+inode_mod*inode_size, &mut buf);
+        self.device.read_fully(inode_sector * SECTOR_SIZE + inode_mod * inode_size,
+                               &mut buf);
 
-        unsafe {
-            buf.get_ref::<Inode>(0).clone()
-        }
+        unsafe { buf.get_ref::<Inode>(0).clone() }
     }
 
     /// Get the `d`th dnode
     fn get_dnode(&mut self, d: usize) -> Dnode {
-        let dnode_sector = self.get_dnode_start_sector() + d/Dnode::dnodes_per_sector();
+        let dnode_sector = self.get_dnode_start_sector() + d / Dnode::dnodes_per_sector();
         let dnode_mod = d % Dnode::dnodes_per_sector();
 
         // read from disk
         let dnode_size = mem::size_of::<Dnode>();
         let mut buf = BlockDataBuffer::new(dnode_size);
-        self.device.read_fully(dnode_sector*SECTOR_SIZE+dnode_mod*dnode_size, &mut buf);
+        self.device.read_fully(dnode_sector * SECTOR_SIZE + dnode_mod * dnode_size,
+                               &mut buf);
 
-        unsafe {
-            buf.get_ref::<Dnode>(0).clone()
-        }
+        unsafe { buf.get_ref::<Dnode>(0).clone() }
     }
 
     /// Allocate a new inode and return its index
@@ -259,7 +258,7 @@ impl<B: BlockDevice> OFS<B> {
                         self.device.write_exactly(SECTOR_SIZE + i, 1, &mut buf);
 
                         // return dnode number
-                        return i*8 + b
+                        return i * 8 + b;
                     }
                 }
             }
@@ -295,10 +294,12 @@ impl<B: BlockDevice> OFS<B> {
 
                         // writeback
                         buf.set_offset(i);
-                        self.device.write_exactly(dnode_bitmap_start_sector * SECTOR_SIZE + i, 1, &mut buf);
+                        self.device.write_exactly(dnode_bitmap_start_sector * SECTOR_SIZE + i,
+                                                  1,
+                                                  &mut buf);
 
                         // return dnode number
-                        return i*8 + b
+                        return i * 8 + b;
                     }
                 }
             }
@@ -375,10 +376,12 @@ impl<B: BlockDevice> File<B> {
                 let tmp = &mut BlockDataBuffer::new(bytes_left + 4);
                 fs.device.read_fully(dnode_start + dnode_offset, tmp);
                 self.offset += bytes_left;
-                self.offset_dnode = unsafe {*tmp.get_ptr(bytes_left/4)};
+                self.offset_dnode = unsafe { *tmp.get_ptr(bytes_left / 4) };
                 let buf_offset = buf.offset();
                 unsafe {
-                    copy(tmp.get_ptr::<u8>(0), buf.get_ptr::<u8>(buf_offset), bytes_left);
+                    copy(tmp.get_ptr::<u8>(0),
+                         buf.get_ptr::<u8>(buf_offset),
+                         bytes_left);
                 }
                 buf.set_offset(buf_offset + bytes_left);
                 bytes_left
@@ -428,12 +431,14 @@ impl<B: BlockDevice> File<B> {
             let curr_dnode = fs.get_dnode(self.offset_dnode);
             let tmp = &mut BlockDataBuffer::new(dnode_size);
             unsafe {
-                copy((&curr_dnode.data[0]) as *const usize as *const u8, tmp.get_ptr::<u8>(0), dnode_size);
+                copy((&curr_dnode.data[0]) as *const usize as *const u8,
+                     tmp.get_ptr::<u8>(0),
+                     dnode_size);
             }
             let next_dnode = if last_dnode {
                 let new_dnode = fs.get_new_dnode();
                 unsafe {
-                    *tmp.get_ptr::<usize>((dnode_size/mem::size_of::<usize>()) - 1) = new_dnode;
+                    *tmp.get_ptr::<usize>((dnode_size / mem::size_of::<usize>()) - 1) = new_dnode;
                 }
                 self.inode.size += num_write + 1; // +1 so this is no longer the last dnode
                 new_dnode
@@ -442,7 +447,9 @@ impl<B: BlockDevice> File<B> {
             };
             let old_buf_offset = buf.offset();
             unsafe {
-                copy(buf.get_ptr::<u8>(old_buf_offset), tmp.get_ptr::<u8>(dnode_offset), num_write);
+                copy(buf.get_ptr::<u8>(old_buf_offset),
+                     tmp.get_ptr::<u8>(dnode_offset),
+                     num_write);
             }
             let dnode_start_offset = fs.get_dnode_offset(self.offset_dnode);
             fs.device.write_fully(dnode_start_offset, tmp);
@@ -540,19 +547,19 @@ impl<B: BlockDevice> File<B> {
     }
 }
 
-impl<B : BlockDevice> Drop for File<B> {
+impl<B: BlockDevice> Drop for File<B> {
     /// Close the file. Write back the inode
     fn drop(&mut self) {
-        //TODO: uncomment and correct
-        //let mut fs = self.ofs.down();
+        // TODO: uncomment and correct
+        // let mut fs = self.ofs.down();
 
-        //let inode_start_offset = fs.get_inode_offset(self.inode_num);
+        // let inode_start_offset = fs.get_inode_offset(self.inode_num);
 
-        //let mut tmp = BlockDataBuffer::new(mem::size_of::<Inode>());
-        //unsafe {
+        // let mut tmp = BlockDataBuffer::new(mem::size_of::<Inode>());
+        // unsafe {
         //    *tmp.get_ptr(0) = self.inode.clone();
-        //}
+        // }
 
-        //fs.device.write_fully(inode_start_offset, &mut tmp);
+        // fs.device.write_fully(inode_start_offset, &mut tmp);
     }
 }

@@ -127,7 +127,7 @@ impl<'a, T> From<&'a mut Link<T>> for Rawlink<Node<T>> {
     fn from(node: &'a mut Link<T>) -> Self {
         match node.as_mut() {
             None => Rawlink::none(),
-            Some(ptr) => Rawlink::some(unsafe {&mut **ptr}),
+            Some(ptr) => Rawlink::some(unsafe { &mut **ptr }),
         }
     }
 }
@@ -194,7 +194,7 @@ impl<T> StaticLinkedList<T> {
         self.list_head.take().map(|front_node| {
             self.length -= 1;
             match unsafe { (*front_node).next.take() } {
-                Some(node) => unsafe {self.list_head = link_no_prev(Box::from_raw(node))},
+                Some(node) => unsafe { self.list_head = link_no_prev(Box::from_raw(node)) },
                 None => self.list_tail = Rawlink::none(),
             }
             front_node
@@ -288,7 +288,9 @@ impl<T> StaticLinkedList<T> {
                 match other.list_head.take() {
                     None => return,
                     Some(node) => {
-                        unsafe{tail.set_next(Box::from_raw(node));}
+                        unsafe {
+                            tail.set_next(Box::from_raw(node));
+                        }
                         self.list_tail = o_tail;
                         self.length += o_length;
                     }
@@ -408,7 +410,7 @@ impl<T> StaticLinkedList<T> {
     /// ```
     #[inline]
     pub fn front(&self) -> Option<&T> {
-        self.list_head.as_ref().map(|head| unsafe {&(**head).value})
+        self.list_head.as_ref().map(|head| unsafe { &(**head).value })
     }
 
     /// Provides a mutable reference to the front element, or `None` if the list
@@ -434,7 +436,7 @@ impl<T> StaticLinkedList<T> {
     /// ```
     #[inline]
     pub fn front_mut(&mut self) -> Option<&mut T> {
-        self.list_head.as_ref().map(|head| unsafe {&mut (**head).value})
+        self.list_head.as_ref().map(|head| unsafe { &mut (**head).value })
     }
 
     /// Provides a reference to the back element, or `None` if the list is
@@ -685,7 +687,7 @@ impl<T> StaticLinkedList<T> {
     }
 }
 
-//impl<T> Drop for StaticLinkedList<T> {
+// impl<T> Drop for StaticLinkedList<T> {
 //    #[unsafe_destructor_blind_to_params]
 //    fn drop(&mut self) {
 //        // Dissolve the linked_list in a loop.
@@ -697,7 +699,7 @@ impl<T> StaticLinkedList<T> {
 //        self.length = 0;
 //        self.list_tail = Rawlink::none();
 //    }
-//}
+// }
 
 impl<'a, A> Iterator for Iter<'a, A> {
     type Item = &'a A;
@@ -797,7 +799,9 @@ impl<'a, A> IterMut<'a, A> {
                     Some(prev) => prev,
                 };
                 let node_own = prev_node.next.take().unwrap();
-                unsafe {ins_node.set_next(Box::from_raw(node_own));}
+                unsafe {
+                    ins_node.set_next(Box::from_raw(node_own));
+                }
                 prev_node.set_next(ins_node);
                 self.list.length += 1;
             }
@@ -1120,10 +1124,10 @@ mod tests {
     fn test_send() {
         let n = list_from(&[1, 2, 3]);
         thread::spawn(move || {
-            check_links(&n);
-            let a: &[_] = &[&1, &2, &3];
-            assert_eq!(a, &n.iter().collect::<Vec<_>>()[..]);
-        })
+                check_links(&n);
+                let a: &[_] = &[&1, &2, &3];
+                assert_eq!(a, &n.iter().collect::<Vec<_>>()[..]);
+            })
             .join()
             .ok()
             .unwrap();

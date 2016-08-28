@@ -50,7 +50,9 @@ impl ProcessTable {
     /// are created with sequential PIDs, we already know the PID.
     pub fn push(&mut self, p: *mut Process) {
         // lock
-        unsafe { TABLE_LOCK.down(); }
+        unsafe {
+            TABLE_LOCK.down();
+        }
 
         // Resize if needed
         if self.capacity == self.size {
@@ -69,53 +71,61 @@ impl ProcessTable {
         self.size += 1;
 
         // unlock
-        unsafe { TABLE_LOCK.up(); }
+        unsafe {
+            TABLE_LOCK.up();
+        }
     }
 
     /// Void the entry in the table. This should be done just before
     /// deallocating the process.
     pub fn remove(&mut self, pid: usize) {
         // lock
-        unsafe { TABLE_LOCK.down(); }
+        unsafe {
+            TABLE_LOCK.down();
+        }
 
         // void the entry
         let node = self.get_node_mut(pid);
         node[pid % NODE_SIZE] = 0 as *mut Process;
 
         // unlock
-        unsafe { TABLE_LOCK.up(); }
+        unsafe {
+            TABLE_LOCK.up();
+        }
 
         // free as much space as possible
         self.free()
     }
 
     /// Get the process with the matching PID
-    pub fn get(&self, pid: usize) -> Option<*mut Process>{
+    pub fn get(&self, pid: usize) -> Option<*mut Process> {
         // corner case
         if pid < self.first_pid {
             return None;
         }
 
         // lock
-        unsafe { TABLE_LOCK.down(); }
+        unsafe {
+            TABLE_LOCK.down();
+        }
 
         let node = self.get_node(pid);
         let result = node[pid % NODE_SIZE];
 
         // unlock
-        unsafe { TABLE_LOCK.up(); }
-
-        if result.is_null() {
-            None
-        } else {
-            Some(result)
+        unsafe {
+            TABLE_LOCK.up();
         }
+
+        if result.is_null() { None } else { Some(result) }
     }
 
     /// Free as many `ProcessTableNode`s as possible
     fn free(&mut self) {
         // lock
-        unsafe { TABLE_LOCK.down(); }
+        unsafe {
+            TABLE_LOCK.down();
+        }
 
         let mut node = self.pt_head;
         unsafe {
@@ -129,7 +139,9 @@ impl ProcessTable {
         }
 
         // unlock
-        unsafe { TABLE_LOCK.up(); }
+        unsafe {
+            TABLE_LOCK.up();
+        }
     }
 
     /// Get the node containing the given PID

@@ -81,9 +81,9 @@ impl AddressSpace {
     /// NOTE: should only be called on the current address space
     /// because it assumes that the PD is at PD_ADDRESS
     pub fn map(&mut self, phys: usize, virt: usize, lock: bool) {
-        //unsafe {
+        // unsafe {
         //    printf!("{:?} [map {:x} -> {:x}]\n", *CURRENT_PROCESS, virt, phys);
-        //}
+        // }
 
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
@@ -92,14 +92,15 @@ impl AddressSpace {
             self.lock.down();
         }
 
-        let mut pd = unsafe {&mut *PD_ADDRESS};
+        let mut pd = unsafe { &mut *PD_ADDRESS };
         let pde = &mut pd[pde_index];
 
         // invalidate TLB entry
         unsafe { invlpg(virt) };
 
         // if pd entry is not already there
-        if !pde.is_flag(0) { // present bit
+        if !pde.is_flag(0) {
+            // present bit
             // no pd entry yet => create one
 
             off();
@@ -112,7 +113,8 @@ impl AddressSpace {
             pde.set_present(true); // present
 
             // clear the pt
-            let mut pt = unsafe {&mut *(((NUM_SHARED<<22) | (pde_index<<12)) as *mut VMTable)};
+            let mut pt =
+                unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
             for p in 0..1024 {
                 pt[p] = PagingEntry::new();
                 unsafe { invlpg((pde_index << 22) | (p << 12)) };
@@ -122,11 +124,12 @@ impl AddressSpace {
         }
 
         // follow pde to get pt
-        let mut pt = unsafe {&mut *(((NUM_SHARED<<22) | (pde_index<<12)) as *mut VMTable)};
+        let mut pt = unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
         let pte = &mut pt[pte_index];
 
         // if pt entry is not already there
-        if !pte.is_flag(0) { // present bit
+        if !pte.is_flag(0) {
+            // present bit
             // no pt entry yet -> create one
 
             off();
@@ -180,23 +183,25 @@ impl AddressSpace {
     /// NOTE: should only be called on the current address space because it assumes that the PD is
     /// at PD_ADDRESS
     pub fn unmap(&mut self, virt: usize, lock: bool) {
-        //unsafe {
+        // unsafe {
         //    printf!("{:?} [unmap {:x}]\n", *CURRENT_PROCESS, virt);
-        //}
+        // }
 
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
-        let pd = unsafe {&mut *PD_ADDRESS};
+        let pd = unsafe { &mut *PD_ADDRESS };
 
         if lock {
             self.lock.down();
         }
 
-        if pd[pde_index].is_flag(0) { // present bit
+        if pd[pde_index].is_flag(0) {
+            // present bit
             off();
 
-            let mut pt = unsafe {&mut *(((NUM_SHARED<<22) | (pde_index<<12)) as *mut VMTable)};
+            let mut pt =
+                unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
 
             // unmap and deallocate frame
             pt[pte_index].free(virt >= unsafe { USER_ADDRESS });
@@ -217,9 +222,9 @@ impl AddressSpace {
             self.lock.up();
         }
 
-        //unsafe {
+        // unsafe {
         //    printf!("{:?} [unmaped {:x}]\n", *CURRENT_PROCESS, virt);
-        //}
+        // }
     }
 
     /// Returns the current physical address mapped to the given virtual address
@@ -231,14 +236,15 @@ impl AddressSpace {
         let pde_index = virt >> 22;
         let pte_index = (virt & 0x003F_F000) >> 12;
 
-        let pd = unsafe {&mut *PD_ADDRESS};
+        let pd = unsafe { &mut *PD_ADDRESS };
 
         if lock {
             self.lock.down();
         }
 
-        let ret = if pd[pde_index].is_flag(0) { // present bit
-            let pt = unsafe {&mut *(((NUM_SHARED<<22) | (pde_index<<12)) as *mut VMTable)};
+        let ret = if pd[pde_index].is_flag(0) {
+            // present bit
+            let pt = unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
             let pte = &pt[pte_index];
 
             if pte.is_flag(0) {
@@ -298,7 +304,9 @@ impl AddressSpace {
             return false;
         };
 
-        Frame::share( unsafe {(*CURRENT_PROCESS).get_pid()}, vaddr, self.req_paddr);
+        Frame::share(unsafe { (*CURRENT_PROCESS).get_pid() },
+                     vaddr,
+                     self.req_paddr);
 
         self.req_wait.notify();
 
@@ -322,11 +330,13 @@ impl AddressSpace {
     /// NOTE: This should run inside this processes address space
     pub fn accept_share(&mut self, pid: usize, vaddr: usize) -> bool {
 
-        let other = unsafe {if let Some(p) = PROCESS_TABLE.get(pid) {
-            p
-        } else {
-            return false;
-        }};
+        let other = unsafe {
+            if let Some(p) = PROCESS_TABLE.get(pid) {
+                p
+            } else {
+                return false;
+            }
+        };
         let addr_space = unsafe { &mut (*other).addr_space };
         let my_pid = unsafe { (*CURRENT_PROCESS).get_pid() };
 
@@ -365,14 +375,15 @@ impl AddressSpace {
     /// Remove all non-kernel mappings in this address space.
     /// NOTE: must run while this address space is active
     pub fn clear(&mut self) {
-        let pd = unsafe {&mut *PD_ADDRESS};
+        let pd = unsafe { &mut *PD_ADDRESS };
 
         self.lock.down();
 
         // for each present PDE, remove all
         // mappings associated with it
         for pde_index in (unsafe { NUM_SHARED } + 1)..1024 {
-            if pd[pde_index].is_flag(0) { // present bit
+            if pd[pde_index].is_flag(0) {
+                // present bit
                 for pte_index in 0..1024 {
                     self.unmap((pde_index << 22) | (pte_index << 12), false);
                 }
@@ -394,16 +405,18 @@ impl Drop for AddressSpace {
 
 /// The Rust-side code of the page fault handler.
 #[no_mangle]
-pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: usize) {
+pub unsafe extern "C" fn vmm_page_fault(// context: *mut KContext,
+                                        fault_addr: usize) {
     // segfault! should be very rare with rust
     // first 13MiB are reserved by kernel
     if fault_addr < 0xD00000 {
         // TODO: only kill that process
         panic!("{:?} [segmentation violation @ 0x{:X}]",
-               *CURRENT_PROCESS, fault_addr);
+               *CURRENT_PROCESS,
+               fault_addr);
     }
 
-    //printf!("page fault {:X}\n", fault_addr);
+    // printf!("page fault {:X}\n", fault_addr);
 
     if !CURRENT_PROCESS.is_null() {
         (*CURRENT_PROCESS).addr_space.map(Frame::alloc(), fault_addr, true);
@@ -417,5 +430,5 @@ pub unsafe extern "C" fn vmm_page_fault(/*context: *mut KContext,*/ fault_addr: 
         page[i] = 0;
     }
 
-    //printf!("page fault done {:X}\n", fault_addr);
+    // printf!("page fault done {:X}\n", fault_addr);
 }
