@@ -19,6 +19,11 @@ pub unsafe fn syscall_handler(context: *mut usize, syscall_num: usize, a0: usize
             // exit
             process::exit(a0);
         }
+        1 => {
+            // run some tests
+            // TODO: get rid of this syscall
+            process::ready_queue::make_ready(process::Process::new("p0", process::user::run));
+        }
         _ => {
             panic!("system call #{}\n", syscall_num);
         }

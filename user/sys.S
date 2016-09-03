@@ -17,3 +17,12 @@ exit:
 	mov $0,%edx
 	int $100
 	ret
+
+	# void start_tests()
+	.global start_tests
+start_tests:
+	mov $1,%eax
+	mov $0,%ecx
+	mov $0,%edx
+	int $100
+	ret
