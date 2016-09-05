@@ -6,9 +6,11 @@ use core::cmp::min;
 use core::ptr::copy;
 use core::mem;
 
-/// A data structure for use with block devices The buffer has an internal pointer that can be used
-/// for conveniently performing sequential writes or reads to the buffer.  Also, implementors of
-/// this trait must also implement `Drop`, preventing memory leaks.
+/// A data structure for use with block devices.
+///
+/// The buffer has an internal pointer that can be used for conveniently performing sequential
+/// writes or reads to the buffer.  Also, implementors of this trait must also implement `Drop`,
+/// preventing memory leaks.
 pub struct BlockDataBuffer {
     buf: *mut u8,
     size: usize,
@@ -34,7 +36,8 @@ pub trait BlockDevice {
     /// internal offset. This method will read no more data than will fit into the remaining space
     /// in the buffer, but it may also read less. It will update the buffer's offset, and return
     /// the number of bytes read.
-    fn read(&mut self, offset: usize, buffer: &mut BlockDataBuffer) -> usize {
+    fn read(&mut self, block_num: usize, offset: usize, buffer: &mut BlockDataBuffer) -> usize {
+        // TODO: block_num
         // read the block where the data we want starts
         let blk_size = self.get_block_size();
         let sector = offset / blk_size;
@@ -60,7 +63,8 @@ pub trait BlockDevice {
     /// Write from the buffer to the disk starting at the buffer's internal offset. This may not
     /// write the whole buffer. This will update the buffer's offset, and return the number of
     /// bytes written.
-    fn write(&mut self, offset: usize, buffer: &mut BlockDataBuffer) -> usize {
+    fn write(&mut self, block_num: usize, offset: usize, buffer: &mut BlockDataBuffer) -> usize {
+        // TODO: block_num
         // read the block we are about to modify
         let blk_size = self.get_block_size();
         let sector = offset / blk_size;
@@ -94,7 +98,8 @@ pub trait BlockDevice {
     /// # Panics
     ///
     /// The method panics if there is not enough space in the buffer
-    fn read_fully(&mut self, mut offset: usize, buffer: &mut BlockDataBuffer) {
+    fn read_fully(&mut self, block_num: usize, mut offset: usize, buffer: &mut BlockDataBuffer) {
+        // TODO: block_num
         // find remaining space in the buffer
         let mut remaining = buffer.size() - buffer.offset();
 
@@ -108,7 +113,8 @@ pub trait BlockDevice {
 
     /// Write from the buffer to the disk starting at the buffer's internal offset. This will
     /// write the whole buffer. This will update the buffer's offset.
-    fn write_fully(&mut self, mut offset: usize, buffer: &mut BlockDataBuffer) {
+    fn write_fully(&mut self, block_num: usize, mut offset: usize, buffer: &mut BlockDataBuffer) {
+        // TODO: block_num
         // find remaining space in the buffer
         let mut remaining = buffer.size() - buffer.offset();
 
@@ -127,7 +133,12 @@ pub trait BlockDevice {
     /// # Panics
     ///
     /// The method panics if there is not enough space in the buffer
-    fn read_exactly(&mut self, offset: usize, bytes: usize, buffer: &mut BlockDataBuffer) {
+    fn read_exactly(&mut self,
+                    block_num: usize,
+                    offset: usize,
+                    bytes: usize,
+                    buffer: &mut BlockDataBuffer) {
+        // TODO: block_num
         // TODO: make this more efficient
         let tmp = &mut BlockDataBuffer::new(bytes);
         self.read_fully(offset, tmp);
@@ -143,7 +154,12 @@ pub trait BlockDevice {
     /// Write `bytes` bytes to the block device at `offset` from the given buffer starting at the
     /// buffer's internal offset. This method will overwrite the existing disk contents. It will
     /// update the buffer's offset.
-    fn write_exactly(&mut self, offset: usize, bytes: usize, buffer: &mut BlockDataBuffer) {
+    fn write_exactly(&mut self,
+                     block_num: usize,
+                     offset: usize,
+                     bytes: usize,
+                     buffer: &mut BlockDataBuffer) {
+        // TODO: block_num
         // TODO: make this more efficient
         let tmp = &mut BlockDataBuffer::new(bytes);
         unsafe {

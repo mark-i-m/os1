@@ -7,12 +7,9 @@ use string::String;
 use io::ide::SECTOR_SIZE;
 
 /// A 4B representation of the date for use in the OS
-#[derive(Clone)]
-#[repr(C, packed)]
-pub struct OFSDate {
-    date: usize,
-}
+type OFSDate = u32;
 
+// TODO: extendable list of elements
 // /// A data structure representing a list on the hard
 // /// disk, in which the last element may be the dnode
 // /// number containing the remaining elements
@@ -49,6 +46,7 @@ pub struct Inode {
 }
 
 /// A single OFS Dnode (512B)
+// TODO: deref to slice
 #[repr(C, packed)]
 pub struct Dnode {
     pub data: [usize; 128],
