@@ -39,7 +39,7 @@ pub struct Inode {
     group_perm: u8, // group permissions
     all_perm: u8, // everyone permissions
     flags: u8, // various flags
-    size: u32, // file size in bytes TODO: for now this must a multiple of 4
+    size: u32, // file size in bytes NOTE: for now this must a multiple of 4
     data: u32, // index of Dnode with contents
     created: u32, // date created
     modified: u32, // date last modified
@@ -149,7 +149,7 @@ impl OFSImage {
             println!("Error! No such file or directory '{}'.", file);
             exit(1);
         }
-        let mut f = File::open(file).ok().unwrap(); // TODO: check if exists
+        let mut f = File::open(file).ok().unwrap();
 
         // get the file size (bytes)
         let size = f.metadata().ok().unwrap().len();

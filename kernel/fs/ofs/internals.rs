@@ -12,15 +12,14 @@ use io::block::{BlockDevice, BlockDataBuffer};
 use super::hw::*;
 use super::super::error::Error;
 
-// TODO: file system consistency
-// TODO: check permissions
-
 // NOTE: for now, the number of inodes must be chosen so that the last inode just completes its
 // block. That is, the first dnode comes immediately after the last inode *AND* at the start of the
 // next block.
 //
 // NOTE: all sections of the volume must exactly fit in the space allocated to them. For example,
 // all bitmaps must be an integer multiple of the block size.
+//
+// NOTE: for now all files must have a multiple of 4B
 
 /// The OFS interface
 pub struct OFS<B: BlockDevice> {

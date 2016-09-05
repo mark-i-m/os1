@@ -13,6 +13,7 @@ use super::hw::*;
 /// A handle on the file for all needed operations.
 pub struct File<B: BlockDevice> {
     // TODO: make these private
+    // TODO: need marker if this file is read_only
     pub inode_num: usize,
     pub inode: Inode,
     pub offset: usize,
@@ -81,7 +82,6 @@ impl<B: BlockDevice> File<B> {
     /// offset.
     fn write_part(&mut self, bytes: usize, buf: &mut BlockDataBuffer) -> usize {
         // TODO update modified time
-        // TODO: what about concurrent writes?
 
         // lock the file system
         let mut fs = self.ofs.down();
@@ -233,23 +233,31 @@ impl<B: BlockDevice> File<B> {
         }
     }
 
-    // TODO
-    fn get_next_dnode() {}
-    // TODO
-    fn get_prev_dnode() {}
+    fn get_next_dnode() {
+        // TODO
+    }
 
-    // TODO
-    fn add_link() {}
-    // TODO
-    fn remove_link() {}
+    fn get_prev_dnode() {
+        // TODO
+    }
 
-    // TODO
-    fn grow() {}
+    fn add_link() {
+        // TODO
+    }
 
-    // TODO
-    fn change_metadata() {}
+    fn remove_link() {
+        // TODO
+    }
 
-    // TODO: do I want this?
+    fn grow() {
+        // TODO
+    }
+
+    fn change_metadata() {
+        // TODO
+    }
+
+    // TODO: how to access metadata?
     /// Return the filename
     pub fn get_filename(&self) -> String {
         self.inode.get_filename()
@@ -259,7 +267,7 @@ impl<B: BlockDevice> File<B> {
 impl<B: BlockDevice> Drop for File<B> {
     /// Close the file. Write back the inode
     fn drop(&mut self) {
-        // TODO: uncomment and correct
+        // TODO: should only write back if opened as writeable
         // let mut fs = self.ofs.down();
 
         // let inode_start_offset = fs.get_inode_offset(self.inode_num);

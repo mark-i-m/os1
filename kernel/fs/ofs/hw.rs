@@ -38,7 +38,7 @@ pub struct Inode {
     pub group_perm: u8, // group permissions
     pub all_perm: u8, // everyone permissions
     pub flags: u8, // various flags
-    pub size: usize, // file size in bytes TODO: for now this must a multiple of 4
+    pub size: usize, // file size in bytes NOTE: for now this must a multiple of 4
     pub data: usize, // index of Dnode with contents
     pub created: OFSDate, // date created
     pub modified: OFSDate, // date last modified

@@ -50,6 +50,9 @@ impl<B: BlockDevice> OFSHandle<B> {
     /// Open the file with the given inode number and return a handle to it.
     pub fn open_read(&mut self, inode: usize) -> Result<File<B>, Error> {
         // TODO mark as read
+        // TODO check permissions
+        // TODO check that the file is not already opened as write
+
         // lock the fs
         let mut fs = self.fs.down();
 
@@ -72,6 +75,9 @@ impl<B: BlockDevice> OFSHandle<B> {
     /// Open the file with the given inode number and return a handle to it.
     pub fn open_write(&mut self, inode: usize) -> Result<File<B>, Error> {
         // TODO mark as write
+        // TODO check permissions
+        // TODO check that the file is not already opened as write
+
         // lock the fs
         let mut fs = self.fs.down();
 
@@ -94,21 +100,26 @@ impl<B: BlockDevice> OFSHandle<B> {
     /// Create a link (directed edge) from file `a` to file `b`. `a` and `b` are the inode number
     /// of the files.
     pub fn link(&mut self, a: usize, b: usize) -> Option<Error> {
-        // TODO
+        // TODO implement
+        // TODO check permissions
         // TODO: make sure that they are not already linked
+        // TODO: what if file is already opened as write?
         Some(Error::new("OFS is read-only until I think about consistency..."))
     }
 
     /// Remove a link (directed edge) from file `a` to file `b`. `a` and `b` are the inode number
     /// of the files.
     pub fn unlink(&mut self, a: usize, b: usize) -> Option<Error> {
-        // TODO
+        // TODO implement
+        // TODO check permissions
         // TODO: make sure that they are already linked
+        // TODO: what if file is already opened as write?
         Some(Error::new("OFS is read-only until I think about consistency..."))
     }
 
     /// Return metadata for the file with inode `a` or None if the file does not exist
     pub fn stat(&self, a: usize) -> Option<Inode> {
+        // TODO: check permissions
         let mut fs = self.fs.down();
         if !fs.is_free_inode(a) {
             Some(fs.get_inode(a))
@@ -120,6 +131,10 @@ impl<B: BlockDevice> OFSHandle<B> {
     /// Create a new file and a link from `a` to it. `a` is the inode number of the file. Return
     /// the inode number of the new file.
     pub fn new_file(&mut self) -> Result<usize, Error> {
+        // TODO: check permissions
+        // TODO: check that file does not already exist
+        // TODO: take some metadata as input (e.g. name, permissions)
+
         return Err(Error::new("OFS is read-only until I think about consistency..."));
 
         let mut fs = self.fs.down();
@@ -159,11 +174,12 @@ impl<B: BlockDevice> OFSHandle<B> {
 
     /// Delete file `a`. `a` is the inode number of the file.
     pub fn delete_file(&mut self, a: usize) -> Option<Error> {
-        // TODO
-        // Remove links
-        // Remove Inode
-        // Remove Dnodes
-        // TODO: what if a file is deleted while another process is writing to it?
+        // TODO implement
+        // TODO check permissions
+        // TODO make sure file is not opened at all
+        // TODO Remove links
+        // TODO Remove Inode
+        // TODO Remove Dnodes
         Some(Error::new("OFS is read-only until I think about consistency..."))
     }
 
