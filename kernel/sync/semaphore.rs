@@ -145,7 +145,6 @@ impl<'semaphore, T> Drop for SemaphoreGuard<'semaphore, T> {
     }
 }
 
-/// Implement Deref and DerefMut to get deref coersions
 impl<'semaphore, T> Deref for SemaphoreGuard<'semaphore, T> {
     type Target = T;
 
@@ -154,7 +153,6 @@ impl<'semaphore, T> Deref for SemaphoreGuard<'semaphore, T> {
     }
 }
 
-/// Implement Deref and DerefMut to get deref coersions
 impl<'semaphore, T> DerefMut for SemaphoreGuard<'semaphore, T> {
     fn deref_mut(&mut self) -> &mut T {
         unsafe { &mut *self.data.get() }

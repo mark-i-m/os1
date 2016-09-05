@@ -1,12 +1,23 @@
+use alloc::arc::Arc;
 
+use core::cmp::min;
+use core::mem;
+use core::ptr::copy;
+
+use io::block::{BlockDevice, BlockDataBuffer};
+use string::String;
+use sync::Semaphore;
+use super::internals::*;
+use super::hw::*;
 
 /// A handle on the file for all needed operations.
 pub struct File<B: BlockDevice> {
-    inode_num: usize,
-    inode: Inode,
-    offset: usize,
-    offset_dnode: usize,
-    ofs: Arc<Semaphore<OFS<B>>>,
+    // TODO: make these private
+    pub inode_num: usize,
+    pub inode: Inode,
+    pub offset: usize,
+    pub offset_dnode: usize,
+    pub ofs: Arc<Semaphore<OFS<B>>>,
 }
 
 impl<B: BlockDevice> File<B> {
@@ -23,11 +34,11 @@ impl<B: BlockDevice> File<B> {
         // lock the file system
         let mut fs = self.ofs.down();
 
-        // How many bytes left in dnode?
         let dnode_size = mem::size_of::<Dnode>();
 
         // Where are we in the current dnode?
-        let dnode_start = fs.get_dnode_offset(self.offset_dnode);
+        // How many bytes left in dnode?
+        let dnode = fs.dnode_num_to_block_num(self.offset_dnode);
         let dnode_offset = self.offset % (dnode_size - 4);
 
         // Is this the last dnode of the file?
@@ -36,7 +47,7 @@ impl<B: BlockDevice> File<B> {
         if last_dnode {
             let bytes_left = self.inode.size - self.offset;
             let num_read = min(bytes_left, buf.size() - buf.offset());
-            fs.device.read_exactly(dnode_start + dnode_offset, bytes_left, buf);
+            fs.device.read_exactly(dnode, dnode_offset, bytes_left, buf);
             self.offset += num_read;
             num_read
         } else {
@@ -44,12 +55,12 @@ impl<B: BlockDevice> File<B> {
 
             if buf.size() - buf.offset() < bytes_left {
                 let num_read = buf.size() - buf.offset();
-                fs.device.read_exactly(dnode_start + dnode_offset, num_read, buf);
+                fs.device.read_exactly(dnode, dnode_offset, num_read, buf);
                 self.offset += num_read;
                 num_read
             } else {
                 let tmp = &mut BlockDataBuffer::new(bytes_left + 4);
-                fs.device.read_fully(dnode_start + dnode_offset, tmp);
+                fs.device.read_fully(dnode, dnode_offset, tmp);
                 self.offset += bytes_left;
                 self.offset_dnode = unsafe { *tmp.get_ptr(bytes_left / 4) };
                 let buf_offset = buf.offset();
@@ -79,7 +90,7 @@ impl<B: BlockDevice> File<B> {
         let dnode_size = mem::size_of::<Dnode>();
 
         // Where are we in the current dnode?
-        let dnode_start = fs.get_dnode_offset(self.offset_dnode);
+        let dnode = fs.dnode_num_to_block_num(self.offset_dnode);
         let dnode_offset = self.offset % (dnode_size - 4);
 
         // Is this the last dnode of the file?
@@ -95,7 +106,7 @@ impl<B: BlockDevice> File<B> {
         // Do the write
         if within {
             let num_write = bytes;
-            fs.device.write_exactly(dnode_start + dnode_offset, num_write, buf);
+            fs.device.write_exactly(dnode, dnode_offset, num_write, buf);
             let eof_offset = self.inode.size % (dnode_size - 4);
             if last_dnode && eof_offset < dnode_offset + num_write {
                 self.inode.size += dnode_offset + num_write - eof_offset;
@@ -111,7 +122,7 @@ impl<B: BlockDevice> File<B> {
                      dnode_size);
             }
             let next_dnode = if last_dnode {
-                let new_dnode = fs.get_new_dnode();
+                let new_dnode = fs.alloc_dnode();
                 unsafe {
                     *tmp.get_ptr::<usize>((dnode_size / mem::size_of::<usize>()) - 1) = new_dnode;
                 }
@@ -126,8 +137,9 @@ impl<B: BlockDevice> File<B> {
                      tmp.get_ptr::<u8>(dnode_offset),
                      num_write);
             }
-            let dnode_start_offset = fs.get_dnode_offset(self.offset_dnode);
-            fs.device.write_fully(dnode_start_offset, tmp);
+            let dnode_blk = fs.dnode_num_to_block_num(self.offset_dnode);
+            let dnode_offset = fs.dnode_num_to_block_offset(self.offset_dnode);
+            fs.device.write_fully(dnode_blk, dnode_offset, tmp);
             self.offset += num_write;
             self.offset_dnode = next_dnode;
             buf.set_offset(old_buf_offset + num_write);
@@ -236,6 +248,12 @@ impl<B: BlockDevice> File<B> {
 
     // TODO
     fn change_metadata() {}
+
+    // TODO: do I want this?
+    /// Return the filename
+    pub fn get_filename(&self) -> String {
+        self.inode.get_filename()
+    }
 }
 
 impl<B: BlockDevice> Drop for File<B> {

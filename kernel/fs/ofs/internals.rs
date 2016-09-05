@@ -25,10 +25,10 @@ use super::super::error::Error;
 /// The OFS interface
 pub struct OFS<B: BlockDevice> {
     // block device
-    device: B,
+    pub device: B,
 
     // metadata
-    meta: Metadata,
+    pub meta: Metadata,
 }
 
 impl<B: BlockDevice> OFS<B> {
@@ -86,7 +86,7 @@ impl<B: BlockDevice> OFS<B> {
     }
 
     /// Get the `inode`th inode
-    pub fn get_inode(&self, inode: usize) -> Inode {
+    pub fn get_inode(&mut self, inode: usize) -> Inode {
         let block = self.inode_num_to_block_num(inode);
         let offset = self.inode_num_to_block_offset(inode);
         let size = mem::size_of::<Inode>();
@@ -99,7 +99,7 @@ impl<B: BlockDevice> OFS<B> {
     }
 
     /// Get the `dnode`th dnode
-    pub fn get_dnode(&self, dnode: usize) -> Dnode {
+    pub fn get_dnode(&mut self, dnode: usize) -> Dnode {
         let block = self.dnode_num_to_block_num(dnode);
         let offset = self.dnode_num_to_block_offset(dnode);
         let size = mem::size_of::<Dnode>();
@@ -190,6 +190,22 @@ impl<B: BlockDevice> OFS<B> {
 
     pub fn free_dnode(&mut self, dnode: usize) {
         // TODO
+    }
+
+    pub fn is_free_inode(&mut self, inode: usize) -> bool {
+        // which byte of the bitmap
+        let byte = inode / 8;
+
+        // which bit of that byte
+        let bit = inode % 8;
+
+        // read bitmap
+        let mut buf = BlockDataBuffer::new(1);
+        self.device.read_fully(1, byte, &mut buf);
+
+        let bitmap_byte = unsafe { *buf.get_ptr::<u8>(0) };
+
+        bitmap_byte & (1 << bit) == 0
     }
 
     pub fn mark_file_open(&mut self, inode: usize, read_only: bool) {

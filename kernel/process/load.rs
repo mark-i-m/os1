@@ -14,7 +14,7 @@ use super::elf::*;
 /// Only returns if there is an error
 pub fn exec(inode: usize) -> usize {
     // open the file
-    let mut f = unsafe { (*ROOT_FS).open(inode).ok().unwrap() };
+    let mut f = unsafe { (*ROOT_FS).open_read(inode).ok().unwrap() };
 
     // read the elf header
     let ehdr = unsafe {

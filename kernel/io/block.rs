@@ -41,6 +41,8 @@ pub trait BlockDevice {
     ///
     /// The method panics if `offset >= self.get_block_size()`.
     fn read(&mut self, block_num: usize, offset: usize, buffer: &mut BlockDataBuffer) -> usize {
+        printf!("Read: {:X} {:x}\n", block_num, offset);
+
         // read the block where the data we want starts
         let blk_size = self.get_block_size();
 
@@ -81,7 +83,7 @@ pub trait BlockDevice {
         }
 
         let mut block_buf = BlockDataBuffer::new(blk_size);
-        self.read_block(sector, &mut block_buf);
+        self.read_block(block_num, &mut block_buf);
 
         // modify the block
         let num_written = min(buffer.size() - buffer.offset(), blk_size - offset);

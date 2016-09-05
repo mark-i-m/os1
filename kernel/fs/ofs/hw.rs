@@ -1,12 +1,13 @@
 //! A module of low-level abstractions for disk-level representations of data for OFS.
 
 use core::mem;
-// use core::ops::Index;
 
 use string::String;
 
 /// A 4B representation of the date for use in the OS
-type OFSDate = u32;
+#[derive(Clone)]
+#[repr(C,packed)]
+pub struct OFSDate(u32);
 
 // TODO: extendable list of elements
 // /// A data structure representing a list on the hard
@@ -45,7 +46,6 @@ pub struct Inode {
 }
 
 /// A single OFS Dnode (512B)
-// TODO: deref to slice
 #[repr(C, packed)]
 pub struct Dnode {
     pub data: [usize; 128],
@@ -57,7 +57,7 @@ pub const UNNAMED: [u8; 12] = ['u' as u8, 'n' as u8, 'n' as u8, 'a' as u8, 'm' a
 impl OFSDate {
     pub fn now() -> OFSDate {
         // TODO
-        OFSDate { date: 0 }
+        OFSDate(0)
     }
 }
 
@@ -76,11 +76,6 @@ impl Metadata {
 }
 
 impl Inode {
-    /// Get the number of inodes in a sector
-    pub fn inodes_per_sector() -> usize {
-        SECTOR_SIZE / mem::size_of::<Inode>()
-    }
-
     /// Get the filename as a string
     pub fn get_filename(&self) -> String {
         let mut name = String::new();
@@ -94,11 +89,6 @@ impl Inode {
 }
 
 impl Dnode {
-    /// Get the number of dnodes in a sector
-    pub fn dnodes_per_sector() -> usize {
-        SECTOR_SIZE / mem::size_of::<Dnode>()
-    }
-
     /// Return the last word of this dnode. If the file
     /// has another dnode, this will be its index.
     pub fn get_next(&self) -> usize {

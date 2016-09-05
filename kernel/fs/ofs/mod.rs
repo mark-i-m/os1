@@ -5,7 +5,16 @@ pub mod file;
 mod internals;
 mod hw;
 
-use internals::*;
+use alloc::arc::Arc;
+
+use core::mem;
+
+use io::block::{BlockDevice, BlockDataBuffer};
+use sync::Semaphore;
+use self::file::File;
+use self::internals::*;
+use self::hw::*;
+use super::error::Error;
 
 /// A safe handle on the file system for all needed operations.
 pub struct OFSHandle<B: BlockDevice> {
@@ -17,9 +26,9 @@ impl<B: BlockDevice> OFSHandle<B> {
     ///
     /// NOTE: we do not have to lock the device now, because ownership transfers to the handle :D
     pub fn new(mut device: B) -> OFSHandle<B> {
-        let mut buf = BlockDataBuffer::new(SECTOR_SIZE);
+        let mut buf = BlockDataBuffer::new(device.get_block_size());
 
-        device.read_fully(0, &mut buf);
+        device.read_fully(0, 0, &mut buf);
 
         // get the metadata sector
         let meta = unsafe { buf.get_ref::<Metadata>(0).clone() };
@@ -44,7 +53,7 @@ impl<B: BlockDevice> OFSHandle<B> {
         // lock the fs
         let mut fs = self.fs.down();
 
-        if !fs.is_file(inode) {
+        if fs.is_free_inode(inode) {
             Err(Error::new("No such file or directory"))
         } else {
             let i = fs.get_inode(inode);
@@ -66,7 +75,7 @@ impl<B: BlockDevice> OFSHandle<B> {
         // lock the fs
         let mut fs = self.fs.down();
 
-        if !fs.is_file(inode) {
+        if fs.is_free_inode(inode) {
             Err(Error::new("No such file or directory"))
         } else {
             let i = fs.get_inode(inode);
@@ -101,7 +110,7 @@ impl<B: BlockDevice> OFSHandle<B> {
     /// Return metadata for the file with inode `a` or None if the file does not exist
     pub fn stat(&self, a: usize) -> Option<Inode> {
         let mut fs = self.fs.down();
-        if fs.is_file(a) {
+        if !fs.is_free_inode(a) {
             Some(fs.get_inode(a))
         } else {
             None
@@ -115,8 +124,8 @@ impl<B: BlockDevice> OFSHandle<B> {
 
         let mut fs = self.fs.down();
 
-        let inode_num = fs.get_new_inode();
-        let dnode_num = fs.get_new_dnode();
+        let inode_num = fs.alloc_inode();
+        let dnode_num = fs.alloc_dnode();
         let inode = Inode {
             name: UNNAMED,
             uid: 0,
@@ -137,10 +146,13 @@ impl<B: BlockDevice> OFSHandle<B> {
             *tmp.get_ref_mut(0) = inode;
         }
 
-        let inode_start_offset = fs.get_inode_offset(inode_num);
-        fs.device.write_fully(inode_start_offset, &mut tmp);
+        let inode_blk = fs.inode_num_to_block_num(inode_num);
+        let inode_offset = fs.inode_num_to_block_offset(inode_num);
+        fs.device.write_fully(inode_blk, inode_offset, &mut tmp);
 
         // TODO: link the file to the the current working file of the creating process
+        // let pwd = current_proc.pwd;
+        // fs.link(pwd, inode_num);
 
         Ok(inode_num)
     }

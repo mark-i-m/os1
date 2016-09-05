@@ -234,7 +234,7 @@ fn run4(_: &Process) -> usize {
 fn run5(_: &Process) -> usize {
     // test the fs
 
-    let mut f = unsafe { (*ROOT_FS).open(0).ok().unwrap() };
+    let mut f = unsafe { (*ROOT_FS).open_read(0).ok().unwrap() };
 
     let mut buf = BlockDataBuffer::new(512);
 

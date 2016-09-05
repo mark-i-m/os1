@@ -6,7 +6,7 @@ pub mod error;
 use alloc::boxed::Box;
 
 use io::ide::IDE;
-use self::ofs::fs::OFSHandle;
+use self::ofs::OFSHandle;
 
 pub static mut ROOT_FS: *mut OFSHandle<IDE> = 0 as *mut OFSHandle<IDE>;
 
