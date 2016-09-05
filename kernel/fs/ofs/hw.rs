@@ -4,7 +4,6 @@ use core::mem;
 // use core::ops::Index;
 
 use string::String;
-use io::ide::SECTOR_SIZE;
 
 /// A 4B representation of the date for use in the OS
 type OFSDate = u32;

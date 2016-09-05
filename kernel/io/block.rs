@@ -32,24 +32,30 @@ pub trait BlockDevice {
     /// Write the given block from the buffer
     fn write_block(&mut self, block_num: usize, buffer: &BlockDataBuffer);
 
-    /// Read from the block device at `offset` into the given buffer starting at the buffer's
-    /// internal offset. This method will read no more data than will fit into the remaining space
-    /// in the buffer, but it may also read less. It will update the buffer's offset, and return
-    /// the number of bytes read.
+    /// Read from the specified block at `offset` into the given buffer starting at the buffer's
+    /// offset. This method will read no more data than will fit into the remaining space in the
+    /// buffer, but it may also read less. It will update the buffer's offset, and return the
+    /// number of bytes read.
+    ///
+    /// # Panics
+    ///
+    /// The method panics if `offset >= self.get_block_size()`.
     fn read(&mut self, block_num: usize, offset: usize, buffer: &mut BlockDataBuffer) -> usize {
-        // TODO: block_num
         // read the block where the data we want starts
         let blk_size = self.get_block_size();
-        let sector = offset / blk_size;
+
+        if offset >= self.get_block_size() {
+            panic!("Attempt to use block offset larger than block: {}", offset);
+        }
+
         let mut block_buf = BlockDataBuffer::new(blk_size);
-        self.read_block(sector, &mut block_buf);
+        self.read_block(block_num, &mut block_buf);
 
         // get the portion we want
-        let buf_offset = offset - (sector * blk_size);
-        let num_read = min(buffer.size() - buffer.offset(), blk_size - buf_offset);
+        let num_read = min(buffer.size() - buffer.offset(), blk_size - offset);
         unsafe {
             let buf = buffer.get_ptr::<u8>(buffer.offset());
-            copy(block_buf.get_ptr::<u8>(buf_offset), buf, num_read);
+            copy(block_buf.get_ptr::<u8>(offset), buf, num_read);
         }
 
         // update the offset
@@ -60,28 +66,33 @@ pub trait BlockDevice {
         num_read
     }
 
-    /// Write from the buffer to the disk starting at the buffer's internal offset. This may not
-    /// write the whole buffer. This will update the buffer's offset, and return the number of
-    /// bytes written.
+    /// Write from the buffer to the disk starting at the buffer's offset. This may not write the
+    /// whole buffer. This will update the buffer's offset, and return the number of bytes written.
+    ///
+    /// # Panics
+    ///
+    /// The method panics if `offset >= self.get_block_size()`.
     fn write(&mut self, block_num: usize, offset: usize, buffer: &mut BlockDataBuffer) -> usize {
-        // TODO: block_num
         // read the block we are about to modify
         let blk_size = self.get_block_size();
-        let sector = offset / blk_size;
+
+        if offset >= self.get_block_size() {
+            panic!("Attempt to use block offset larger than block: {}", offset);
+        }
+
         let mut block_buf = BlockDataBuffer::new(blk_size);
         self.read_block(sector, &mut block_buf);
 
         // modify the block
-        let buf_offset = offset - (sector * blk_size);
-        let num_written = min(buffer.size() - buffer.offset(), blk_size - buf_offset);
+        let num_written = min(buffer.size() - buffer.offset(), blk_size - offset);
 
         unsafe {
             let buf = buffer.get_ptr::<u8>(buffer.offset());
-            copy(buf, block_buf.get_ptr::<u8>(buf_offset), num_written);
+            copy(buf, block_buf.get_ptr::<u8>(offset), num_written);
         }
 
         // write modified block to disk
-        self.write_block(sector, &block_buf);
+        self.write_block(block_num, &block_buf);
 
         // update the offset
         let new_offset = buffer.offset() + num_written;
@@ -91,38 +102,48 @@ pub trait BlockDevice {
         num_written
     }
 
-    /// Read from the block device at `offset` into the given buffer starting at the buffer's
-    /// internal offset. This method will fill the remaining space in the buffer. It will update
-    /// the buffer's offset.
+    /// Read from the specified block at `offset` into the given buffer starting at the buffer's
+    /// offset. This method will fill the remaining space in the buffer. It will update the
+    /// buffer's offset.
     ///
     /// # Panics
     ///
-    /// The method panics if there is not enough space in the buffer
-    fn read_fully(&mut self, block_num: usize, mut offset: usize, buffer: &mut BlockDataBuffer) {
-        // TODO: block_num
+    /// The method panics if
+    /// - there is not enough space in the buffer
+    /// - `offset >= self.get_block_size()`
+    fn read_fully(&mut self, block_num: usize, offset: usize, buffer: &mut BlockDataBuffer) {
         // find remaining space in the buffer
         let mut remaining = buffer.size() - buffer.offset();
+        let mut so_far = 0;
+
+        let blk_size = self.get_block_size();
 
         // read into the buffer until it is full
         while remaining > 0 {
-            let read = self.read(offset, buffer);
-            offset += read;
+            let read = self.read(block_num + so_far / blk_size, offset + so_far, buffer);
             remaining -= read;
+            so_far += read;
         }
     }
 
     /// Write from the buffer to the disk starting at the buffer's internal offset. This will
     /// write the whole buffer. This will update the buffer's offset.
-    fn write_fully(&mut self, block_num: usize, mut offset: usize, buffer: &mut BlockDataBuffer) {
-        // TODO: block_num
+    ///
+    /// # Panics
+    ///
+    /// The method panics if `offset >= self.get_block_size()`.
+    fn write_fully(&mut self, block_num: usize, offset: usize, buffer: &mut BlockDataBuffer) {
         // find remaining space in the buffer
         let mut remaining = buffer.size() - buffer.offset();
+        let mut so_far = 0;
+
+        let blk_size = self.get_block_size();
 
         // read into the buffer until it is full
         while remaining > 0 {
-            let written = self.write(offset, buffer);
-            offset += written;
+            let written = self.write(block_num + so_far / blk_size, offset + so_far, buffer);
             remaining -= written;
+            so_far += written;
         }
     }
 
@@ -132,16 +153,17 @@ pub trait BlockDevice {
     ///
     /// # Panics
     ///
-    /// The method panics if there is not enough space in the buffer
+    /// The method panics if
+    /// - there is not enough space in the buffer
+    /// - `offset >= self.get_block_size()`
     fn read_exactly(&mut self,
                     block_num: usize,
                     offset: usize,
                     bytes: usize,
                     buffer: &mut BlockDataBuffer) {
-        // TODO: block_num
         // TODO: make this more efficient
         let tmp = &mut BlockDataBuffer::new(bytes);
-        self.read_fully(offset, tmp);
+        self.read_fully(block_num, offset, tmp);
         unsafe {
             let buf_offset = buffer.offset();
             copy(tmp.get_ptr::<u8>(0),
@@ -159,7 +181,6 @@ pub trait BlockDevice {
                      offset: usize,
                      bytes: usize,
                      buffer: &mut BlockDataBuffer) {
-        // TODO: block_num
         // TODO: make this more efficient
         let tmp = &mut BlockDataBuffer::new(bytes);
         unsafe {
@@ -169,7 +190,7 @@ pub trait BlockDevice {
                  bytes);
             buffer.set_offset(buf_offset + bytes);
         }
-        self.write_fully(offset, tmp);
+        self.write_fully(block_num, offset, tmp);
     }
 }
 
