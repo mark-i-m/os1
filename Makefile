@@ -30,7 +30,7 @@ runtext: KERNELSERIAL = -nographic
 runtext: run
 
 rungraphic:
-	make run RUSTOPT="-C opt-level=3" ASOPT="-O3"
+	make run RUSTOPT="-C opt-level=3" ASOPT="-O3" RUSTCACHE="../build_cache/release"
 
 rundebug: KERNELDEBUG = -s -S
 rundebug: clean run

@@ -169,7 +169,7 @@ impl<B: BlockDevice> OFSHandle<B> {
         // let pwd = current_proc.pwd;
         // fs.link(pwd, inode_num);
 
-        Ok(inode_num)
+        Ok::<usize, Error>(inode_num)
     }
 
     /// Delete file `a`. `a` is the inode number of the file.

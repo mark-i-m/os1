@@ -14,8 +14,9 @@ LIBS = ../lib
 # Choose options
 RUSTOPT = -C opt-level=0 -g
 ASOPT = -O0 -g
+RUSTCACHE = ../build_cache/debug
 
-RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${LIBS} ${RUSTOPT} -Z no-landing-pads
+RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${LIBS} ${RUSTOPT} -Z no-landing-pads -Z incremental=${RUSTCACHE}
 ASFLAGS += -m32 ${ASOPT}
 
 # Lists of files

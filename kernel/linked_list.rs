@@ -641,7 +641,7 @@ impl<T> LinkedList<T> {
 }
 
 impl<T> Drop for LinkedList<T> {
-    #[unsafe_destructor_blind_to_params]
+    #[may_dangle]
     fn drop(&mut self) {
         // Dissolve the linked_list in a loop.
         // Just dropping the list_head can lead to stack exhaustion
