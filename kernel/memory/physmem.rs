@@ -19,16 +19,12 @@ static mut FREE_FRAMES: usize = 0;
 
 /// A physical memory frame
 #[repr(C, packed)]
-pub struct Frame {
-    mem: [usize; 1024],
-}
+pub struct Frame([usize; 1024]);
 
 /// Should take up 4MiB on a 32-bit machine.
 /// There is one frame info for each frame, associated by frame index
 #[repr(C, packed)]
-pub struct FrameInfoSection {
-    arr: [FrameInfo; 1 << 20],
-}
+pub struct FrameInfoSection([FrameInfo; 1 << 20]);
 
 /// Frame info
 /// ```
@@ -45,9 +41,7 @@ pub struct FrameInfoSection {
 ///                                +-- PD bit
 /// ```
 #[repr(C, packed)]
-pub struct FrameInfo {
-    info: usize,
-}
+pub struct FrameInfo(usize);
 
 /// A struct to keep track of information related to shared
 /// physical frames.
@@ -124,14 +118,14 @@ impl Index<usize> for Frame {
     type Output = usize;
 
     fn index<'a>(&'a self, index: usize) -> &'a usize {
-        &self.mem[index]
+        &self.0[index]
     }
 }
 
 /// Make the words of a frame indexable
 impl IndexMut<usize> for Frame {
     fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut usize {
-        &mut self.mem[index]
+        &mut self.0[index]
     }
 }
 
@@ -140,14 +134,14 @@ impl Index<usize> for FrameInfoSection {
     type Output = FrameInfo;
 
     fn index<'a>(&'a self, index: usize) -> &'a FrameInfo {
-        &self.arr[index]
+        &self.0[index]
     }
 }
 
 /// Make the `FrameInfoSection` indexable
 impl IndexMut<usize> for FrameInfoSection {
     fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut FrameInfo {
-        &mut self.arr[index]
+        &mut self.0[index]
     }
 }
 
@@ -191,7 +185,7 @@ impl FrameInfo {
 
             // if no more sharers, drop the shared info
             if sfi_list.is_empty() {
-                let addr = self.info & !3;
+                let addr = self.0 & !3;
                 let ptr = addr as *mut SharedFrameInfo;
                 off();
                 unsafe {
@@ -232,19 +226,19 @@ impl FrameInfo {
 
     /// Set the free bit of this `FrameInfo` to 1 if `free` is true; else 0
     fn set_free(&mut self, free: bool) {
-        let base = self.info & !1;
-        self.info = base | if free { 1 } else { 0 }
+        let base = self.0 & !1;
+        self.0 = base | if free { 1 } else { 0 }
     }
 
     /// Get the index of the next free frame
     fn get_next_free(&self) -> usize {
-        self.info >> 12
+        self.0 >> 12
     }
 
     /// Set the index of the next free frame
     fn set_next_free(&mut self, next: usize) {
-        let base = self.info & 0xFFF;
-        self.info = (next << 12) | base;
+        let base = self.0 & 0xFFF;
+        self.0 = (next << 12) | base;
     }
 
     /// Returns true if this frame has shared frame info.
@@ -256,7 +250,7 @@ impl FrameInfo {
 
     /// Get the `SharedFrameInfo` of this frame
     fn get_shared_info(&self) -> Option<&mut SharedFrameInfo> {
-        let addr = self.info & !3;
+        let addr = self.0 & !3;
         let ptr = addr as *mut SharedFrameInfo;
 
         if ptr.is_null() {
@@ -273,14 +267,14 @@ impl FrameInfo {
         }
 
         let addr = (sfi as usize) & !3;
-        let base = self.info & 3;
+        let base = self.0 & 3;
 
-        self.info = addr | base;
+        self.0 = addr | base;
     }
 
     /// Remove the `SharedFrameInfo` ptr of the frame
     fn clear_shared_info(&mut self) {
-        self.info &= 3;
+        self.0 &= 3;
     }
 }
 
