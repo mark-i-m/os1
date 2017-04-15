@@ -84,22 +84,11 @@ impl Clone for Dnode {
 impl OFSImage {
     /// Create a new OFSImage with the given numbers of inodes and dnodes.
     pub fn new(num_inodes: u32, num_dnodes: u32) -> OFSImage {
-        let mut inodes = Vec::with_capacity(num_inodes as usize);
-        let mut dnodes = Vec::with_capacity(num_dnodes as usize);
-
-        for _ in 0..num_inodes {
-            inodes.push(None)
-        }
-
-        for _ in 0..num_dnodes {
-            dnodes.push(None)
-        }
-
         OFSImage {
             num_inodes: num_inodes,
             num_dnodes: num_dnodes,
-            inodes: inodes,
-            dnodes: dnodes,
+            inodes: vec![None; num_inodes as usize],
+            dnodes: vec![None; num_dnodes as usize],
         }
     }
 
