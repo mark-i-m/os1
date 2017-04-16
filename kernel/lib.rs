@@ -20,7 +20,7 @@
 #![no_std]
 
 #![crate_type = "staticlib"]
-#![crate_name = "os1"]
+#![crate_name = "kernel"]
 
 // use libcore
 #[macro_use]

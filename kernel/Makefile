@@ -1,22 +1,16 @@
 # Choose tools
-RUSTC = rustc
 CC = gcc
 
-AR = ar
 LD = ld
 
 OBJCOPY = objcopy
 DD = dd
 
-# rust libraries
-LIBS = ../lib
-
 # Choose options
-RUSTOPT = -C opt-level=0 -g
+RUSTOPT = 
 ASOPT = -O0 -g
-RUSTCACHE = ../build_cache/debug
 
-RUSTFLAGS += --target=../i686-unknown-elf.json -L. -L${LIBS} ${RUSTOPT} -Z no-landing-pads -Z incremental=${RUSTCACHE}
+RUSTFLAGS = "-Z no-landing-pads"
 ASFLAGS += -m32 ${ASOPT}
 
 # Lists of files
@@ -24,7 +18,6 @@ RUSTFILES = $(shell find -name '*.rs')
 SFILES = $(wildcard *.S) $(wildcard *.s)
 
 OFILES = $(subst .s,.o,$(subst .S,.o,$(SFILES)))
-AFILES = libos1.a
 
 # General rules
 .PHONY: all clean
@@ -38,8 +31,13 @@ all: kernel.img
 %.o: %.s
 	${CC} ${ASFLAGS} -c -o $@ $<
 
-libos1.a: ${RUSTFILES}
-	${RUSTC} ${RUSTFLAGS} lib.rs
+libkernel.a: ${RUSTFILES} Cargo.toml
+	RUSTFLAGS=${RUSTFLAGS} CARGO_INCREMENTAL=1 cargo build -v --target ../i686-unknown-elf.json ${RUSTOPT}
+	@if [ "${RUSTOPT}" = "--release" ]; then  \
+		cp target/i686-unknown-elf/release/libkernel.a . ;  \
+	else \
+		cp target/i686-unknown-elf/debug/libkernel.a . ; \
+	fi
 
 %.bin: %
 	${OBJCOPY} -O binary $< $@
@@ -48,8 +46,8 @@ libos1.a: ${RUSTFILES}
 	${DD} if=$< of=$@ bs=512 conv=sync
 
 # kernel build
-kernel: ${OFILES} ${AFILES}
-	${LD} --gc-sections -N -m elf_i386 -e start --section-start mbr=0x7c00 -Ttext=0x9000 -o kernel ${OFILES} --start-group ${AFILES} --end-group
+kernel: ${OFILES} libkernel.a
+	${LD} --gc-sections -N -m elf_i386 -e start --section-start mbr=0x7c00 -Ttext=0x9000 -o kernel ${OFILES} --start-group libkernel.a --end-group
 
 clean:
 	rm -f *.o
@@ -57,3 +55,6 @@ clean:
 	rm -f *.img
 	rm -f *.bin
 	rm -f kernel
+
+clean-all: clean
+	cargo clean
