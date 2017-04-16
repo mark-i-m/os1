@@ -5,6 +5,8 @@
 *.d
 
 kernel/kernel
+kernel/target
+kernel/Cargo.lock
 user/user
 *.bin
 *.img

@@ -13,6 +13,7 @@
            box_patterns,
            const_fn,
            dropck_parametricity,
+           dropck_eyepatch,
            core_intrinsics,
           )]
 
@@ -20,7 +21,7 @@
 #![no_std]
 
 #![crate_type = "staticlib"]
-#![crate_name = "os1"]
+#![crate_name = "kernel"]
 
 // use libcore
 #[macro_use]
@@ -57,21 +58,23 @@ pub use self::memory::vmm_page_fault;
 #[no_mangle]
 pub fn kernel_main() {
     // make sure interrupts are off
-    unsafe { machine::cli(); }
+    unsafe {
+        machine::cli();
+    }
 
     // print new line after "x"
-    bootlog! ("\n");
+    bootlog!("\n");
 
-    /////////////////////////////////////////////////////
-    // Start initing stuff                             //
-    /////////////////////////////////////////////////////
+    /// //////////////////////////////////////////////////
+    /// Start initing stuff                             //
+    /// //////////////////////////////////////////////////
 
     // init tss, heap, and vm
     interrupts::tss_init();
 
     // make the kernel heap 3MiB starting at 1MiB.
     // make memory data structures take up the next 4MiB.
-    memory::init(1<<20, 3<<20);
+    memory::init(1 << 20, 3 << 20);
 
     // init processes
     process::init();
@@ -82,9 +85,9 @@ pub fn kernel_main() {
     // filesystem
     fs::init(self::io::ide::IDE::new(3 /* hdd */));
 
-    /////////////////////////////////////////////////////
-    // Done initing stuff                              //
-    /////////////////////////////////////////////////////
+    /// //////////////////////////////////////////////////
+    /// Done initing stuff                              //
+    /// //////////////////////////////////////////////////
 
     // yield to init process
     printf!("Everything inited! Here we go!\n");

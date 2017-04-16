@@ -145,7 +145,7 @@ impl<B: BlockDevice> OFSHandle<B> {
 
         // TODO: link the file to the the current working file of the creating process
 
-        Ok(inode_num)
+        Ok::<usize, Error>(inode_num)
     }
 
     /// Delete file `a`. `a` is the inode number of the file.

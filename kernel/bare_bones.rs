@@ -9,10 +9,11 @@ use machine::cli;
 
 // For bare-bones rust
 #[lang = "eh_personality"]
-extern "C" fn eh_personality() {}
+fn eh_personality() {}
 
 /// This function is used by `panic!` to display an error message.
 #[lang = "panic_fmt"]
+#[no_mangle]
 pub extern "C" fn rust_begin_unwind(args: fmt::Arguments, file: &'static str, line: u32) -> ! {
     use core::fmt::Write;
     unsafe {
