@@ -12,5 +12,6 @@
     "eliminate-frame-pointer": false,
     "linker-is-gnu": true,
     "no-compiler-rt": true,
-    "archive-format": "gnu"
+    "archive-format": "gnu",
+    "linker-flavor": "ld"
 }
