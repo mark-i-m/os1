@@ -4,10 +4,8 @@ version = "0.1.0"
 authors = ["mark <mmansi@utexas.edu>"]
 
 [dependencies]
-rust-libcore = "*"
-rlibc = { git = "https://github.com/mark-i-m/rlibc", branch = "patch-1", features = ["cross-compile"] }
-allocator_stub = {git = "https://github.com/mark-i-m/rust_allocator_stub", branch = "patch-1", features = ["cross-compile"]}
-rust-liballoc = {git = "https://github.com/mark-i-m/rust-liballoc"}
+rlibc = "*"
+allocator_stub = {git = "https://github.com/mark-i-m/rust_allocator_stub", branch = "patch-1"}
 
 [lib]
 name = "kernel"

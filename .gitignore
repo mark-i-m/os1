@@ -10,6 +10,7 @@ kernel/Cargo.lock
 user/user
 *.bin
 *.img
+*.gch
 
 *.swp
 *.swo

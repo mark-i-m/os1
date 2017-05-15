@@ -28,6 +28,19 @@ pub unsafe extern "C" fn __rust_allocate(size: usize, align: usize) -> *mut u8 {
     ret
 }
 
+#[no_mangle]
+pub unsafe extern "C" fn __rust_allocate_zeroed(size: usize, align: usize) -> *mut u8 {
+    off();
+    let ret = malloc(size, align);
+    on();
+
+    for i in 0..size {
+        *(ret.offset(i as isize)) = 0;
+    }
+
+    ret
+}
+
 /// Deallocates the memory referenced by `ptr`.
 ///
 /// The `ptr` parameter must not be null.

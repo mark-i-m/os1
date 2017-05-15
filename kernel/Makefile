@@ -32,7 +32,7 @@ all: kernel.img
 	${CC} ${ASFLAGS} -c -o $@ $<
 
 libkernel.a: ${RUSTFILES} Cargo.toml
-	RUSTFLAGS=${RUSTFLAGS} CARGO_INCREMENTAL=1 cargo build -v --target ../i686-unknown-elf.json ${RUSTOPT}
+	RUSTFLAGS=${RUSTFLAGS} CARGO_INCREMENTAL=1 xargo build -v --target i686-unknown-elf	${RUSTOPT}
 	@if [ "${RUSTOPT}" = "--release" ]; then  \
 		cp target/i686-unknown-elf/release/libkernel.a . ;  \
 	else \
@@ -57,4 +57,4 @@ clean:
 	rm -f kernel
 
 clean-all: clean
-	cargo clean
+	xargo clean

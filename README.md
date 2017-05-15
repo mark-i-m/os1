@@ -19,6 +19,8 @@ For those that want to build from source, instructions are below.
 
   `curl https://sh.rustup.rs -sSf | sh`
 
+* `xargo` via `cargo install xargo` (used to cross-compile)
+
 ### To build:
 
 * `git clone https://github.com/mark-i-m/os1.git`
