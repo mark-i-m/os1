@@ -115,13 +115,13 @@ impl BlockDevice for IDE {
         self.wait_for_drive();
 
         unsafe {
-            outb(base + 2, 1);			                        // block_num count
-            outb(base + 3, ((block_num >> 0) & 0xFF) as u8);	// bits 7 .. 0
-            outb(base + 4, ((block_num >> 8) & 0xFF) as u8);	// bits 15 .. 8
-            outb(base + 5, ((block_num >> 16) & 0xFF) as u8);	// bits 23 .. 16
+            outb(base + 2, 1); // block_num count
+            outb(base + 3, ((block_num >> 0) & 0xFF) as u8); // bits 7 .. 0
+            outb(base + 4, ((block_num >> 8) & 0xFF) as u8); // bits 15 .. 8
+            outb(base + 5, ((block_num >> 16) & 0xFF) as u8); // bits 23 .. 16
             outb(base + 6,
                  0xE0 | (ch << 4) as u8 | ((block_num >> 24) & 0xf) as u8); // bits 28 .. 24, send to primary master
-            outb(base + 7, 0x20);		                        // read with retry
+            outb(base + 7, 0x20); // read with retry
         }
 
         // read
@@ -147,13 +147,13 @@ impl BlockDevice for IDE {
         self.wait_for_drive();
 
         unsafe {
-            outb(base + 2, 1);			                        // block_num count
-            outb(base + 3, ((block_num >> 0) & 0xFF) as u8);	// bits 7 .. 0
-            outb(base + 4, ((block_num >> 8) & 0xFF) as u8);	// bits 15 .. 8
-            outb(base + 5, ((block_num >> 16) & 0xFF) as u8);	// bits 23 .. 16
+            outb(base + 2, 1); // block_num count
+            outb(base + 3, ((block_num >> 0) & 0xFF) as u8); // bits 7 .. 0
+            outb(base + 4, ((block_num >> 8) & 0xFF) as u8); // bits 15 .. 8
+            outb(base + 5, ((block_num >> 16) & 0xFF) as u8); // bits 23 .. 16
             outb(base + 6,
                  0xE0 | (ch << 4) as u8 | ((block_num >> 24) & 0xf) as u8); // bits 28 .. 24, send to primary master
-            outb(base + 7, 0x30);		                        // write with retry
+            outb(base + 7, 0x30); // write with retry
         }
 
         // read

@@ -187,14 +187,16 @@ impl<T> LinkedList<T> {
     /// Remove the first Node and return it, or None if the list is empty
     #[inline]
     fn pop_front_node(&mut self) -> Option<Box<Node<T>>> {
-        self.list_head.take().map(|mut front_node| {
-            self.length -= 1;
-            match front_node.next.take() {
-                Some(node) => self.list_head = link_no_prev(node),
-                None => self.list_tail = Rawlink::none(),
-            }
-            front_node
-        })
+        self.list_head
+            .take()
+            .map(|mut front_node| {
+                     self.length -= 1;
+                     match front_node.next.take() {
+                         Some(node) => self.list_head = link_no_prev(node),
+                         None => self.list_tail = Rawlink::none(),
+                     }
+                     front_node
+                 })
     }
 
     /// Add a Node last in the list
@@ -214,14 +216,16 @@ impl<T> LinkedList<T> {
     #[inline]
     fn pop_back_node(&mut self) -> Option<Box<Node<T>>> {
         unsafe {
-            self.list_tail.resolve_mut().and_then(|tail| {
-                self.length -= 1;
-                self.list_tail = tail.prev;
-                match tail.prev.resolve_mut() {
-                    None => self.list_head.take(),
-                    Some(tail_prev) => tail_prev.next.take(),
-                }
-            })
+            self.list_tail
+                .resolve_mut()
+                .and_then(|tail| {
+                              self.length -= 1;
+                              self.list_tail = tail.prev;
+                              match tail.prev.resolve_mut() {
+                                  None => self.list_head.take(),
+                                  Some(tail_prev) => tail_prev.next.take(),
+                              }
+                          })
         }
     }
 }
@@ -662,11 +666,13 @@ impl<'a, A> Iterator for Iter<'a, A> {
         if self.nelem == 0 {
             return None;
         }
-        self.head.as_ref().map(|head| {
-            self.nelem -= 1;
-            self.head = &head.next;
-            &head.value
-        })
+        self.head
+            .as_ref()
+            .map(|head| {
+                     self.nelem -= 1;
+                     self.head = &head.next;
+                     &head.value
+                 })
     }
 
     #[inline]
@@ -682,11 +688,13 @@ impl<'a, A> DoubleEndedIterator for Iter<'a, A> {
             return None;
         }
         unsafe {
-            self.tail.resolve().map(|prev| {
-                self.nelem -= 1;
-                self.tail = prev.prev;
-                &prev.value
-            })
+            self.tail
+                .resolve()
+                .map(|prev| {
+                         self.nelem -= 1;
+                         self.tail = prev.prev;
+                         &prev.value
+                     })
         }
     }
 }
@@ -701,11 +709,13 @@ impl<'a, A> Iterator for IterMut<'a, A> {
             return None;
         }
         unsafe {
-            self.head.resolve_mut().map(|next| {
-                self.nelem -= 1;
-                self.head = Rawlink::from(&mut next.next);
-                &mut next.value
-            })
+            self.head
+                .resolve_mut()
+                .map(|next| {
+                         self.nelem -= 1;
+                         self.head = Rawlink::from(&mut next.next);
+                         &mut next.value
+                     })
         }
     }
 
@@ -722,11 +732,13 @@ impl<'a, A> DoubleEndedIterator for IterMut<'a, A> {
             return None;
         }
         unsafe {
-            self.tail.resolve_mut().map(|prev| {
-                self.nelem -= 1;
-                self.tail = prev.prev;
-                &mut prev.value
-            })
+            self.tail
+                .resolve_mut()
+                .map(|prev| {
+                         self.nelem -= 1;
+                         self.tail = prev.prev;
+                         &mut prev.value
+                     })
         }
     }
 }
@@ -1073,13 +1085,13 @@ mod tests {
     fn test_send() {
         let n = list_from(&[1, 2, 3]);
         thread::spawn(move || {
-                check_links(&n);
-                let a: &[_] = &[&1, &2, &3];
-                assert_eq!(a, &n.iter().collect::<Vec<_>>()[..]);
-            })
-            .join()
-            .ok()
-            .unwrap();
+                          check_links(&n);
+                          let a: &[_] = &[&1, &2, &3];
+                          assert_eq!(a, &n.iter().collect::<Vec<_>>()[..]);
+                      })
+                .join()
+                .ok()
+                .unwrap();
     }
 
     #[test]

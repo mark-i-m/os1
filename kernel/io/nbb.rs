@@ -4,8 +4,8 @@ use alloc::raw_vec::RawVec;
 
 use core::ptr;
 
-use super::super::interrupts::{on, off};
-use super::stream::*;
+use interrupts::no_preempt;
+use io::stream::*;
 
 /// A non-blocking circular buffer for use
 /// by interrupt handlers
@@ -35,18 +35,14 @@ impl InputStream for NonBlockingBuffer {
 
     /// Get the next character in the stream if there is one
     fn get(&mut self) -> Option<char> {
-        off();
-        let ret = if self.size > 0 {
-            let i = self.front;
-            self.front = (self.front + 1) % self.buffer.cap();
-            self.size -= 1;
-            unsafe { Some(ptr::read(self.buffer.ptr().offset(i as isize))) }
-        } else {
-            None
-        };
-        on();
-
-        ret
+        no_preempt(|| if self.size > 0 {
+                       let i = self.front;
+                       self.front = (self.front + 1) % self.buffer.cap();
+                       self.size -= 1;
+                       unsafe { Some(ptr::read(self.buffer.ptr().offset(i as isize))) }
+                   } else {
+                       None
+                   })
     }
 }
 
@@ -64,14 +60,12 @@ impl OutputStream<char> for NonBlockingBuffer {
     /// If there is no room in the buffer, the character is
     /// dropped.
     fn put(&mut self, c: char) {
-        off();
-        if self.size < self.buffer.cap() {
-            let next = (self.front + self.size) % self.buffer.cap();
-            unsafe {
-                ptr::write(self.buffer.ptr().offset(next as isize), c);
-            }
-            self.size += 1;
-        }
-        on();
+        no_preempt(|| if self.size < self.buffer.cap() {
+                       let next = (self.front + self.size) % self.buffer.cap();
+                       unsafe {
+                           ptr::write(self.buffer.ptr().offset(next as isize), c);
+                       }
+                       self.size += 1;
+                   })
     }
 }

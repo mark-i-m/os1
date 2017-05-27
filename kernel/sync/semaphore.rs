@@ -6,8 +6,8 @@ use core::sync::atomic::{AtomicIsize, Ordering};
 use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
 
-use super::super::interrupts::{on, off};
-use super::super::process::{ready_queue, proc_yield, ProcessQueue};
+use interrupts::no_preempt;
+use process::{ready_queue, proc_yield, ProcessQueue};
 
 /// `Semaphore` is a much more Rustic semaphore. It returns an RAII
 /// `SemaphoreGuard`, which automatically calls "up" when it goes out of
@@ -85,28 +85,24 @@ impl StaticSemaphore {
 
     /// Acquire
     pub fn down(&self) {
-        off();
-        unsafe {
-            if (*self.count.get()).fetch_sub(1, Ordering::AcqRel) <= 0 {
-                (*self.count.get()).fetch_add(1, Ordering::AcqRel);
-                // block
-                proc_yield(Some(&mut *self.queue.get()));
-            }
-        }
-        on();
+        no_preempt(|| unsafe {
+                       if (*self.count.get()).fetch_sub(1, Ordering::AcqRel) <= 0 {
+                           (*self.count.get()).fetch_add(1, Ordering::AcqRel);
+                           // block
+                           proc_yield(Some(&mut *self.queue.get()));
+                       }
+                   })
     }
 
     /// Release
     pub fn up(&self) {
-        off();
-        unsafe {
-            if let Some(next) = (*self.queue.get()).pop_front() {
-                ready_queue::make_ready(next);
-            } else {
-                (*self.count.get()).fetch_add(1, Ordering::AcqRel);
-            }
-        }
-        on();
+        no_preempt(|| unsafe {
+                       if let Some(next) = (*self.queue.get()).pop_front() {
+                           ready_queue::make_ready(next);
+                       } else {
+                           (*self.count.get()).fetch_add(1, Ordering::AcqRel);
+                       }
+                   })
     }
 
     /// Clean up.

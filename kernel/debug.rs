@@ -17,8 +17,7 @@ impl Debug {
     pub fn write_bytes(&self, bytes: &[u8]) {
         for b in bytes {
             unsafe {
-                while inb(PORT + 5) & 0x20 == 0 {
-                }
+                while inb(PORT + 5) & 0x20 == 0 {}
                 outb(PORT, *b);
             }
         }
@@ -41,11 +40,9 @@ impl Write for Debug {
 macro_rules! printf {
     ($($arg:tt)*) => ({
         use ::core::fmt::Write;
-        use ::interrupts::{on, off};
+        use ::interrupts::no_preempt;
 
-        off();
-        let _ = write!($crate::debug::Debug, $($arg)*);
-        on();
+        let _ = no_preempt(|| write!($crate::debug::Debug, $($arg)*));
     })
 }
 

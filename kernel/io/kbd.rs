@@ -36,8 +36,7 @@ fn ul(c: char) -> char {
 
 /// Get a character from the keyboard
 fn get_key() -> Option<char> {
-    while unsafe { inb(0x64) } & 1 == 0 {
-    }
+    while unsafe { inb(0x64) } & 1 == 0 {}
     let b: u8 = unsafe { inb(0x60) };
     match b {
         0x02...0x0a => Some(('0' as u8 + b - 1) as char),

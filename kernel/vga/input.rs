@@ -45,7 +45,9 @@ impl InputElement for TextArea {
         // get focus
         focus(None);
 
-        let buffer = me.buffer.as_mut().expect("Oh no! Why isn't there a buffer?");
+        let buffer = me.buffer
+            .as_mut()
+            .expect("Oh no! Why isn't there a buffer?");
         loop {
             match buffer.next() {
                 Some('\n') => break,

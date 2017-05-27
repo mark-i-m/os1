@@ -1,12 +1,12 @@
 //! A module process address spaces
 
-use super::super::super::interrupts::{on, off};
-use super::super::super::machine::{invlpg, vmm_on};
-use super::super::super::process::{CURRENT_PROCESS, State};
-use super::super::super::process::proc_table::PROCESS_TABLE;
-use super::super::super::sync::{Barrier, Event, StaticSemaphore};
-use super::super::physmem::Frame;
-use super::{SHARED_PDES, NUM_SHARED, PD_ADDRESS, KMAP_ADDRESS, USER_ADDRESS, VMM_ON};
+use interrupts::no_preempt;
+use machine::{invlpg, vmm_on};
+use process::{CURRENT_PROCESS, State};
+use process::proc_table::PROCESS_TABLE;
+use sync::{Barrier, Event, StaticSemaphore};
+use memory::physmem::Frame;
+use memory::vm::{SHARED_PDES, NUM_SHARED, PD_ADDRESS, KMAP_ADDRESS, USER_ADDRESS, VMM_ON};
 use super::structs::{VMTable, PagingEntry};
 
 /// The address space of a single process
@@ -103,24 +103,22 @@ impl AddressSpace {
             // present bit
             // no pd entry yet => create one
 
-            off();
+            no_preempt(|| {
+                // set pde
+                pde.set_read_write(true); // read/write
+                pde.set_privelege_level(virt >= 0xD00000); // kernel only if vaddr < 0xD00000
+                pde.set_caching(false); // write-back
+                pde.set_address(Frame::alloc()); // alloc a new frame
+                pde.set_present(true); // present
 
-            // set pde
-            pde.set_read_write(true); // read/write
-            pde.set_privelege_level(virt >= 0xD00000); // kernel only if vaddr < 0xD00000
-            pde.set_caching(false); // write-back
-            pde.set_address(Frame::alloc()); // alloc a new frame
-            pde.set_present(true); // present
-
-            // clear the pt
-            let mut pt =
-                unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
-            for p in 0..1024 {
-                pt[p] = PagingEntry::new();
-                unsafe { invlpg((pde_index << 22) | (p << 12)) };
-            }
-
-            on();
+                // clear the pt
+                let mut pt =
+                    unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
+                for p in 0..1024 {
+                    pt[p] = PagingEntry::new();
+                    unsafe { invlpg((pde_index << 22) | (p << 12)) };
+                }
+            });
         }
 
         // follow pde to get pt
@@ -132,16 +130,14 @@ impl AddressSpace {
             // present bit
             // no pt entry yet -> create one
 
-            off();
-
-            // set pte
-            pte.set_read_write(true); // read/write
-            pte.set_privelege_level(virt >= 0xD00000); // kernel only if vaddr < 0xD00000
-            pte.set_caching(false); // write-back
-            pte.set_address(phys); // point to frame
-            pte.set_present(true); // present
-
-            on();
+            no_preempt(|| {
+                // set pte
+                pte.set_read_write(true); // read/write
+                pte.set_privelege_level(virt >= 0xD00000); // kernel only if vaddr < 0xD00000
+                pte.set_caching(false); // write-back
+                pte.set_address(phys); // point to frame
+                pte.set_present(true); // present
+            });
         }
 
         if lock {
@@ -198,18 +194,18 @@ impl AddressSpace {
 
         if pd[pde_index].is_flag(0) {
             // present bit
-            off();
+            let mut pt = no_preempt(|| {
+                let mut pt =
+                    unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
 
-            let mut pt =
-                unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
+                // unmap and deallocate frame
+                pt[pte_index].free(virt >= unsafe { USER_ADDRESS });
 
-            // unmap and deallocate frame
-            pt[pte_index].free(virt >= unsafe { USER_ADDRESS });
+                // invalidate TLB entry
+                unsafe { invlpg(virt) };
 
-            // invalidate TLB entry
-            unsafe { invlpg(virt) };
-
-            on();
+                pt
+            });
 
             // if page table is now empty,
             // unmap and deallocate it
@@ -265,12 +261,10 @@ impl AddressSpace {
 
     /// Activate the current address space and turn on VM if needed
     pub fn activate(&mut self) {
-        off();
-        unsafe {
-            vmm_on(self.page_dir);
-            VMM_ON = true;
-        }
-        on();
+        no_preempt(|| unsafe {
+                       vmm_on(self.page_dir);
+                       VMM_ON = true;
+                   });
     }
 
     /// Send a page-share request to the process with PID `pid` for
@@ -347,10 +341,10 @@ impl AddressSpace {
             if addr_space.req_pid == my_pid {
                 break;
             } else {
-                off();
-                addr_space.lock.up();
-                addr_space.req_wait.wait();
-                on();
+                no_preempt(|| {
+                               addr_space.lock.up();
+                               addr_space.req_wait.wait();
+                           });
             }
         }
 
@@ -419,7 +413,9 @@ pub unsafe extern "C" fn vmm_page_fault(// context: *mut KContext,
     // printf!("page fault {:X}\n", fault_addr);
 
     if !CURRENT_PROCESS.is_null() {
-        (*CURRENT_PROCESS).addr_space.map(Frame::alloc(), fault_addr, true);
+        (*CURRENT_PROCESS)
+            .addr_space
+            .map(Frame::alloc(), fault_addr, true);
     } else {
         panic!("Page fault @ 0x{:X} with no current process", fault_addr);
     }

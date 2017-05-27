@@ -8,7 +8,7 @@ use core::fmt::{Debug, Formatter, Result};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use fs::ROOT_FS;
-use interrupts::{esp0, on, off};
+use interrupts::{esp0, no_preempt};
 use io::NonBlockingBuffer;
 use machine::{self, context_switch};
 use memory::AddressSpace;
@@ -17,6 +17,7 @@ use static_linked_list::StaticLinkedList;
 use self::context::KContext;
 use self::idle::IDLE_PROCESS;
 use self::proc_table::PROCESS_TABLE;
+
 
 pub mod context;
 pub mod focus;
@@ -299,9 +300,7 @@ fn start_proc() {
 /// yields onto the ready queue.
 pub fn proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     unsafe {
-        off();
-        machine::proc_yield(q);
-        on();
+        no_preempt(|| machine::proc_yield(q));
     }
 }
 
@@ -313,7 +312,7 @@ pub fn proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
 /// NOTE: Interrupts should already be disabled here
 #[no_mangle]
 #[inline(never)]
-pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
+pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) -> ! {
     // yield onto the right queue
     if !CURRENT_PROCESS.is_null() {
         if let Some(queue) = q {
@@ -358,7 +357,7 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
 }
 
 /// Called by the current process to exit with the given exit code
-pub fn exit(code: usize) {
+pub fn exit(code: usize) -> ! {
     unsafe {
         if CURRENT_PROCESS.is_null() {
             panic!("Exiting with no current process!\n");
@@ -369,19 +368,20 @@ pub fn exit(code: usize) {
         // clean up address space
         (*CURRENT_PROCESS).addr_space.clear();
 
-        // Disable interrupts
-        off();
+        // Disable interrupts -- note that this should never enable
+        // interrupts again because _proc_yield never returns.
+        no_preempt(|| {
+            // NOTE: need to print *before* adding to reaper q
+            bootlog!("{:?} [Exit 0x{:X}]\n", *CURRENT_PROCESS, code);
 
-        // NOTE: need to print *before* adding to reaper q
-        bootlog!("{:?} [Exit 0x{:X}]\n", *CURRENT_PROCESS, code);
+            self::reaper::reaper_add(CURRENT_PROCESS);
 
-        self::reaper::reaper_add(CURRENT_PROCESS);
+            // set current to None, so we will never run this again
+            CURRENT_PROCESS = 0 as *mut Process;
 
-        // set current to None, so we will never run this again
-        CURRENT_PROCESS = 0 as *mut Process;
-
-        // switch to next ready process
-        _proc_yield(None);
+            // switch to next ready process
+            _proc_yield(None);
+        });
     }
 
     panic!("The impossible has happened!");

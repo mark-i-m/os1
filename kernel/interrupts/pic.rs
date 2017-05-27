@@ -25,20 +25,20 @@ const FIRST_IDT: u8 = 0x30;
 pub fn init() {
     unsafe {
         // ICW1
-        outb(C1, 0x11);        /* init with ICW4, not single */
-        outb(C2, 0x11);        /* init with ICW4, not single */
+        outb(C1, 0x11); /* init with ICW4, not single */
+        outb(C2, 0x11); /* init with ICW4, not single */
 
         // ICW2
-        outb(D1, FIRST_IDT);    /* IDT index for IRQ0 */
-        outb(D2, FIRST_IDT + 8);  /* IDT index for IRQ8 */
+        outb(D1, FIRST_IDT); /* IDT index for IRQ0 */
+        outb(D2, FIRST_IDT + 8); /* IDT index for IRQ8 */
 
         // ICW3
-        outb(D1, 1 << 2);     /* tells master that the slave is at IRQ2 */
-        outb(D2, 2);          /* tells salve that it's connected at IRQ2 */
+        outb(D1, 1 << 2); /* tells master that the slave is at IRQ2 */
+        outb(D2, 2); /* tells salve that it's connected at IRQ2 */
 
         // ICW4
-        outb(D1, 1);          /* 8086 mode */
-        outb(D2, 1);          /* 8086 mode */
+        outb(D1, 1); /* 8086 mode */
+        outb(D2, 1); /* 8086 mode */
 
         // enable all
         outb(D1, 0);

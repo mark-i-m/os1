@@ -3,10 +3,10 @@
 use core::intrinsics::transmute;
 use core::ops::{Index, IndexMut};
 
-use super::super::super::interrupts::{on, off};
-use super::super::super::process::CURRENT_PROCESS;
-use super::super::physmem::Frame;
-use super::VMM_ON;
+use interrupts::no_preempt;
+use process::CURRENT_PROCESS;
+use memory::physmem::Frame;
+use memory::vm::VMM_ON;
 
 /// A single entry in a page directory or table
 /// ```
@@ -98,26 +98,24 @@ impl PagingEntry {
 
     /// Free the frame pointed to if `dealloc` and mark this entry not present.
     pub fn free(&mut self, dealloc: bool) {
-        off();
-        if self.is_flag(0) {
-            if dealloc {
-                Frame::free(self.get_address() >> 12);
-            }
+        no_preempt(|| if self.is_flag(0) {
+                       if dealloc {
+                           Frame::free(self.get_address() >> 12);
+                       }
 
-            // clear the entry
-            self.set_flag(0, false);
-            self.set_flag(1, false);
-            self.set_flag(2, false);
-            self.set_flag(3, false);
-            self.set_flag(4, false);
-            self.set_flag(5, false);
-            self.set_flag(6, false);
-            self.set_flag(7, false);
-            self.set_flag(8, false);
-            self.set_flag(9, false);
-            self.set_address(0);
-        }
-        on();
+                       // clear the entry
+                       self.set_flag(0, false);
+                       self.set_flag(1, false);
+                       self.set_flag(2, false);
+                       self.set_flag(3, false);
+                       self.set_flag(4, false);
+                       self.set_flag(5, false);
+                       self.set_flag(6, false);
+                       self.set_flag(7, false);
+                       self.set_flag(8, false);
+                       self.set_flag(9, false);
+                       self.set_address(0);
+                   })
     }
 }
 
@@ -166,8 +164,9 @@ impl Index<usize> for VMTable {
 impl IndexMut<usize> for VMTable {
     fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut PagingEntry {
         unsafe {
-            transmute::<&mut usize,
-                        &mut PagingEntry>(&mut transmute::<&mut VMTable, &mut Frame>(self)[index])
+            transmute::<&mut usize, &mut PagingEntry>(&mut transmute::<&mut VMTable,
+                                                                       &mut Frame>(self)
+                                                               [index])
         }
     }
 }

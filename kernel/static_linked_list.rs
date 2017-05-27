@@ -191,14 +191,16 @@ impl<T> StaticLinkedList<T> {
     /// Remove the first Node and return it, or None if the list is empty
     #[inline]
     fn pop_front_node(&mut self) -> Link<T> {
-        self.list_head.take().map(|front_node| {
-            self.length -= 1;
-            match unsafe { (*front_node).next.take() } {
-                Some(node) => unsafe { self.list_head = link_no_prev(Box::from_raw(node)) },
-                None => self.list_tail = Rawlink::none(),
-            }
-            front_node
-        })
+        self.list_head
+            .take()
+            .map(|front_node| {
+                self.length -= 1;
+                match unsafe { (*front_node).next.take() } {
+                    Some(node) => unsafe { self.list_head = link_no_prev(Box::from_raw(node)) },
+                    None => self.list_tail = Rawlink::none(),
+                }
+                front_node
+            })
     }
 
     /// Add a Node last in the list
@@ -218,14 +220,16 @@ impl<T> StaticLinkedList<T> {
     #[inline]
     fn pop_back_node(&mut self) -> Link<T> {
         unsafe {
-            self.list_tail.resolve_mut().and_then(|tail| {
-                self.length -= 1;
-                self.list_tail = tail.prev;
-                match tail.prev.resolve_mut() {
-                    None => self.list_head.take(),
-                    Some(tail_prev) => tail_prev.next.take(),
-                }
-            })
+            self.list_tail
+                .resolve_mut()
+                .and_then(|tail| {
+                              self.length -= 1;
+                              self.list_tail = tail.prev;
+                              match tail.prev.resolve_mut() {
+                                  None => self.list_head.take(),
+                                  Some(tail_prev) => tail_prev.next.take(),
+                              }
+                          })
         }
     }
 }
@@ -410,7 +414,9 @@ impl<T> StaticLinkedList<T> {
     /// ```
     #[inline]
     pub fn front(&self) -> Option<&T> {
-        self.list_head.as_ref().map(|head| unsafe { &(**head).value })
+        self.list_head
+            .as_ref()
+            .map(|head| unsafe { &(**head).value })
     }
 
     /// Provides a mutable reference to the front element, or `None` if the list
@@ -436,7 +442,9 @@ impl<T> StaticLinkedList<T> {
     /// ```
     #[inline]
     pub fn front_mut(&mut self) -> Option<&mut T> {
-        self.list_head.as_ref().map(|head| unsafe { &mut (**head).value })
+        self.list_head
+            .as_ref()
+            .map(|head| unsafe { &mut (**head).value })
     }
 
     /// Provides a reference to the back element, or `None` if the list is
@@ -529,12 +537,11 @@ impl<T> StaticLinkedList<T> {
     /// ```
     ///
     pub fn pop_front(&mut self) -> Option<T> {
-        self.pop_front_node().map(|ptr| {
-            unsafe {
-                let box Node { value, .. } = Box::from_raw(ptr);
-                value
-            }
-        })
+        self.pop_front_node()
+            .map(|ptr| unsafe {
+                     let box Node { value, .. } = Box::from_raw(ptr);
+                     value
+                 })
     }
 
     /// Appends an element to the back of a list
@@ -568,12 +575,11 @@ impl<T> StaticLinkedList<T> {
     /// assert_eq!(d.pop_back(), Some(3));
     /// ```
     pub fn pop_back(&mut self) -> Option<T> {
-        self.pop_back_node().map(|ptr| {
-            unsafe {
-                let box Node { value, .. } = Box::from_raw(ptr);
-                value
-            }
-        })
+        self.pop_back_node()
+            .map(|ptr| unsafe {
+                     let box Node { value, .. } = Box::from_raw(ptr);
+                     value
+                 })
     }
 
     /// Splits the list into two at the given index. Returns everything after the given index,
@@ -709,13 +715,13 @@ impl<'a, A> Iterator for Iter<'a, A> {
         if self.nelem == 0 {
             return None;
         }
-        self.head.as_ref().map(|head| {
-            unsafe {
-                self.nelem -= 1;
-                self.head = &(**head).next;
-                &(**head).value
-            }
-        })
+        self.head
+            .as_ref()
+            .map(|head| unsafe {
+                     self.nelem -= 1;
+                     self.head = &(**head).next;
+                     &(**head).value
+                 })
     }
 
     #[inline]
@@ -731,11 +737,13 @@ impl<'a, A> DoubleEndedIterator for Iter<'a, A> {
             return None;
         }
         unsafe {
-            self.tail.resolve().map(|prev| {
-                self.nelem -= 1;
-                self.tail = prev.prev;
-                &prev.value
-            })
+            self.tail
+                .resolve()
+                .map(|prev| {
+                         self.nelem -= 1;
+                         self.tail = prev.prev;
+                         &prev.value
+                     })
         }
     }
 }
@@ -750,11 +758,13 @@ impl<'a, A> Iterator for IterMut<'a, A> {
             return None;
         }
         unsafe {
-            self.head.resolve_mut().map(|next| {
-                self.nelem -= 1;
-                self.head = Rawlink::from(&mut next.next);
-                &mut next.value
-            })
+            self.head
+                .resolve_mut()
+                .map(|next| {
+                         self.nelem -= 1;
+                         self.head = Rawlink::from(&mut next.next);
+                         &mut next.value
+                     })
         }
     }
 
@@ -771,11 +781,13 @@ impl<'a, A> DoubleEndedIterator for IterMut<'a, A> {
             return None;
         }
         unsafe {
-            self.tail.resolve_mut().map(|prev| {
-                self.nelem -= 1;
-                self.tail = prev.prev;
-                &mut prev.value
-            })
+            self.tail
+                .resolve_mut()
+                .map(|prev| {
+                         self.nelem -= 1;
+                         self.tail = prev.prev;
+                         &mut prev.value
+                     })
         }
     }
 }
@@ -1124,13 +1136,13 @@ mod tests {
     fn test_send() {
         let n = list_from(&[1, 2, 3]);
         thread::spawn(move || {
-                check_links(&n);
-                let a: &[_] = &[&1, &2, &3];
-                assert_eq!(a, &n.iter().collect::<Vec<_>>()[..]);
-            })
-            .join()
-            .ok()
-            .unwrap();
+                          check_links(&n);
+                          let a: &[_] = &[&1, &2, &3];
+                          assert_eq!(a, &n.iter().collect::<Vec<_>>()[..]);
+                      })
+                .join()
+                .ok()
+                .unwrap();
     }
 
     #[test]

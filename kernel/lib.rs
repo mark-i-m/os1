@@ -55,7 +55,7 @@ pub use self::memory::vmm_page_fault;
 
 /// This is the entry point to the kernel. It is the first rust code that runs.
 #[no_mangle]
-pub fn kernel_main() {
+pub fn kernel_main() -> ! {
     // make sure interrupts are off
     unsafe {
         machine::cli();

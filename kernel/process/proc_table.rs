@@ -206,9 +206,9 @@ impl ProcessTable {
 impl ProcessTableNode {
     fn new() -> *mut ProcessTableNode {
         Box::into_raw(box ProcessTableNode {
-            map: [0 as *mut Process; 20],
-            next: 0 as *mut ProcessTableNode,
-        })
+                              map: [0 as *mut Process; 20],
+                              next: 0 as *mut ProcessTableNode,
+                          })
     }
 
     fn destroy(n: *mut ProcessTableNode) {

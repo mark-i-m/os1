@@ -1,6 +1,6 @@
 //! A module for process focus
 
-use super::super::interrupts::{on, off};
+use interrupts::no_preempt;
 use super::CURRENT_PROCESS;
 
 /// The pid of the currently focused process
@@ -12,15 +12,13 @@ static mut FOCUSED_PID: usize = 0;
 /// This function does no error checking on the
 /// state of the process.
 pub fn focus(pid: Option<usize>) {
-    off();
-    unsafe {
-        if let Some(pid) = pid {
-            FOCUSED_PID = pid;
-        } else {
-            FOCUSED_PID = (*CURRENT_PROCESS).get_pid();
-        }
-    }
-    on();
+    no_preempt(|| unsafe {
+                   if let Some(pid) = pid {
+                       FOCUSED_PID = pid;
+                   } else {
+                       FOCUSED_PID = (*CURRENT_PROCESS).get_pid();
+                   }
+               })
 }
 
 /// Returns the FOCUSED_PID in a thread-safe way.
@@ -28,8 +26,5 @@ pub fn focus(pid: Option<usize>) {
 /// This function does no error checking on the
 /// state of the process.
 pub fn get_focused() -> usize {
-    off();
-    let pid = unsafe { FOCUSED_PID };
-    on();
-    pid
+    no_preempt(|| unsafe { FOCUSED_PID })
 }

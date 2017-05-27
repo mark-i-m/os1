@@ -4,10 +4,10 @@ use alloc::boxed::Box;
 
 use core::ops::{Index, IndexMut};
 
-use super::super::interrupts::{on, off};
-use super::super::process::CURRENT_PROCESS;
-use super::super::static_linked_list::StaticLinkedList;
-use super::regionmap::RegionMap;
+use interrupts::no_preempt;
+use process::CURRENT_PROCESS;
+use static_linked_list::StaticLinkedList;
+use memory::regionmap::RegionMap;
 
 /// Array of `FrameInfo`. This is a pointer to the region of memory used
 /// to hold physical memory allocation metadata.
@@ -59,19 +59,19 @@ impl Frame {
     pub fn alloc() -> usize {
         let all_frames = unsafe { &mut *FRAME_INFO };
 
-        off();
-
         // get a frame
-        let free = unsafe { FREE_FRAMES };
+        let free = no_preempt(|| {
+            let free = unsafe { FREE_FRAMES };
 
-        if free == 0 {
-            // TODO: page out
-            panic!("Out of physical memory");
-        }
+            if free == 0 {
+                // TODO: page out
+                panic!("Out of physical memory");
+            }
 
-        all_frames[free].alloc();
+            all_frames[free].alloc();
 
-        on();
+            free
+        });
 
         free << 12
     }
@@ -80,9 +80,7 @@ impl Frame {
     pub fn free(index: usize) {
         let all_frames = unsafe { &mut *FRAME_INFO };
 
-        off();
-        all_frames[index].free();
-        on();
+        no_preempt(|| all_frames[index].free())
     }
 
     /// Add the given pid as a sharer of this frame.
@@ -94,20 +92,18 @@ impl Frame {
         let all_frames = unsafe { &mut *FRAME_INFO };
         let index = paddr >> 12;
 
-        off();
+        no_preempt(|| {
+            let frame = &mut all_frames[index];
+            let sfi = if frame.has_shared_info() {
+                frame.get_shared_info().expect("No shared frame info!")
+            } else {
+                let raw_sfi = Box::into_raw(box SharedFrameInfo::new());
+                frame.set_shared_info(raw_sfi);
+                unsafe { &mut *raw_sfi }
+            };
 
-        let frame = &mut all_frames[index];
-        let sfi = if frame.has_shared_info() {
-            frame.get_shared_info().expect("No shared frame info!")
-        } else {
-            let raw_sfi = Box::into_raw(box SharedFrameInfo::new());
-            frame.set_shared_info(raw_sfi);
-            unsafe { &mut *raw_sfi }
-        };
-
-        sfi.list.push_back((pid, vaddr));
-
-        on();
+            sfi.list.push_back((pid, vaddr));
+        })
 
         // printf!("Shared {:X} {:X}\n", vaddr, paddr);
     }
@@ -153,51 +149,49 @@ impl FrameInfo {
             panic!("Attempt to alloc middle free frame {}", self.get_index());
         }
 
-        off();
 
         // Remove from list
         unsafe {
-            FREE_FRAMES = self.get_next_free();
+            no_preempt(|| FREE_FRAMES = self.get_next_free());
         }
 
-        on();
 
         // mark not free
         self.clear_shared_info();
         self.set_free(false);
     }
 
-    /// Free the frame referred to by this FrameInfo
-    /// if this is the last sharere; otherwise, just remove this
-    /// process's `SharedFrameInfo`.
+    /// Free the frame referred to by this FrameInfo if this is the last sharer; otherwise, just
+    /// remove this process's `SharedFrameInfo`.
     pub fn free(&mut self) {
         // remove shared page info for this process
         let pid = unsafe { (*CURRENT_PROCESS).get_pid() };
-        let mut dealloced = false;
         if self.has_shared_info() {
-            let sfi_list = &mut self.get_shared_info()
-                .expect("No shared frame info to free")
-                .list;
-            let i = sfi_list.iter()
-                .position(|&(req_pid, _)| req_pid == pid)
-                .expect("Attempt to free shared page which this process is not sharing!");
-            let _ = sfi_list.remove(i);
+            let drop_sfi_list = {
+                let sfi_list = &mut self.get_shared_info()
+                                        .expect("No shared frame info to free")
+                                        .list;
+                let i =
+                    sfi_list
+                        .iter()
+                        .position(|&(req_pid, _)| req_pid == pid)
+                        .expect("Attempt to free shared page which this process is not sharing!");
+                let _ = sfi_list.remove(i);
+
+                sfi_list.is_empty()
+            };
 
             // if no more sharers, drop the shared info
-            if sfi_list.is_empty() {
+            if drop_sfi_list {
                 let addr = self.0 & !3;
                 let ptr = addr as *mut SharedFrameInfo;
-                off();
-                unsafe {
-                    Box::from_raw(ptr);
-                }
-                dealloced = true;
+                no_preempt(|| {
+                               unsafe {
+                                   Box::from_raw(ptr);
+                               }
+                               self.clear_shared_info();
+                           });
             }
-        }
-
-        if dealloced {
-            self.clear_shared_info();
-            on();
         }
 
         // if there is only one "sharer" left, free the page
@@ -206,14 +200,10 @@ impl FrameInfo {
             self.set_free(true);
 
             // add to free list
-            off();
-
-            unsafe {
-                self.set_next_free(FREE_FRAMES);
-                FREE_FRAMES = self.get_index();
-            }
-
-            on();
+            no_preempt(|| unsafe {
+                           self.set_next_free(FREE_FRAMES);
+                           FREE_FRAMES = self.get_index();
+                       });
         }
     }
 

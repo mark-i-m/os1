@@ -63,12 +63,12 @@ impl<B: BlockDevice> OFSHandle<B> {
             let d = i.data;
             // printf!("Open file {:?}: i {}, d {}\n", i.name, inode, d);
             Ok(File {
-                inode_num: inode,
-                inode: i,
-                offset: 0,
-                offset_dnode: d,
-                ofs: self.fs.clone(),
-            })
+                   inode_num: inode,
+                   inode: i,
+                   offset: 0,
+                   offset_dnode: d,
+                   ofs: self.fs.clone(),
+               })
         }
     }
 
@@ -88,12 +88,12 @@ impl<B: BlockDevice> OFSHandle<B> {
             let d = i.data;
             // printf!("Open file {:?}: i {}, d {}\n", i.name, inode, d);
             Ok(File {
-                inode_num: inode,
-                inode: i,
-                offset: 0,
-                offset_dnode: d,
-                ofs: self.fs.clone(),
-            })
+                   inode_num: inode,
+                   inode: i,
+                   offset: 0,
+                   offset_dnode: d,
+                   ofs: self.fs.clone(),
+               })
         }
     }
 

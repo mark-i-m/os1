@@ -10,8 +10,8 @@
 
 use core::ptr;
 
-use interrupts::{on, off};
-use super::heap::{malloc, free, usable_size, print_stats};
+use interrupts::no_preempt;
+use memory::heap::{malloc, free, usable_size, print_stats};
 
 /// Return a pointer to `size` bytes of memory aligned to `align`.
 ///
@@ -22,20 +22,15 @@ use super::heap::{malloc, free, usable_size, print_stats};
 /// size on the platform.
 #[no_mangle]
 pub unsafe extern "C" fn __rust_allocate(size: usize, align: usize) -> *mut u8 {
-    off();
-    let ret = malloc(size, align);
-    on();
-    ret
+    no_preempt(|| malloc(size, align))
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn __rust_allocate_zeroed(size: usize, align: usize) -> *mut u8 {
-    off();
-    let ret = malloc(size, align);
-    on();
+    let ret = no_preempt(|| malloc(size, align));
 
-    for i in 0..size {
-        *(ret.offset(i as isize)) = 0;
+    if !ret.is_null() {
+        ptr::write_bytes(ret, 0, size);
     }
 
     ret
@@ -50,10 +45,7 @@ pub unsafe extern "C" fn __rust_allocate_zeroed(size: usize, align: usize) -> *m
 /// any value in range_inclusive(requested_size, usable_size).
 #[no_mangle]
 pub unsafe extern "C" fn __rust_deallocate(ptr: *mut u8, old_size: usize, align: usize) {
-    off();
-    let ret = free(ptr, old_size);
-    on();
-    ret
+    no_preempt(|| free(ptr, old_size))
 }
 
 /// Resize the allocation referenced by `ptr` to `size` bytes.
@@ -80,18 +72,18 @@ pub unsafe extern "C" fn __rust_reallocate(ptr: *mut u8,
         return ptr;
     }
 
-    off();
-    let try_alloc = malloc(size, align);
-    if try_alloc as usize != 0 {
-        // copy old contents
-        ptr::copy(ptr, try_alloc, old_size);
+    no_preempt(|| {
+        let try_alloc = malloc(size, align);
+        if try_alloc as usize != 0 {
+            // copy old contents
+            ptr::copy(ptr, try_alloc, old_size);
 
-        // then free old ptr
-        free(ptr, old_size);
-    }
-    on();
+            // then free old ptr
+            free(ptr, old_size);
+        }
 
-    try_alloc
+        try_alloc
+    })
 }
 
 /// Resize the allocation referenced by `ptr` to `size` bytes.
@@ -112,20 +104,15 @@ pub unsafe extern "C" fn __rust_reallocate_inplace(ptr: *mut u8,
                                                    size: usize,
                                                    align: usize)
                                                    -> usize {
-    off();
-    let ret = usable_size(old_size, align);
-    on();
-    ret
+
+    no_preempt(|| usable_size(old_size, align))
 }
 
 /// Returns the usable size of an allocation created with the specified the
 /// `size` and `align`.
 #[no_mangle]
 pub unsafe extern "C" fn __rust_usable_size(size: usize, align: usize) -> usize {
-    off();
-    let ret = usable_size(size, align);
-    on();
-    ret
+    no_preempt(|| usable_size(size, align))
 }
 
 /// Prints implementation-defined allocator statistics.
@@ -134,7 +121,5 @@ pub unsafe extern "C" fn __rust_usable_size(size: usize, align: usize) -> usize 
 /// during the call.
 #[no_mangle]
 pub unsafe extern "C" fn __rust_stats_print() {
-    off();
-    print_stats();
-    on();
+    no_preempt(|| print_stats())
 }

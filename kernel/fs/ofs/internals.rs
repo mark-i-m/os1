@@ -171,7 +171,8 @@ impl<B: BlockDevice> OFS<B> {
                         // TODO: what if the bitmap is more than 1 block?
                         // writeback
                         buf.set_offset(i);
-                        self.device.write_exactly(dnode_bitmap_block, i, 1, &mut buf);
+                        self.device
+                            .write_exactly(dnode_bitmap_block, i, 1, &mut buf);
 
                         // return dnode number
                         return i * 8 + b;
