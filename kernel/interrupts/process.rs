@@ -1,7 +1,7 @@
 //! Module for cleanly turning interrupts on and off
 
-use super::super::machine::{cli, sti};
-use super::super::process::CURRENT_PROCESS;
+use machine::{cli, sti};
+use process::CURRENT_PROCESS;
 
 /// Turn interrupts on
 pub fn on() {

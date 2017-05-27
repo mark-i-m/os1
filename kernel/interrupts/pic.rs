@@ -1,7 +1,7 @@
 //! A module for programmable interrupt controller
 
-use super::super::io::kbd::handler as kbd_handler;
-use super::super::machine::*;
+use io::kbd::handler as kbd_handler;
+use machine::*;
 use super::idt::add_interrupt_handler;
 use super::pit::handler as pit_handler;
 

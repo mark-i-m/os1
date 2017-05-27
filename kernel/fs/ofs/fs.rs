@@ -11,7 +11,7 @@ use string::String;
 use io::block::{BlockDevice, BlockDataBuffer};
 use io::ide::SECTOR_SIZE;
 use super::hw::*;
-use super::super::error::Error;
+use fs::error::Error;
 
 // TODO: file system consistency
 
@@ -76,12 +76,12 @@ impl<B: BlockDevice> OFSHandle<B> {
             let d = i.data;
             // printf!("Open file {:?}: i {}, d {}\n", i.name, inode, d);
             Ok(File {
-                inode_num: inode,
-                inode: i,
-                offset: 0,
-                offset_dnode: d,
-                ofs: self.fs.clone(),
-            })
+                   inode_num: inode,
+                   inode: i,
+                   offset: 0,
+                   offset_dnode: d,
+                   ofs: self.fs.clone(),
+               })
         }
     }
 
@@ -212,8 +212,9 @@ impl<B: BlockDevice> OFS<B> {
         // read from disk
         let inode_size = mem::size_of::<Inode>();
         let mut buf = BlockDataBuffer::new(inode_size);
-        self.device.read_fully(inode_sector * SECTOR_SIZE + inode_mod * inode_size,
-                               &mut buf);
+        self.device
+            .read_fully(inode_sector * SECTOR_SIZE + inode_mod * inode_size,
+                        &mut buf);
 
         unsafe { buf.get_ref::<Inode>(0).clone() }
     }
@@ -226,8 +227,9 @@ impl<B: BlockDevice> OFS<B> {
         // read from disk
         let dnode_size = mem::size_of::<Dnode>();
         let mut buf = BlockDataBuffer::new(dnode_size);
-        self.device.read_fully(dnode_sector * SECTOR_SIZE + dnode_mod * dnode_size,
-                               &mut buf);
+        self.device
+            .read_fully(dnode_sector * SECTOR_SIZE + dnode_mod * dnode_size,
+                        &mut buf);
 
         unsafe { buf.get_ref::<Dnode>(0).clone() }
     }
@@ -278,7 +280,8 @@ impl<B: BlockDevice> OFS<B> {
         let dnode_bitmap_start_sector = 1 + inode_bitmap_size;
 
         let mut buf = BlockDataBuffer::new(self.meta.num_dnode / 8);
-        self.device.read_fully(dnode_bitmap_start_sector * SECTOR_SIZE, &mut buf);
+        self.device
+            .read_fully(dnode_bitmap_start_sector * SECTOR_SIZE, &mut buf);
 
         // find first free bit, set it, and return
         for i in 0..(self.meta.num_dnode / 8) {
@@ -294,9 +297,10 @@ impl<B: BlockDevice> OFS<B> {
 
                         // writeback
                         buf.set_offset(i);
-                        self.device.write_exactly(dnode_bitmap_start_sector * SECTOR_SIZE + i,
-                                                  1,
-                                                  &mut buf);
+                        self.device
+                            .write_exactly(dnode_bitmap_start_sector * SECTOR_SIZE + i,
+                                           1,
+                                           &mut buf);
 
                         // return dnode number
                         return i * 8 + b;
@@ -361,7 +365,8 @@ impl<B: BlockDevice> File<B> {
         if last_dnode {
             let bytes_left = self.inode.size - self.offset;
             let num_read = min(bytes_left, buf.size() - buf.offset());
-            fs.device.read_exactly(dnode_start + dnode_offset, bytes_left, buf);
+            fs.device
+                .read_exactly(dnode_start + dnode_offset, bytes_left, buf);
             self.offset += num_read;
             num_read
         } else {
@@ -369,7 +374,8 @@ impl<B: BlockDevice> File<B> {
 
             if buf.size() - buf.offset() < bytes_left {
                 let num_read = buf.size() - buf.offset();
-                fs.device.read_exactly(dnode_start + dnode_offset, num_read, buf);
+                fs.device
+                    .read_exactly(dnode_start + dnode_offset, num_read, buf);
                 self.offset += num_read;
                 num_read
             } else {
@@ -420,7 +426,8 @@ impl<B: BlockDevice> File<B> {
         // Do the write
         if within {
             let num_write = bytes;
-            fs.device.write_exactly(dnode_start + dnode_offset, num_write, buf);
+            fs.device
+                .write_exactly(dnode_start + dnode_offset, num_write, buf);
             let eof_offset = self.inode.size % (dnode_size - 4);
             if last_dnode && eof_offset < dnode_offset + num_write {
                 self.inode.size += dnode_offset + num_write - eof_offset;

@@ -2,7 +2,7 @@
 
 use core::mem;
 
-use super::super::machine::ltr;
+use machine::ltr;
 
 static mut TSS_: TSS = TSS::new();
 

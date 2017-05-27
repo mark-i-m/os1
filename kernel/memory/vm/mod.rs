@@ -22,9 +22,9 @@ pub use self::addr_space::{AddressSpace, vmm_page_fault};
 mod addr_space;
 mod structs;
 
-use super::super::interrupts::add_trap_handler;
-use super::super::machine::page_fault_handler;
-use super::super::static_linked_list::StaticLinkedList;
+use interrupts::add_trap_handler;
+use machine::page_fault_handler;
+use static_linked_list::StaticLinkedList;
 use super::physmem::Frame;
 use self::structs::{VMTable, PagingEntry};
 

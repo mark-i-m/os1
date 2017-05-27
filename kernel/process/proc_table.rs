@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 
 use core::ops::{Index, IndexMut};
 
-use super::super::sync::StaticSemaphore;
+use sync::StaticSemaphore;
 use super::Process;
 
 /// The process table for the kernel

@@ -5,7 +5,7 @@
 
 use core::iter::Iterator;
 
-use super::super::vec::Vec;
+use vec::Vec;
 use super::physmem::Frame;
 
 extern "C" {

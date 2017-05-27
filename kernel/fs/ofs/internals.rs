@@ -10,7 +10,7 @@ use sync::Semaphore;
 use string::String;
 use io::block::{BlockDevice, BlockDataBuffer};
 use super::hw::*;
-use super::super::error::Error;
+use fs::error::Error;
 
 // NOTE: for now, the number of inodes must be chosen so that the last inode just completes its
 // block. That is, the first dnode comes immediately after the last inode *AND* at the start of the

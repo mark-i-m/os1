@@ -1,6 +1,6 @@
 //! A module for the programmable interrupt timer
 
-use super::super::machine::pit_do_init;
+use machine::pit_do_init;
 
 /// Max frequency of the PIT
 const FREQ: usize = 1193182;
