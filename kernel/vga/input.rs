@@ -46,7 +46,9 @@ impl InputElement for TextArea {
         // get focus
         focus(None);
 
-        let buffer = me.buffer.as_mut().expect("Oh no! Why isn't there a buffer?");
+        let buffer = me.buffer
+            .as_mut()
+            .expect("Oh no! Why isn't there a buffer?");
         loop {
             match buffer.next() {
                 Some('\n') => break,
@@ -74,7 +76,9 @@ impl InputElement for TextArea {
 impl TextBox {
     /// Get a new empty textbox with the given width and position
     pub fn new(w: usize, pos: (usize, usize)) -> TextBox {
-        TextBox { tbox: TextArea::new(w, 1, pos) }
+        TextBox {
+            tbox: TextArea::new(w, 1, pos),
+        }
     }
 }
 

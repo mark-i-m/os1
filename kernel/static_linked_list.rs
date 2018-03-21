@@ -25,7 +25,7 @@
 use alloc::boxed::Box;
 use core::cmp::Ordering;
 use core::fmt;
-use core::hash::{Hasher, Hash};
+use core::hash::{Hash, Hasher};
 use core::iter::FromIterator;
 use core::mem;
 use core::ptr;
@@ -410,7 +410,9 @@ impl<T> StaticLinkedList<T> {
     /// ```
     #[inline]
     pub fn front(&self) -> Option<&T> {
-        self.list_head.as_ref().map(|head| unsafe { &(**head).value })
+        self.list_head
+            .as_ref()
+            .map(|head| unsafe { &(**head).value })
     }
 
     /// Provides a mutable reference to the front element, or `None` if the list
@@ -436,7 +438,9 @@ impl<T> StaticLinkedList<T> {
     /// ```
     #[inline]
     pub fn front_mut(&mut self) -> Option<&mut T> {
-        self.list_head.as_ref().map(|head| unsafe { &mut (**head).value })
+        self.list_head
+            .as_ref()
+            .map(|head| unsafe { &mut (**head).value })
     }
 
     /// Provides a reference to the back element, or `None` if the list is
@@ -529,11 +533,9 @@ impl<T> StaticLinkedList<T> {
     /// ```
     ///
     pub fn pop_front(&mut self) -> Option<T> {
-        self.pop_front_node().map(|ptr| {
-            unsafe {
-                let box Node { value, .. } = Box::from_raw(ptr);
-                value
-            }
+        self.pop_front_node().map(|ptr| unsafe {
+            let box Node { value, .. } = Box::from_raw(ptr);
+            value
         })
     }
 
@@ -568,11 +570,9 @@ impl<T> StaticLinkedList<T> {
     /// assert_eq!(d.pop_back(), Some(3));
     /// ```
     pub fn pop_back(&mut self) -> Option<T> {
-        self.pop_back_node().map(|ptr| {
-            unsafe {
-                let box Node { value, .. } = Box::from_raw(ptr);
-                value
-            }
+        self.pop_back_node().map(|ptr| unsafe {
+            let box Node { value, .. } = Box::from_raw(ptr);
+            value
         })
     }
 
@@ -709,12 +709,10 @@ impl<'a, A> Iterator for Iter<'a, A> {
         if self.nelem == 0 {
             return None;
         }
-        self.head.as_ref().map(|head| {
-            unsafe {
-                self.nelem -= 1;
-                self.head = &(**head).next;
-                &(**head).value
-            }
+        self.head.as_ref().map(|head| unsafe {
+            self.nelem -= 1;
+            self.head = &(**head).next;
+            &(**head).value
         })
     }
 
@@ -987,13 +985,13 @@ impl<A: Hash> Hash for StaticLinkedList<A> {
 #[cfg(test)]
 mod tests {
     use std::clone::Clone;
-    use std::iter::{Iterator, IntoIterator, Extend};
-    use std::option::Option::{self, Some, None};
+    use std::iter::{Extend, IntoIterator, Iterator};
+    use std::option::Option::{self, None, Some};
     use std::__rand::{thread_rng, Rng};
     use std::thread;
     use std::vec::Vec;
 
-    use super::{StaticLinkedList, Node};
+    use super::{Node, StaticLinkedList};
 
     #[cfg(test)]
     fn list_from<T: Clone>(v: &[T]) -> StaticLinkedList<T> {
@@ -1116,19 +1114,20 @@ mod tests {
         }
         check_links(&m);
         assert_eq!(m.len(), 3 + len * 2);
-        assert_eq!(m.into_iter().collect::<Vec<_>>(),
-                   [-2, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1]);
+        assert_eq!(
+            m.into_iter().collect::<Vec<_>>(),
+            [-2, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1]
+        );
     }
 
     #[test]
     fn test_send() {
         let n = list_from(&[1, 2, 3]);
         thread::spawn(move || {
-                check_links(&n);
-                let a: &[_] = &[&1, &2, &3];
-                assert_eq!(a, &n.iter().collect::<Vec<_>>()[..]);
-            })
-            .join()
+            check_links(&n);
+            let a: &[_] = &[&1, &2, &3];
+            assert_eq!(a, &n.iter().collect::<Vec<_>>()[..]);
+        }).join()
             .ok()
             .unwrap();
     }
@@ -1180,7 +1179,6 @@ mod tests {
             assert_eq!(v1, a);
         }
     }
-
 
     #[cfg(test)]
     fn fuzz_test(sz: i32) {

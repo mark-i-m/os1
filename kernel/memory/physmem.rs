@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 
 use core::ops::{Index, IndexMut};
 
-use super::super::interrupts::{on, off};
+use super::super::interrupts::{off, on};
 use super::super::process::CURRENT_PROCESS;
 use super::super::static_linked_list::StaticLinkedList;
 use super::regionmap::RegionMap;
@@ -87,7 +87,6 @@ impl Frame {
 
     /// Add the given pid as a sharer of this frame.
     pub fn share(pid: usize, vaddr: usize, paddr: usize) {
-
         // TODO: deal with a frame being shared multiple times
         // by the same process
 
@@ -178,7 +177,8 @@ impl FrameInfo {
             let sfi_list = &mut self.get_shared_info()
                 .expect("No shared frame info to free")
                 .list;
-            let i = sfi_list.iter()
+            let i = sfi_list
+                .iter()
                 .position(|&(req_pid, _)| req_pid == pid)
                 .expect("Attempt to free shared page which this process is not sharing!");
             let _ = sfi_list.remove(i);
@@ -317,7 +317,9 @@ pub fn init(start: usize) {
         num_frames += num;
     }
 
-    bootlog!("phys mem inited - metadata @ 0x{:X}, {} frames\n",
-             start,
-             num_frames);
+    bootlog!(
+        "phys mem inited - metadata @ 0x{:X}, {} frames\n",
+        start,
+        num_frames
+    );
 }

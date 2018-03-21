@@ -4,7 +4,7 @@
 
 use core::mem;
 
-use io::block::{BlockDevice, BlockDataBuffer};
+use io::block::{BlockDataBuffer, BlockDevice};
 use super::hw::*;
 
 // NOTE: for now, the number of inodes must be chosen so that the last inode just completes its
@@ -55,8 +55,8 @@ impl<B: BlockDevice> OFS<B> {
 
     /// Get the block number of the first dnode
     pub fn first_dnode_block(&self) -> usize {
-        self.first_inode_block() +
-        self.meta.num_inode * mem::size_of::<Inode>() / self.device.get_block_size()
+        self.first_inode_block()
+            + self.meta.num_inode * mem::size_of::<Inode>() / self.device.get_block_size()
     }
 
     /// Get the block number of the `inode`th inode
@@ -166,7 +166,8 @@ impl<B: BlockDevice> OFS<B> {
                         // TODO: what if the bitmap is more than 1 block?
                         // writeback
                         buf.set_offset(i);
-                        self.device.write_exactly(dnode_bitmap_block, i, 1, &mut buf);
+                        self.device
+                            .write_exactly(dnode_bitmap_block, i, 1, &mut buf);
 
                         // return dnode number
                         return i * 8 + b;

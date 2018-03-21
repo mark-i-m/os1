@@ -3,7 +3,7 @@
 use core::intrinsics::transmute;
 use core::ops::{Index, IndexMut};
 
-use super::super::super::interrupts::{on, off};
+use super::super::super::interrupts::{off, on};
 use super::super::super::process::CURRENT_PROCESS;
 use super::super::physmem::Frame;
 use super::VMM_ON;
@@ -14,13 +14,13 @@ use super::VMM_ON;
 /// [                    000 flags  ]
 /// ```
 #[derive(Copy, Clone)]
-#[repr(C,packed)]
+#[repr(C, packed)]
 pub struct PagingEntry {
     entry: usize,
 }
 
 /// An abstraction of page directories and page tables
-#[repr(C,packed)]
+#[repr(C, packed)]
 pub struct VMTable {
     entries: [PagingEntry; 1024],
 }
@@ -166,8 +166,9 @@ impl Index<usize> for VMTable {
 impl IndexMut<usize> for VMTable {
     fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut PagingEntry {
         unsafe {
-            transmute::<&mut usize,
-                        &mut PagingEntry>(&mut transmute::<&mut VMTable, &mut Frame>(self)[index])
+            transmute::<&mut usize, &mut PagingEntry>(
+                &mut transmute::<&mut VMTable, &mut Frame>(self)[index],
+            )
         }
     }
 }

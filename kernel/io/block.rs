@@ -161,19 +161,23 @@ pub trait BlockDevice {
     /// The method panics if
     /// - there is not enough space in the buffer
     /// - `offset >= self.get_block_size()`
-    fn read_exactly(&mut self,
-                    block_num: usize,
-                    offset: usize,
-                    bytes: usize,
-                    buffer: &mut BlockDataBuffer) {
+    fn read_exactly(
+        &mut self,
+        block_num: usize,
+        offset: usize,
+        bytes: usize,
+        buffer: &mut BlockDataBuffer,
+    ) {
         // TODO: make this more efficient
         let tmp = &mut BlockDataBuffer::new(bytes);
         self.read_fully(block_num, offset, tmp);
         unsafe {
             let buf_offset = buffer.offset();
-            copy(tmp.get_ptr::<u8>(0),
-                 buffer.get_ptr_mut::<u8>(buf_offset),
-                 bytes);
+            copy(
+                tmp.get_ptr::<u8>(0),
+                buffer.get_ptr_mut::<u8>(buf_offset),
+                bytes,
+            );
             buffer.set_offset(buf_offset + bytes);
         }
     }
@@ -181,18 +185,22 @@ pub trait BlockDevice {
     /// Write `bytes` bytes to the block device at `offset` from the given buffer starting at the
     /// buffer's internal offset. This method will overwrite the existing disk contents. It will
     /// update the buffer's offset.
-    fn write_exactly(&mut self,
-                     block_num: usize,
-                     offset: usize,
-                     bytes: usize,
-                     buffer: &mut BlockDataBuffer) {
+    fn write_exactly(
+        &mut self,
+        block_num: usize,
+        offset: usize,
+        bytes: usize,
+        buffer: &mut BlockDataBuffer,
+    ) {
         // TODO: make this more efficient
         let tmp = &mut BlockDataBuffer::new(bytes);
         unsafe {
             let buf_offset = buffer.offset();
-            copy(buffer.get_ptr::<u8>(buf_offset),
-                 tmp.get_ptr_mut::<u8>(0),
-                 bytes);
+            copy(
+                buffer.get_ptr::<u8>(buf_offset),
+                tmp.get_ptr_mut::<u8>(0),
+                bytes,
+            );
             buffer.set_offset(buf_offset + bytes);
         }
         self.write_fully(block_num, offset, tmp);
@@ -235,10 +243,12 @@ impl BlockDataBuffer {
         let num_ts = self.size() / t_size;
 
         if offset >= num_ts {
-            panic!("Out of bounds {} * {} out of {}",
-                   offset,
-                   t_size,
-                   self.size());
+            panic!(
+                "Out of bounds {} * {} out of {}",
+                offset,
+                t_size,
+                self.size()
+            );
         }
 
         let slice: &[u8] = self.buf.borrow();
@@ -256,10 +266,12 @@ impl BlockDataBuffer {
         let num_ts = self.size() / t_size;
 
         if offset >= num_ts {
-            panic!("Out of bounds {} * {} out of {}",
-                   offset,
-                   t_size,
-                   self.size());
+            panic!(
+                "Out of bounds {} * {} out of {}",
+                offset,
+                t_size,
+                self.size()
+            );
         }
 
         let slice: &mut [u8] = self.buf.borrow_mut();

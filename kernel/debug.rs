@@ -2,7 +2,7 @@
 //!
 //! I barrowed it from krzysz00/rust-kernel/kernel/console.rs
 
-use core::fmt::{Write, Error};
+use core::fmt::{Error, Write};
 
 use machine::{inb, outb};
 
@@ -17,8 +17,7 @@ impl Debug {
     pub fn write_bytes(&self, bytes: &[u8]) {
         for b in bytes {
             unsafe {
-                while inb(PORT + 5) & 0x20 == 0 {
-                }
+                while inb(PORT + 5) & 0x20 == 0 {}
                 outb(PORT, *b);
             }
         }

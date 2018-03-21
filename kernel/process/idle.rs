@@ -1,7 +1,7 @@
 //! A module for the idle process, a process that runs when there is
 //! nothing else left to do.
 
-use super::{Process, proc_yield};
+use super::{proc_yield, Process};
 
 /// The idle process
 pub static mut IDLE_PROCESS: *mut Process = 0 as *mut Process;

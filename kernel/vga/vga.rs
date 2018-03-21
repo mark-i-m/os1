@@ -44,7 +44,7 @@ const VGA_DATA: u16 = 0x3d5;
 /// The first byte represents the ASCII character. The next
 /// 4 bits represent the background color. The last 4 bits
 /// represent the forground color.
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 #[repr(C, packed)]
 pub struct VGAChar {
     ch: u8,

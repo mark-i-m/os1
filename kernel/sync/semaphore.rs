@@ -6,8 +6,8 @@ use core::sync::atomic::{AtomicIsize, Ordering};
 use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
 
-use super::super::interrupts::{on, off};
-use super::super::process::{ready_queue, proc_yield, ProcessQueue};
+use super::super::interrupts::{off, on};
+use super::super::process::{proc_yield, ready_queue, ProcessQueue};
 
 /// `Semaphore` is a much more Rustic semaphore. It returns an RAII
 /// `SemaphoreGuard`, which automatically calls "up" when it goes out of
@@ -124,9 +124,10 @@ impl StaticSemaphore {
 
 impl<'semaphore, T> SemaphoreGuard<'semaphore, T> {
     /// Create a guard referring to the given semaphore and data
-    fn new(semaphore: &'semaphore StaticSemaphore,
-           data: &'semaphore UnsafeCell<T>)
-           -> SemaphoreGuard<'semaphore, T> {
+    fn new(
+        semaphore: &'semaphore StaticSemaphore,
+        data: &'semaphore UnsafeCell<T>,
+    ) -> SemaphoreGuard<'semaphore, T> {
         SemaphoreGuard {
             semaphore: semaphore,
             data: data,

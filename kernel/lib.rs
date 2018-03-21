@@ -6,21 +6,10 @@
 //! `liballoc` are used, since they provide core Rust functionality.
 
 // To use unstable features of Rust, we need to have nightly rustc
-#![feature(lang_items,
-           alloc,
-           heap_api,
-           global_allocator,
-           allocator_api,
-           box_syntax,
-           box_patterns,
-           const_fn,
-           dropck_eyepatch,
-           core_intrinsics,
-          )]
-
+#![feature(lang_items, alloc, heap_api, global_allocator, allocator_api, box_syntax, box_patterns,
+           const_fn, dropck_eyepatch, core_intrinsics)]
 // Compile without libstd
 #![no_std]
-
 #![crate_type = "staticlib"]
 #![crate_name = "kernel"]
 
@@ -98,5 +87,4 @@ pub fn kernel_main() {
 
     // yield should never return to here
     panic!("This should never happen!\n");
-
 }

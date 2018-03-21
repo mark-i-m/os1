@@ -1,7 +1,7 @@
 //! This is the Rust-side handle for assembly code. Most of the FFI handles are
 //! in this module.
 
-#[link(name = "asmcode", repr="static")]
+#[link(name = "asmcode", repr = "static")]
 
 use process::ProcessQueue;
 

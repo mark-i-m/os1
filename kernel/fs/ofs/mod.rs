@@ -11,7 +11,7 @@ use alloc::arc::Arc;
 
 use core::mem;
 
-use io::block::{BlockDevice, BlockDataBuffer};
+use io::block::{BlockDataBuffer, BlockDevice};
 use sync::Semaphore;
 use self::file::File;
 use self::internals::*;
@@ -41,11 +41,13 @@ impl<B: BlockDevice> OFSHandle<B> {
         }
 
         OFSHandle {
-            fs: Arc::new(Semaphore::new(OFS {
-                                            device: device,
-                                            meta: meta,
-                                        },
-                                        1)),
+            fs: Arc::new(Semaphore::new(
+                OFS {
+                    device: device,
+                    meta: meta,
+                },
+                1,
+            )),
         }
     }
 
@@ -106,7 +108,9 @@ impl<B: BlockDevice> OFSHandle<B> {
         // TODO check permissions
         // TODO: make sure that they are not already linked
         // TODO: what if file is already opened as write?
-        Some(Error::new("OFS is read-only until I think about consistency..."))
+        Some(Error::new(
+            "OFS is read-only until I think about consistency...",
+        ))
     }
 
     /// Remove a link (directed edge) from file `a` to file `b`. `a` and `b` are the inode number
@@ -116,7 +120,9 @@ impl<B: BlockDevice> OFSHandle<B> {
         // TODO check permissions
         // TODO: make sure that they are already linked
         // TODO: what if file is already opened as write?
-        Some(Error::new("OFS is read-only until I think about consistency..."))
+        Some(Error::new(
+            "OFS is read-only until I think about consistency...",
+        ))
     }
 
     /// Return metadata for the file with inode `a` or None if the file does not exist
@@ -137,7 +143,9 @@ impl<B: BlockDevice> OFSHandle<B> {
         // TODO: check that file does not already exist
         // TODO: take some metadata as input (e.g. name, permissions)
 
-        return Err(Error::new("OFS is read-only until I think about consistency..."));
+        return Err(Error::new(
+            "OFS is read-only until I think about consistency...",
+        ));
 
         let mut fs = self.fs.down();
 
@@ -182,7 +190,9 @@ impl<B: BlockDevice> OFSHandle<B> {
         // TODO Remove links
         // TODO Remove Inode
         // TODO Remove Dnodes
-        Some(Error::new("OFS is read-only until I think about consistency..."))
+        Some(Error::new(
+            "OFS is read-only until I think about consistency...",
+        ))
     }
 
     pub fn get_inode_number(&mut self, path: &str) -> Option<usize> {

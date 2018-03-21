@@ -2,7 +2,7 @@
 
 pub use super::vga::Color;
 
-use core::fmt::{Write, Error};
+use core::fmt::{Error, Write};
 
 use super::vga::VGA;
 

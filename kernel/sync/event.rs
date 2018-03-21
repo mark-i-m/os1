@@ -13,7 +13,9 @@ pub struct Event {
 impl Event {
     /// Creates a new `Event`
     pub const fn new() -> Event {
-        Event { status: StaticSemaphore::new(0) }
+        Event {
+            status: StaticSemaphore::new(0),
+        }
     }
 
     /// Block this process until `notify` is called

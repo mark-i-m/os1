@@ -6,7 +6,7 @@ use core::cmp::min;
 use core::mem;
 use core::ptr::copy;
 
-use io::block::{BlockDevice, BlockDataBuffer};
+use io::block::{BlockDataBuffer, BlockDevice};
 use sync::Semaphore;
 use super::internals::*;
 use super::hw::*;
@@ -67,9 +67,11 @@ impl<B: BlockDevice> File<B> {
                 self.offset_dnode = unsafe { *tmp.get_ptr(bytes_left / 4) };
                 let buf_offset = buf.offset();
                 unsafe {
-                    copy(tmp.get_ptr::<u8>(0),
-                         buf.get_ptr_mut::<u8>(buf_offset),
-                         bytes_left);
+                    copy(
+                        tmp.get_ptr::<u8>(0),
+                        buf.get_ptr_mut::<u8>(buf_offset),
+                        bytes_left,
+                    );
                 }
                 buf.set_offset(buf_offset + bytes_left);
                 bytes_left
@@ -118,14 +120,17 @@ impl<B: BlockDevice> File<B> {
             let curr_dnode = fs.get_dnode(self.offset_dnode);
             let tmp = &mut BlockDataBuffer::new(dnode_size);
             unsafe {
-                copy((&curr_dnode.data[0]) as *const usize as *const u8,
-                     tmp.get_ptr_mut::<u8>(0),
-                     dnode_size);
+                copy(
+                    (&curr_dnode.data[0]) as *const usize as *const u8,
+                    tmp.get_ptr_mut::<u8>(0),
+                    dnode_size,
+                );
             }
             let next_dnode = if last_dnode {
                 let new_dnode = fs.alloc_dnode();
                 unsafe {
-                    *tmp.get_ptr_mut::<usize>((dnode_size / mem::size_of::<usize>()) - 1) = new_dnode;
+                    *tmp.get_ptr_mut::<usize>((dnode_size / mem::size_of::<usize>()) - 1) =
+                        new_dnode;
                 }
                 self.inode.size += num_write + 1; // +1 so this is no longer the last dnode
                 new_dnode
@@ -134,9 +139,11 @@ impl<B: BlockDevice> File<B> {
             };
             let old_buf_offset = buf.offset();
             unsafe {
-                copy(buf.get_ptr::<u8>(old_buf_offset),
-                     tmp.get_ptr_mut::<u8>(dnode_offset),
-                     num_write);
+                copy(
+                    buf.get_ptr::<u8>(old_buf_offset),
+                    tmp.get_ptr_mut::<u8>(dnode_offset),
+                    num_write,
+                );
             }
             let dnode_blk = fs.dnode_num_to_block_num(self.offset_dnode);
             let dnode_offset = fs.dnode_num_to_block_offset(self.offset_dnode);
@@ -166,8 +173,9 @@ impl<B: BlockDevice> File<B> {
             dnode_size - 4 - dnode_offset
         };
 
-        if (offset > self.offset && offset - self.offset < dnode_rem) ||
-           (offset < self.offset && self.offset - offset < dnode_offset) {
+        if (offset > self.offset && offset - self.offset < dnode_rem)
+            || (offset < self.offset && self.offset - offset < dnode_offset)
+        {
             // in the same dnode
             self.offset = offset;
         } else if offset > self.offset {

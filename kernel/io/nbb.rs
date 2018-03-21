@@ -4,7 +4,7 @@ use alloc::raw_vec::RawVec;
 
 use core::ptr;
 
-use super::super::interrupts::{on, off};
+use super::super::interrupts::{off, on};
 use super::stream::*;
 
 /// A non-blocking circular buffer for use

@@ -8,7 +8,7 @@ use io::block::BlockDataBuffer;
 use io::stream::InputStream;
 use fs::ROOT_FS;
 use sync::{Semaphore, StaticSemaphore};
-use vga::rectangle::{Rectangle, Color};
+use vga::rectangle::{Color, Rectangle};
 use vga::input::{InputElement, TextBox};
 use super::Process;
 use super::focus::focus;
@@ -27,7 +27,6 @@ static mut S2: StaticSemaphore = StaticSemaphore::new(1);
 
 // Some test routines
 pub fn run(this: &Process) -> usize {
-
     // grab focus
     focus(None);
 
@@ -50,8 +49,10 @@ pub fn run(this: &Process) -> usize {
     msg.set_bg(Color::LightGray);
     msg.set_fg(Color::Black);
 
-    msg.put_str("<-- If semaphores work correctly, then only this block \
-                should be red when all loop_procs finish running.");
+    msg.put_str(
+        "<-- If semaphores work correctly, then only this block \
+         should be red when all loop_procs finish running.",
+    );
 
     for _ in 0..NUM_LOOP {
         ready_queue::make_ready(Process::new("loop_proc", self::run2));
@@ -61,9 +62,11 @@ pub fn run(this: &Process) -> usize {
 
         // test vm
         if unsafe { *(0xF000_0000 as *mut usize) } != this.pid {
-            panic!("Oh no! *0xF000_0000 should be {} but is {}",
-                   this.pid,
-                   unsafe { *(0xF000_0000 as *mut usize) });
+            panic!(
+                "Oh no! *0xF000_0000 should be {} but is {}",
+                this.pid,
+                unsafe { *(0xF000_0000 as *mut usize) }
+            );
         }
     }
 
@@ -75,8 +78,12 @@ pub fn run(this: &Process) -> usize {
         ready_queue::make_ready(Process::new("semaphore_test", self::run3));
 
         // share the semaphore
-        let me = &mut *PROCESS_TABLE.get(this.pid).expect("Oh no! expected Some(process)!");
-        if !me.addr_space.request_share(this.pid + NUM_LOOP + 1, 0xD000_0000) {
+        let me = &mut *PROCESS_TABLE
+            .get(this.pid)
+            .expect("Oh no! expected Some(process)!");
+        if !me.addr_space
+            .request_share(this.pid + NUM_LOOP + 1, 0xD000_0000)
+        {
             panic!("Share request failed!");
         }
     }
@@ -119,16 +126,17 @@ fn get_next((r, c): (usize, usize)) -> (usize, usize) {
 }
 
 fn run2(this: &Process) -> usize {
-
     unsafe {
         *(0xF000_0000 as *mut usize) = this.pid;
     }
 
     // test vm
     if unsafe { *(0xF000_0000 as *mut usize) } != this.pid {
-        panic!("Oh no! *0xF000_0000 should be {} but is {}",
-               this.pid,
-               unsafe { *(0xF000_0000 as *mut usize) });
+        panic!(
+            "Oh no! *0xF000_0000 should be {} but is {}",
+            this.pid,
+            unsafe { *(0xF000_0000 as *mut usize) }
+        );
     }
 
     unsafe {
@@ -160,19 +168,24 @@ fn run2(this: &Process) -> usize {
 
     // test vm
     if unsafe { *(0xF000_0000 as *mut usize) } != this.pid {
-        panic!("Oh no! *0xF000_0000 should be {} but is {}",
-               this.pid,
-               unsafe { *(0xF000_0000 as *mut usize) });
+        panic!(
+            "Oh no! *0xF000_0000 should be {} but is {}",
+            this.pid,
+            unsafe { *(0xF000_0000 as *mut usize) }
+        );
     }
 
     // test process table
     unsafe {
-        let me = PROCESS_TABLE.get(this.pid).expect("Oh no! expected Some(process)!");
+        let me = PROCESS_TABLE
+            .get(this.pid)
+            .expect("Oh no! expected Some(process)!");
 
         if (me as *const Process) != (this as *const Process) {
-            panic!("Oh no! me = 0x{:X}, but should be 0x{:X}",
-                   me as usize,
-                   this as *const Process as usize);
+            panic!(
+                "Oh no! me = 0x{:X}, but should be 0x{:X}",
+                me as usize, this as *const Process as usize
+            );
         }
     }
 
@@ -185,7 +198,9 @@ fn run2(this: &Process) -> usize {
 
 fn run3(this: &Process) -> usize {
     unsafe {
-        let me = &mut *PROCESS_TABLE.get(this.pid).expect("Oh no! expected Some(process)!");
+        let me = &mut *PROCESS_TABLE
+            .get(this.pid)
+            .expect("Oh no! expected Some(process)!");
 
         // accept share from the parent process
         if !me.addr_space.accept_share(3, 0xF000_0000) {
@@ -257,12 +272,14 @@ fn run5(_: &Process) -> usize {
     b.set_fg(Color::Black);
     b.set_cursor((0, 0));
 
-    let _ = write!(&mut b,
-                   "Read values from file {}: {:8X}, {:8X}, {:8X} ... ",
-                   f.get_filename(),
-                   val1,
-                   val2,
-                   val3);
+    let _ = write!(
+        &mut b,
+        "Read values from file {}: {:8X}, {:8X}, {:8X} ... ",
+        f.get_filename(),
+        val1,
+        val2,
+        val3
+    );
     if val1 == 0xDEADBEEF && val2 == 0xDEADBEB0 && val3 == 0xDEADBEBE {
         let _ = write!(&mut b, "Success!\n");
     } else {

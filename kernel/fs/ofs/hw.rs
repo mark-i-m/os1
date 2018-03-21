@@ -4,7 +4,7 @@ use alloc::string::String;
 
 /// A 4B representation of the date for use in the OS
 #[derive(Clone)]
-#[repr(C,packed)]
+#[repr(C, packed)]
 pub struct OFSDate(u32);
 
 // TODO: extendable list of elements
@@ -29,16 +29,16 @@ pub struct Metadata {
 #[derive(Clone)]
 #[repr(C, packed)]
 pub struct Inode {
-    pub name: [u8; 12], // file name (up to 12B)
-    pub uid: usize, // owner UID
-    pub gid: usize, // group GID
-    pub user_perm: u8, // user permissions
-    pub group_perm: u8, // group permissions
-    pub all_perm: u8, // everyone permissions
-    pub flags: u8, // various flags
-    pub size: usize, // file size in bytes NOTE: for now this must a multiple of 4
-    pub data: usize, // index of Dnode with contents
-    pub created: OFSDate, // date created
+    pub name: [u8; 12],    // file name (up to 12B)
+    pub uid: usize,        // owner UID
+    pub gid: usize,        // group GID
+    pub user_perm: u8,     // user permissions
+    pub group_perm: u8,    // group permissions
+    pub all_perm: u8,      // everyone permissions
+    pub flags: u8,         // various flags
+    pub size: usize,       // file size in bytes NOTE: for now this must a multiple of 4
+    pub data: usize,       // index of Dnode with contents
+    pub created: OFSDate,  // date created
     pub modified: OFSDate, // date last modified
     pub links: [usize; 22],
 }
@@ -49,8 +49,9 @@ pub struct Dnode {
     pub data: [usize; 128],
 }
 
-pub const UNNAMED: [u8; 12] = ['u' as u8, 'n' as u8, 'n' as u8, 'a' as u8, 'm' as u8, 'e' as u8,
-                               'd' as u8, 0, 0, 0, 0, 0];
+pub const UNNAMED: [u8; 12] = [
+    'u' as u8, 'n' as u8, 'n' as u8, 'a' as u8, 'm' as u8, 'e' as u8, 'd' as u8, 0, 0, 0, 0, 0
+];
 
 impl OFSDate {
     pub fn now() -> OFSDate {

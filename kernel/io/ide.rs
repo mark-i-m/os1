@@ -4,7 +4,7 @@
 use core::mem;
 
 use machine::{inb, inl, outb, outl};
-use process::{CURRENT_PROCESS, proc_yield};
+use process::{proc_yield, CURRENT_PROCESS};
 use sync::StaticSemaphore;
 use super::block::*;
 
@@ -24,14 +24,14 @@ pub struct IDE {
 #[allow(dead_code)]
 #[derive(PartialEq)]
 enum IDEStatus {
-    BUSY = 0x80, // Busy
+    BUSY = 0x80,  // Busy
     READY = 0x40, // Read
     WTFLT = 0x20, // Drive write fault
     SCMPL = 0x10, // Drive seek complete
-    DRQ = 0x08, // Data request ready
-    CORR = 0x04, // Corrected data
-    IDX = 0x02, // Inlex
-    ERR = 0x01, // Error
+    DRQ = 0x08,   // Data request ready
+    CORR = 0x04,  // Corrected data
+    IDX = 0x02,   // Inlex
+    ERR = 0x01,   // Error
 }
 
 impl IDE {
@@ -115,13 +115,15 @@ impl BlockDevice for IDE {
         self.wait_for_drive();
 
         unsafe {
-            outb(base + 2, 1);			                        // block_num count
-            outb(base + 3, ((block_num >> 0) & 0xFF) as u8);	// bits 7 .. 0
-            outb(base + 4, ((block_num >> 8) & 0xFF) as u8);	// bits 15 .. 8
-            outb(base + 5, ((block_num >> 16) & 0xFF) as u8);	// bits 23 .. 16
-            outb(base + 6,
-                 0xE0 | (ch << 4) as u8 | ((block_num >> 24) & 0xf) as u8); // bits 28 .. 24, send to primary master
-            outb(base + 7, 0x20);		                        // read with retry
+            outb(base + 2, 1); // block_num count
+            outb(base + 3, ((block_num >> 0) & 0xFF) as u8); // bits 7 .. 0
+            outb(base + 4, ((block_num >> 8) & 0xFF) as u8); // bits 15 .. 8
+            outb(base + 5, ((block_num >> 16) & 0xFF) as u8); // bits 23 .. 16
+            outb(
+                base + 6,
+                0xE0 | (ch << 4) as u8 | ((block_num >> 24) & 0xf) as u8,
+            ); // bits 28 .. 24, send to primary master
+            outb(base + 7, 0x20); // read with retry
         }
 
         // read
@@ -147,13 +149,15 @@ impl BlockDevice for IDE {
         self.wait_for_drive();
 
         unsafe {
-            outb(base + 2, 1);			                        // block_num count
-            outb(base + 3, ((block_num >> 0) & 0xFF) as u8);	// bits 7 .. 0
-            outb(base + 4, ((block_num >> 8) & 0xFF) as u8);	// bits 15 .. 8
-            outb(base + 5, ((block_num >> 16) & 0xFF) as u8);	// bits 23 .. 16
-            outb(base + 6,
-                 0xE0 | (ch << 4) as u8 | ((block_num >> 24) & 0xf) as u8); // bits 28 .. 24, send to primary master
-            outb(base + 7, 0x30);		                        // write with retry
+            outb(base + 2, 1); // block_num count
+            outb(base + 3, ((block_num >> 0) & 0xFF) as u8); // bits 7 .. 0
+            outb(base + 4, ((block_num >> 8) & 0xFF) as u8); // bits 15 .. 8
+            outb(base + 5, ((block_num >> 16) & 0xFF) as u8); // bits 23 .. 16
+            outb(
+                base + 6,
+                0xE0 | (ch << 4) as u8 | ((block_num >> 24) & 0xf) as u8,
+            ); // bits 28 .. 24, send to primary master
+            outb(base + 7, 0x30); // write with retry
         }
 
         // read

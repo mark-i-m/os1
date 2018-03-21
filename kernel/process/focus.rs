@@ -1,6 +1,6 @@
 //! A module for process focus
 
-use super::super::interrupts::{on, off};
+use super::super::interrupts::{off, on};
 use super::CURRENT_PROCESS;
 
 /// The pid of the currently focused process

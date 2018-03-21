@@ -3,9 +3,9 @@
 
 use alloc::boxed::Box;
 
-use super::super::interrupts::{on, off};
+use super::super::interrupts::{off, on};
 use super::super::sync::StaticSemaphore;
-use super::{Process, ready_queue, ProcessQueue};
+use super::{ready_queue, Process, ProcessQueue};
 use super::proc_table::PROCESS_TABLE;
 
 /// The reaper blocks onto this semaphore until enough have died

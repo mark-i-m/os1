@@ -31,7 +31,7 @@ use alloc::heap::{Alloc, AllocErr, Layout};
 
 use core::mem::size_of;
 
-use interrupts::{on, off};
+use interrupts::{off, on};
 
 /// A flag to turn on and off debugging output
 const DEBUG: bool = false;
@@ -129,8 +129,8 @@ impl Block {
 
     /// Set the forward pointer (but not the free bits)
     unsafe fn set_next(&mut self, next: *mut Block) {
-        *(self as *mut Block as *mut usize).offset(1) = ((next as usize) & !0xF) |
-                                                        (self.get_free_bits() as usize);
+        *(self as *mut Block as *mut usize).offset(1) =
+            ((next as usize) & !0xF) | (self.get_free_bits() as usize);
     }
 
     /// Set the backward pointer
@@ -165,10 +165,11 @@ impl Block {
         let forward_ptr = self.get_free_next();
         let backward_ptr = self.get_free_prev();
 
-        if (forward_ptr < (START as *mut Block) && !forward_ptr.is_null()) ||
-           forward_ptr >= (END as *mut Block) ||
-           (backward_ptr < (START as *mut Block) && !backward_ptr.is_null()) ||
-           backward_ptr >= (END as *mut Block) {
+        if (forward_ptr < (START as *mut Block) && !forward_ptr.is_null())
+            || forward_ptr >= (END as *mut Block)
+            || (backward_ptr < (START as *mut Block) && !backward_ptr.is_null())
+            || backward_ptr >= (END as *mut Block)
+        {
             return false;
         }
 
@@ -247,8 +248,10 @@ impl Block {
     pub unsafe fn remove(&mut self) {
         // make sure the block is free and valid
         if !self.is_free() {
-            panic!("Attempt to remove used block from free list: {:x}\n",
-                   self as *const Block as usize);
+            panic!(
+                "Attempt to remove used block from free list: {:x}\n",
+                self as *const Block as usize
+            );
         }
 
         // swap pointers
@@ -275,8 +278,10 @@ impl Block {
 
         if !self.is_free() {
             print_stats();
-            panic!("Adding taken block to free list: {:x}",
-                   self as *const Block as usize);
+            panic!(
+                "Adding taken block to free list: {:x}",
+                self as *const Block as usize
+            );
         }
 
         FREE_LIST = self as *mut Block;
@@ -294,15 +299,18 @@ impl Block {
     pub unsafe fn merge_with_next(&mut self) {
         // make sure both blocks are free and valid
         if !self.is_free() {
-            panic!("Attempt to merge non-free block 0x{:x} with next",
-                   self as *const Block as usize);
+            panic!(
+                "Attempt to merge non-free block 0x{:x} with next",
+                self as *const Block as usize
+            );
         }
 
         let next = self.get_contiguous_next();
         if !(*next).is_free() {
-            panic!("Attempt to merge 0x{:x} with non-free block 0x{:x}",
-                   self as *const Block as usize,
-                   next as usize);
+            panic!(
+                "Attempt to merge 0x{:x} with non-free block 0x{:x}",
+                self as *const Block as usize, next as usize
+            );
         }
 
         // remove next block from free list
@@ -321,22 +329,27 @@ impl Block {
     pub unsafe fn split(&mut self, size: usize) {
         // make sure the block is free and valid
         if !self.is_free() {
-            panic!("Attempt to split non-free block: {:x}",
-                   self as *const Block as usize);
+            panic!(
+                "Attempt to split non-free block: {:x}",
+                self as *const Block as usize
+            );
         }
 
         let old_size = self.get_size();
 
         // make sure the block is large enough
         if old_size < 32 {
-            panic!("Block is to small to split: {:x}",
-                   self as *const Block as usize);
+            panic!(
+                "Block is to small to split: {:x}",
+                self as *const Block as usize
+            );
         }
 
         if old_size < size + BLOCK_ALIGN {
-            panic!("Block is to small to split at {}: {:x}",
-                   size,
-                   self as *const Block as usize);
+            panic!(
+                "Block is to small to split at {}: {:x}",
+                size, self as *const Block as usize
+            );
         }
 
         let new_block_size = old_size - size;
@@ -411,10 +424,12 @@ pub fn init(start: usize, size: usize) {
 
         FREE_LIST = first;
 
-        bootlog!("heap inited - start addr: 0x{:x}, end addr: 0x{:x}, {} bytes\n",
-                 START,
-                 END,
-                 END - START);
+        bootlog!(
+            "heap inited - start addr: 0x{:x}, end addr: 0x{:x}, {} bytes\n",
+            START,
+            END,
+            END - START
+        );
     }
 }
 
@@ -458,9 +473,10 @@ pub unsafe fn malloc(mut size: usize, mut align: usize) -> *mut u8 {
         } else {
             // NOTE: fail for now because rustc does not know
             // how to handle failed mallocs
-            panic!("malloc({}, {}) -> *** malloc failed, rustc cannot handle this :( ***\n",
-                   size,
-                   align);
+            panic!(
+                "malloc({}, {}) -> *** malloc failed, rustc cannot handle this :( ***\n",
+                size, align
+            );
         }
 
         // update stats
@@ -506,7 +522,6 @@ pub unsafe fn malloc(mut size: usize, mut align: usize) -> *mut u8 {
 /// create the allocation referenced by `ptr`. The `old_size` parameter may be
 /// any value in range_inclusive(requested_size, usable_size).
 pub unsafe fn free(ptr: *mut u8, mut old_size: usize) {
-
     if DEBUG {
         bootlog!("free 0x{:X}, {}\n", ptr as usize, old_size);
     }
@@ -565,16 +580,20 @@ pub fn print_stats() {
 
         // Number of free blocks and amount of free memory
         let (num_free, size_free, size_used) = get_block_stats();
-        bootlog!("{} free blocks; {} bytes free, {} bytes used\n",
-                 num_free,
-                 size_free,
-                 size_used);
+        bootlog!(
+            "{} free blocks; {} bytes free, {} bytes used\n",
+            num_free,
+            size_free,
+            size_used
+        );
 
         // Number of mallocs and frees
-        bootlog!("Successfull mallocs: {}; Failed mallocs: {}; Frees: {}\n\n",
-                 SUCC_MALLOCS,
-                 FAIL_MALLOCS,
-                 FREES);
+        bootlog!(
+            "Successfull mallocs: {}; Failed mallocs: {}; Frees: {}\n\n",
+            SUCC_MALLOCS,
+            FAIL_MALLOCS,
+            FREES
+        );
     }
 }
 

@@ -1,13 +1,13 @@
 //! A module process address spaces
 
-use super::super::super::interrupts::{on, off};
+use super::super::super::interrupts::{off, on};
 use super::super::super::machine::{invlpg, vmm_on};
-use super::super::super::process::{CURRENT_PROCESS, State};
+use super::super::super::process::{State, CURRENT_PROCESS};
 use super::super::super::process::proc_table::PROCESS_TABLE;
 use super::super::super::sync::{Barrier, Event, StaticSemaphore};
 use super::super::physmem::Frame;
-use super::{SHARED_PDES, NUM_SHARED, PD_ADDRESS, KMAP_ADDRESS, USER_ADDRESS, VMM_ON};
-use super::structs::{VMTable, PagingEntry};
+use super::{KMAP_ADDRESS, NUM_SHARED, PD_ADDRESS, SHARED_PDES, USER_ADDRESS, VMM_ON};
+use super::structs::{PagingEntry, VMTable};
 
 /// The address space of a single process
 pub struct AddressSpace {
@@ -113,9 +113,7 @@ impl AddressSpace {
             pde.set_present(true); // present
 
             // clear the pt
-            let pt = unsafe {
-                &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable)
-            };
+            let pt = unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
             for p in 0..1024 {
                 pt[p] = PagingEntry::new();
                 unsafe { invlpg((pde_index << 22) | (p << 12)) };
@@ -283,7 +281,6 @@ impl AddressSpace {
     ///
     /// NOTE: this has to run while the addresss space is active.
     pub fn request_share(&mut self, pid: usize, vaddr: usize) -> bool {
-
         // mark the frame and create the request
         self.lock.down();
 
@@ -304,9 +301,11 @@ impl AddressSpace {
             return false;
         };
 
-        Frame::share(unsafe { (*CURRENT_PROCESS).get_pid() },
-                     vaddr,
-                     self.req_paddr);
+        Frame::share(
+            unsafe { (*CURRENT_PROCESS).get_pid() },
+            vaddr,
+            self.req_paddr,
+        );
 
         self.req_wait.notify();
 
@@ -329,7 +328,6 @@ impl AddressSpace {
     ///
     /// NOTE: This should run inside this processes address space
     pub fn accept_share(&mut self, pid: usize, vaddr: usize) -> bool {
-
         let other = unsafe {
             if let Some(p) = PROCESS_TABLE.get(pid) {
                 p
@@ -405,21 +403,26 @@ impl Drop for AddressSpace {
 
 /// The Rust-side code of the page fault handler.
 #[no_mangle]
-pub unsafe extern "C" fn vmm_page_fault(// context: *mut KContext,
-                                        fault_addr: usize) {
+pub unsafe extern "C" fn vmm_page_fault(
+    // context: *mut KContext,
+    fault_addr: usize
+) {
     // segfault! should be very rare with rust
     // first 13MiB are reserved by kernel
     if fault_addr < 0xD00000 {
         // TODO: only kill that process
-        panic!("{:?} [segmentation violation @ 0x{:X}]",
-               *CURRENT_PROCESS,
-               fault_addr);
+        panic!(
+            "{:?} [segmentation violation @ 0x{:X}]",
+            *CURRENT_PROCESS, fault_addr
+        );
     }
 
     // printf!("page fault {:X}\n", fault_addr);
 
     if !CURRENT_PROCESS.is_null() {
-        (*CURRENT_PROCESS).addr_space.map(Frame::alloc(), fault_addr, true);
+        (*CURRENT_PROCESS)
+            .addr_space
+            .map(Frame::alloc(), fault_addr, true);
     } else {
         panic!("Page fault @ 0x{:X} with no current process", fault_addr);
     }

@@ -95,10 +95,12 @@ impl Region {
     /// Print this region for debugging purposes
     #[allow(dead_code)]
     pub fn dump(&self) {
-        bootlog!("0x{:08X} - 0x{:08X} : {}\n",
-                 self.start,
-                 self.end,
-                 if self.usable { "usable" } else { "reserved" });
+        bootlog!(
+            "0x{:08X} - 0x{:08X} : {}\n",
+            self.start,
+            self.end,
+            if self.usable { "usable" } else { "reserved" }
+        );
     }
 }
 

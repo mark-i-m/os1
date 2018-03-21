@@ -8,7 +8,7 @@ use core::fmt::{Debug, Formatter, Result};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use fs::ROOT_FS;
-use interrupts::{esp0, on, off};
+use interrupts::{off, on, esp0};
 use io::NonBlockingBuffer;
 use machine::{self, context_switch};
 use memory::AddressSpace;
@@ -204,7 +204,7 @@ impl Process {
                         let cwf_inode = unsafe { (*ROOT_FS).stat(self.cwf()).unwrap() };
                         let mut linked = false;
 
-                        for i in unsafe{ inode.links.iter() } {
+                        for i in unsafe { inode.links.iter() } {
                             if *i == self.cwf() {
                                 linked = true;
                                 break;
@@ -237,11 +237,11 @@ impl Drop for Process {
 impl Debug for Process {
     /// Allow processes to be printed elegantly in format strings
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f,
-               "Process #{} @ 0x{:x}: {}",
-               self.pid,
-               self as *const Process as usize,
-               self.name)
+        write!(
+            f,
+            "Process #{} @ 0x{:x}: {}",
+            self.pid, self as *const Process as usize, self.name
+        )
     }
 }
 
@@ -347,12 +347,14 @@ pub unsafe fn _proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
     // bootlog!("{:?} [Switching]\n", *CURRENT_PROCESS);
 
     // context switch
-    context_switch((*CURRENT_PROCESS).kcontext,
-                   if (*CURRENT_PROCESS).disable_cnt == 0 {
-                       1 << 9
-                   } else {
-                       0
-                   });
+    context_switch(
+        (*CURRENT_PROCESS).kcontext,
+        if (*CURRENT_PROCESS).disable_cnt == 0 {
+            1 << 9
+        } else {
+            0
+        },
+    );
 
     panic!("The impossible has happened!");
 }

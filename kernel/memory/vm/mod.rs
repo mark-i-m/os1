@@ -17,7 +17,7 @@
 //!    new page read/write
 //! 3. Else, allocate a new frame a map the page to it
 
-pub use self::addr_space::{AddressSpace, vmm_page_fault};
+pub use self::addr_space::{vmm_page_fault, AddressSpace};
 
 mod addr_space;
 mod structs;
@@ -26,7 +26,7 @@ use super::super::interrupts::add_trap_handler;
 use super::super::machine::page_fault_handler;
 use super::super::static_linked_list::StaticLinkedList;
 use super::physmem::Frame;
-use self::structs::{VMTable, PagingEntry};
+use self::structs::{PagingEntry, VMTable};
 
 /// A list of shared PDEs direct mapping the beginning of memory
 static mut SHARED_PDES: StaticLinkedList<PagingEntry> = StaticLinkedList::new();
@@ -85,7 +85,6 @@ unsafe fn init_shared_pdes(n: usize, mut i: usize) {
 /// mapped to the page directory. The next MiB is reserved kernel memory.
 /// `start` must be 4MiB aligned.
 pub fn init(start: usize) {
-
     if start % (4 << 20) != 0 {
         panic!("virt mem start must be 4MiB aligned");
     }

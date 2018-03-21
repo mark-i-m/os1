@@ -24,7 +24,7 @@ pub struct ProcessTable {
     first_pid: usize, // The first PID that is actually in the table
 
     capacity: usize, // The max PID that can be mapped + 1
-    size: usize, // The max PID that is mapped + 1
+    size: usize,     // The max PID that is mapped + 1
 }
 
 /// A single node in the `ProcessTable`, holding mappings
@@ -117,7 +117,11 @@ impl ProcessTable {
             TABLE_LOCK.up();
         }
 
-        if result.is_null() { None } else { Some(result) }
+        if result.is_null() {
+            None
+        } else {
+            Some(result)
+        }
     }
 
     /// Free as many `ProcessTableNode`s as possible

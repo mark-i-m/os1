@@ -12,14 +12,14 @@ extern "C" {
     static kernelDataSeg: u16;
 }
 
-#[repr(C,packed)]
+#[repr(C, packed)]
 struct TSSDescriptor {
     f0: usize,
     f1: usize,
 }
 
 #[allow(dead_code)]
-#[repr(C,packed)]
+#[repr(C, packed)]
 struct TSS {
     prev: usize,
     esp0: usize,
