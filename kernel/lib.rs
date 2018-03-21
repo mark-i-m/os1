@@ -9,6 +9,8 @@
 #![feature(lang_items,
            alloc,
            heap_api,
+           global_allocator,
+           allocator_api,
            box_syntax,
            box_patterns,
            const_fn,
@@ -23,7 +25,6 @@
 #![crate_name = "kernel"]
 
 // use libcore
-#[macro_use]
 extern crate alloc;
 extern crate rlibc;
 
@@ -33,10 +34,7 @@ extern crate rlibc;
 mod debug;
 mod bare_bones;
 
-mod linked_list;
 mod static_linked_list;
-mod vec;
-mod string;
 
 mod fs;
 mod interrupts;
@@ -48,10 +46,15 @@ mod sync;
 mod vga;
 
 // exported functions -- to use in asm functions
+pub use self::bare_bones::*;
 pub use self::process::context::store_kcontext;
 pub use self::process::{_proc_yield, syscall_handler};
 pub use self::interrupts::pic::pic_irq;
 pub use self::memory::vmm_page_fault;
+
+/// The global allocator
+#[global_allocator]
+static ALLOCATOR: memory::KernelAllocator = memory::KernelAllocator;
 
 /// This is the entry point to the kernel. It is the first rust code that runs.
 #[no_mangle]
@@ -64,9 +67,9 @@ pub fn kernel_main() {
     // print new line after "x"
     bootlog!("\n");
 
-    /// //////////////////////////////////////////////////
-    /// Start initing stuff                             //
-    /// //////////////////////////////////////////////////
+    /////////////////////////////////////////////////////
+    // Start initing stuff                             //
+    /////////////////////////////////////////////////////
 
     // init tss, heap, and vm
     interrupts::tss_init();
@@ -84,9 +87,9 @@ pub fn kernel_main() {
     // filesystem
     fs::init(self::io::ide::IDE::new(3 /* hdd */));
 
-    /// //////////////////////////////////////////////////
-    /// Done initing stuff                              //
-    /// //////////////////////////////////////////////////
+    /////////////////////////////////////////////////////
+    // Done initing stuff                              //
+    /////////////////////////////////////////////////////
 
     // yield to init process
     printf!("Everything inited! Here we go!\n");

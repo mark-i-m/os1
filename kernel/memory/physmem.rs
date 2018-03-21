@@ -118,14 +118,14 @@ impl Index<usize> for Frame {
     type Output = usize;
 
     fn index<'a>(&'a self, index: usize) -> &'a usize {
-        &self.0[index]
+        unsafe { &self.0[index] }
     }
 }
 
 /// Make the words of a frame indexable
 impl IndexMut<usize> for Frame {
     fn index_mut<'a>(&'a mut self, index: usize) -> &'a mut usize {
-        &mut self.0[index]
+        unsafe { &mut self.0[index] }
     }
 }
 

@@ -1,16 +1,11 @@
+#![allow(warnings)] // TODO
+
 //! A module for OFS abstractions
 
-use alloc::arc::Arc;
-
-use core::cmp::min;
 use core::mem;
-use core::ptr::copy;
 
-use sync::Semaphore;
-use string::String;
 use io::block::{BlockDevice, BlockDataBuffer};
 use super::hw::*;
-use super::super::error::Error;
 
 // NOTE: for now, the number of inodes must be chosen so that the last inode just completes its
 // block. That is, the first dnode comes immediately after the last inode *AND* at the start of the
@@ -128,7 +123,7 @@ impl<B: BlockDevice> OFS<B> {
                     if bitmap_byte & (1 << b) == 0 {
                         // set bit
                         unsafe {
-                            *buf.get_ptr::<u8>(i) |= 1 << b;
+                            *buf.get_ptr_mut::<u8>(i) |= 1 << b;
                         }
 
                         // TODO: what if the bitmap is more than 1 block?
@@ -165,7 +160,7 @@ impl<B: BlockDevice> OFS<B> {
                     if bitmap_byte & (1 << b) == 0 {
                         // set bit
                         unsafe {
-                            *buf.get_ptr::<u8>(i) |= 1 << b;
+                            *buf.get_ptr_mut::<u8>(i) |= 1 << b;
                         }
 
                         // TODO: what if the bitmap is more than 1 block?

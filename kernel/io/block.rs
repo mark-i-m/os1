@@ -1,7 +1,8 @@
 //! A module for accessing hard disks
 
-use alloc::heap;
+use alloc::Vec;
 
+use core::borrow::{Borrow, BorrowMut};
 use core::cmp::min;
 use core::ptr::copy;
 use core::mem;
@@ -12,7 +13,7 @@ use core::mem;
 /// writes or reads to the buffer.  Also, implementors of this trait must also implement `Drop`,
 /// preventing memory leaks.
 pub struct BlockDataBuffer {
-    buf: *mut u8,
+    buf: Vec<u8>,
     size: usize,
     offset: usize,
 }
@@ -56,7 +57,8 @@ pub trait BlockDevice {
         // get the portion we want
         let num_read = min(buffer.size() - buffer.offset(), blk_size - offset);
         unsafe {
-            let buf = buffer.get_ptr::<u8>(buffer.offset());
+            let boffset = buffer.offset();
+            let buf = buffer.get_ptr_mut::<u8>(boffset);
             copy(block_buf.get_ptr::<u8>(offset), buf, num_read);
         }
 
@@ -89,8 +91,9 @@ pub trait BlockDevice {
         let num_written = min(buffer.size() - buffer.offset(), blk_size - offset);
 
         unsafe {
-            let buf = buffer.get_ptr::<u8>(buffer.offset());
-            copy(buf, block_buf.get_ptr::<u8>(offset), num_written);
+            let boffset = buffer.offset();
+            let buf = buffer.get_ptr::<u8>(boffset);
+            copy(buf, block_buf.get_ptr_mut::<u8>(offset), num_written);
         }
 
         // write modified block to disk
@@ -169,7 +172,7 @@ pub trait BlockDevice {
         unsafe {
             let buf_offset = buffer.offset();
             copy(tmp.get_ptr::<u8>(0),
-                 buffer.get_ptr::<u8>(buf_offset),
+                 buffer.get_ptr_mut::<u8>(buf_offset),
                  bytes);
             buffer.set_offset(buf_offset + bytes);
         }
@@ -188,7 +191,7 @@ pub trait BlockDevice {
         unsafe {
             let buf_offset = buffer.offset();
             copy(buffer.get_ptr::<u8>(buf_offset),
-                 tmp.get_ptr::<u8>(0),
+                 tmp.get_ptr_mut::<u8>(0),
                  bytes);
             buffer.set_offset(buf_offset + bytes);
         }
@@ -199,12 +202,10 @@ pub trait BlockDevice {
 impl BlockDataBuffer {
     /// Create a new buffer with the given capacity
     pub fn new(size: usize) -> BlockDataBuffer {
-        unsafe {
-            BlockDataBuffer {
-                buf: heap::allocate(size, 1),
-                size: size,
-                offset: 0,
-            }
+        BlockDataBuffer {
+            buf: Vec::with_capacity(size),
+            size: size,
+            offset: 0,
         }
     }
 
@@ -223,14 +224,13 @@ impl BlockDataBuffer {
         self.size
     }
 
-    /// Get a pointer of the given type to the
-    /// offset in the buffer. The offset is relative to the
+    /// Get a pointer of the given type to the offset in the buffer. The offset is relative to the
     /// size of `T`
     ///
     /// # Panics
     ///
     /// Panics if the offset is out of bounds
-    pub unsafe fn get_ptr<T>(&self, offset: usize) -> *mut T {
+    pub unsafe fn get_ptr<T>(&self, offset: usize) -> *const T {
         let t_size = mem::size_of::<T>();
         let num_ts = self.size() / t_size;
 
@@ -241,12 +241,33 @@ impl BlockDataBuffer {
                    self.size());
         }
 
-        self.buf.offset((offset * t_size) as isize) as *mut T
+        let slice: &[u8] = self.buf.borrow();
+        slice.as_ptr().offset((offset * t_size) as isize) as *const T
     }
 
-    /// Get a reference of the given type to the offset
-    /// in the buffer. The offset is relative to the
-    /// size of `T`
+    /// Get a mutable pointer of the given type to the offset in the buffer. The offset is relative
+    /// to the size of `T`
+    ///
+    /// # Panics
+    ///
+    /// Panics if the offset is out of bounds
+    pub unsafe fn get_ptr_mut<T>(&mut self, offset: usize) -> *mut T {
+        let t_size = mem::size_of::<T>();
+        let num_ts = self.size() / t_size;
+
+        if offset >= num_ts {
+            panic!("Out of bounds {} * {} out of {}",
+                   offset,
+                   t_size,
+                   self.size());
+        }
+
+        let slice: &mut [u8] = self.buf.borrow_mut();
+        slice.as_mut_ptr().offset((offset * t_size) as isize) as *mut T
+    }
+
+    /// Get a reference of the given type to the offset in the buffer. The offset is relative to
+    /// the size of `T`
     ///
     /// # Panics
     ///
@@ -255,22 +276,13 @@ impl BlockDataBuffer {
         &*self.get_ptr(offset)
     }
 
-    /// Get a mutable reference of the given type to the offset
-    /// in the buffer. The offset is relative to the
-    /// size of `T`
+    /// Get a mutable reference of the given type to the offset in the buffer. The offset is
+    /// relative to the size of `T`
     ///
     /// # Panics
     ///
     /// Panics if the offset is out of bounds
-    pub unsafe fn get_ref_mut<T>(&self, offset: usize) -> &mut T {
-        &mut *self.get_ptr(offset)
-    }
-}
-
-impl Drop for BlockDataBuffer {
-    fn drop(&mut self) {
-        unsafe {
-            heap::deallocate(self.buf, self.size, 1);
-        }
+    pub unsafe fn get_ref_mut<T>(&mut self, offset: usize) -> &mut T {
+        &mut *self.get_ptr_mut(offset)
     }
 }

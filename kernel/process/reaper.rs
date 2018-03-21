@@ -40,8 +40,6 @@ pub fn run(this: &Process) -> usize {
             }
         }
     }
-
-    0
 }
 
 /// Add a dead process to the reaper queue.

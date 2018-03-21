@@ -32,7 +32,7 @@ all: kernel.img
 	${CC} ${ASFLAGS} -c -o $@ $<
 
 libkernel.a: ${RUSTFILES} Cargo.toml
-	RUSTFLAGS=${RUSTFLAGS} CARGO_INCREMENTAL=1 xargo build -v --target i686-unknown-elf	${RUSTOPT}
+	RUST_TARGET_PATH=$(shell pwd) RUSTFLAGS=${RUSTFLAGS} xargo build -v --target i686-unknown-elf ${RUSTOPT}
 	@if [ "${RUSTOPT}" = "--release" ]; then  \
 		cp target/i686-unknown-elf/release/libkernel.a . ;  \
 	else \

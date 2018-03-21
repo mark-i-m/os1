@@ -21,9 +21,9 @@ const COLS: usize = 80;
 const NUM_LOOP: usize = (ROWS * 2 + COLS * 2 - 4) * 3;
 
 // Some test semaphores
-static mut current: (usize, usize) = (0, 0);
-static mut s1: StaticSemaphore = StaticSemaphore::new(1);
-static mut s2: StaticSemaphore = StaticSemaphore::new(1);
+static mut CURRENT: (usize, usize) = (0, 0);
+static mut S1: StaticSemaphore = StaticSemaphore::new(1);
+static mut S2: StaticSemaphore = StaticSemaphore::new(1);
 
 // Some test routines
 pub fn run(this: &Process) -> usize {
@@ -56,7 +56,7 @@ pub fn run(this: &Process) -> usize {
     for _ in 0..NUM_LOOP {
         ready_queue::make_ready(Process::new("loop_proc", self::run2));
         unsafe {
-            s1.down();
+            S1.down();
         }
 
         // test vm
@@ -132,16 +132,16 @@ fn run2(this: &Process) -> usize {
     }
 
     unsafe {
-        s2.down();
+        S2.down();
     }
 
     let mut w = Rectangle::new(COLS, ROWS, (0, 0));
 
-    let me = unsafe { current };
+    let me = unsafe { CURRENT };
     let prev = get_prev(me);
 
     unsafe {
-        current = get_next(me);
+        CURRENT = get_next(me);
     }
 
     printf!("Erase ({},{}) ", prev.0, prev.1);
@@ -155,7 +155,7 @@ fn run2(this: &Process) -> usize {
     w.put_char(' ');
 
     unsafe {
-        s2.up();
+        S2.up();
     }
 
     // test vm
@@ -177,7 +177,7 @@ fn run2(this: &Process) -> usize {
     }
 
     unsafe {
-        s1.up();
+        S1.up();
     }
 
     0

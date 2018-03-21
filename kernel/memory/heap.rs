@@ -27,7 +27,11 @@
 
 #![allow(dead_code)]
 
+use alloc::heap::{Alloc, AllocErr, Layout};
+
 use core::mem::size_of;
+
+use interrupts::{on, off};
 
 /// A flag to turn on and off debugging output
 const DEBUG: bool = false;
@@ -44,7 +48,7 @@ static mut START: usize = 0;
 static mut END: usize = 0;
 
 /// A pointer to the first free heap block
-static mut free_list: *mut Block = 0 as *mut Block;
+static mut FREE_LIST: *mut Block = 0 as *mut Block;
 
 // heap stats
 /// The number of successful mallocs (for stats purposes)
@@ -53,6 +57,25 @@ static mut SUCC_MALLOCS: usize = 0;
 static mut FAIL_MALLOCS: usize = 0;
 /// The number of successful frees (for stats purposes)
 static mut FREES: usize = 0;
+
+/// A wrapper around the heap allocator
+pub struct KernelAllocator;
+
+unsafe impl<'a> Alloc for &'a KernelAllocator {
+    unsafe fn alloc(&mut self, layout: Layout) -> Result<*mut u8, AllocErr> {
+        off();
+        let ret = malloc(layout.size(), layout.align());
+        on();
+        Ok(ret)
+    }
+
+    unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {
+        off();
+        let ret = free(ptr, layout.size());
+        on();
+        ret
+    }
+}
 
 /// A struct representing a heap block.
 ///
@@ -239,7 +262,7 @@ impl Block {
         if !prev_ptr.is_null() {
             (*prev_ptr).set_next(next_ptr);
         } else {
-            free_list = next_ptr;
+            FREE_LIST = next_ptr;
         }
 
         self.set_next(0 as *mut Block);
@@ -248,7 +271,7 @@ impl Block {
 
     /// Add to head of free list
     pub unsafe fn insert(&mut self) {
-        let old_head = free_list;
+        let old_head = FREE_LIST;
 
         if !self.is_free() {
             print_stats();
@@ -256,7 +279,7 @@ impl Block {
                    self as *const Block as usize);
         }
 
-        free_list = self as *mut Block;
+        FREE_LIST = self as *mut Block;
 
         self.set_next(old_head);
         self.set_prev(0 as *mut Block);
@@ -386,7 +409,7 @@ pub fn init(start: usize, size: usize) {
         (*first).set_next(0 as *mut Block);
         (*first).set_prev(0 as *mut Block);
 
-        free_list = first;
+        FREE_LIST = first;
 
         bootlog!("heap inited - start addr: 0x{:x}, end addr: 0x{:x}, {} bytes\n",
                  START,
@@ -415,7 +438,7 @@ pub unsafe fn malloc(mut size: usize, mut align: usize) -> *mut u8 {
     align = align.next_power_of_two();
 
     // get a free block
-    let mut begin = free_list;
+    let mut begin = FREE_LIST;
     let mut matched = false;
     let mut split_size = 0;
     while !begin.is_null() {
@@ -430,7 +453,7 @@ pub unsafe fn malloc(mut size: usize, mut align: usize) -> *mut u8 {
 
     // no blocks found
     if !matched {
-        if free_list.is_null() {
+        if FREE_LIST.is_null() {
             panic!("Out of memory!");
         } else {
             // NOTE: fail for now because rustc does not know
@@ -562,7 +585,7 @@ unsafe fn get_block_stats() -> (usize, usize, usize) {
     let mut size_free = 0;
 
     // loop through all blocks
-    let mut begin = free_list;
+    let mut begin = FREE_LIST;
     while !begin.is_null() {
         num_free += 1;
         size_free += (*begin).get_size();

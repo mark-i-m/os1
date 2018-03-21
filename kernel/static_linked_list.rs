@@ -638,7 +638,7 @@ impl<T> StaticLinkedList<T> {
             second_part_head = split_node.resolve_mut().unwrap().next.take();
             match second_part_head {
                 None => {}
-                Some(mut head) => (*head).prev = Rawlink::none(),
+                Some(head) => (*head).prev = Rawlink::none(),
             }
         }
 
@@ -919,7 +919,7 @@ impl<'a, T> IntoIterator for &'a mut StaticLinkedList<T> {
     type Item = &'a mut T;
     type IntoIter = IterMut<'a, T>;
 
-    fn into_iter(mut self) -> IterMut<'a, T> {
+    fn into_iter(self) -> IterMut<'a, T> {
         self.iter_mut()
     }
 }

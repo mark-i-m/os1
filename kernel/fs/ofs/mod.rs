@@ -1,3 +1,5 @@
+#![allow(warnings)] // TODO
+
 //! A module for os1 FS (OFS)
 
 pub mod file;

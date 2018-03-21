@@ -4,9 +4,8 @@
 //! 2. Physical memory allocator
 //! 3. Virtual memory management
 
+pub use self::heap::KernelAllocator;
 pub use self::vm::{vmm_page_fault, AddressSpace};
-
-pub mod rust_alloc;
 
 mod heap;
 mod physmem;

@@ -162,7 +162,7 @@ impl BlockDevice for IDE {
         let num_words = self.get_block_size() / mem::size_of::<u32>();
         for i in 0..num_words {
             unsafe {
-                outl(base, *buffer.get_ref_mut::<u32>(i));
+                outl(base, *buffer.get_ref::<u32>(i));
             }
         }
 

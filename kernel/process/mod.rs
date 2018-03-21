@@ -204,7 +204,7 @@ impl Process {
                         let cwf_inode = unsafe { (*ROOT_FS).stat(self.cwf()).unwrap() };
                         let mut linked = false;
 
-                        for i in inode.links.iter() {
+                        for i in unsafe{ inode.links.iter() } {
                             if *i == self.cwf() {
                                 linked = true;
                                 break;

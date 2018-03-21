@@ -1,11 +1,10 @@
 [package]
 name = "kernel"
 version = "0.1.0"
-authors = ["mark <mmansi@utexas.edu>"]
+authors = ["mark"]
 
 [dependencies]
 rlibc = "*"
-allocator_stub = {git = "https://github.com/mark-i-m/rust_allocator_stub", branch = "patch-1"}
 
 [lib]
 name = "kernel"

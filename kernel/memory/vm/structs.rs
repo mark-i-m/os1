@@ -128,7 +128,7 @@ impl VMTable {
         // allocate a frame
         let paddr = Frame::alloc();
 
-        let mut table: &mut VMTable = unsafe {
+        let table: &mut VMTable = unsafe {
             // if VM is on, kmap this frame
             // otherwise use the paddr
             let frame = if VMM_ON {

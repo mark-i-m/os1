@@ -13,7 +13,7 @@ pub fn init() {
 /// The system call handler
 #[no_mangle]
 #[inline(never)]
-pub unsafe fn syscall_handler(context: *mut usize, syscall_num: usize, a0: usize, a1: usize) {
+pub unsafe fn syscall_handler(_context: *mut usize, syscall_num: usize, a0: usize, _a1: usize) {
     match syscall_num {
         0 => {
             // exit

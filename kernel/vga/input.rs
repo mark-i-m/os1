@@ -1,10 +1,11 @@
 //! A module for showing user input boxes
 
+use alloc::string::String;
+
 use core::fmt::Write;
 
 use process::focus::focus;
 use process::CURRENT_PROCESS;
-use string::String;
 use super::rectangle::Rectangle;
 
 pub trait InputElement {

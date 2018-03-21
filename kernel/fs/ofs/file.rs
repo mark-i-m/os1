@@ -1,11 +1,12 @@
-use alloc::arc::Arc;
+#![allow(warnings)] // TODO
+
+use alloc::{arc::Arc, string::String};
 
 use core::cmp::min;
 use core::mem;
 use core::ptr::copy;
 
 use io::block::{BlockDevice, BlockDataBuffer};
-use string::String;
 use sync::Semaphore;
 use super::internals::*;
 use super::hw::*;
@@ -67,7 +68,7 @@ impl<B: BlockDevice> File<B> {
                 let buf_offset = buf.offset();
                 unsafe {
                     copy(tmp.get_ptr::<u8>(0),
-                         buf.get_ptr::<u8>(buf_offset),
+                         buf.get_ptr_mut::<u8>(buf_offset),
                          bytes_left);
                 }
                 buf.set_offset(buf_offset + bytes_left);
@@ -118,13 +119,13 @@ impl<B: BlockDevice> File<B> {
             let tmp = &mut BlockDataBuffer::new(dnode_size);
             unsafe {
                 copy((&curr_dnode.data[0]) as *const usize as *const u8,
-                     tmp.get_ptr::<u8>(0),
+                     tmp.get_ptr_mut::<u8>(0),
                      dnode_size);
             }
             let next_dnode = if last_dnode {
                 let new_dnode = fs.alloc_dnode();
                 unsafe {
-                    *tmp.get_ptr::<usize>((dnode_size / mem::size_of::<usize>()) - 1) = new_dnode;
+                    *tmp.get_ptr_mut::<usize>((dnode_size / mem::size_of::<usize>()) - 1) = new_dnode;
                 }
                 self.inode.size += num_write + 1; // +1 so this is no longer the last dnode
                 new_dnode
@@ -134,7 +135,7 @@ impl<B: BlockDevice> File<B> {
             let old_buf_offset = buf.offset();
             unsafe {
                 copy(buf.get_ptr::<u8>(old_buf_offset),
-                     tmp.get_ptr::<u8>(dnode_offset),
+                     tmp.get_ptr_mut::<u8>(dnode_offset),
                      num_write);
             }
             let dnode_blk = fs.dnode_num_to_block_num(self.offset_dnode);

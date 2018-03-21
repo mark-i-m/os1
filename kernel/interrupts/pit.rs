@@ -6,7 +6,7 @@ use super::super::machine::pit_do_init;
 const FREQ: usize = 1193182;
 
 /// The frequency of the PIT
-static mut hz: usize = 0;
+static mut HZ: usize = 0;
 
 /// The number of jiffies passed since boot
 #[allow(dead_code)]
@@ -21,8 +21,8 @@ pub fn init(pit_hz: usize) {
     }
 
     unsafe {
-        hz = FREQ / d;
-        bootlog!("pit inited - requested {} hz, actual {} hz\n", pit_hz, hz);
+        HZ = FREQ / d;
+        bootlog!("pit inited - requested {} hz, actual {} hz\n", pit_hz, HZ);
         pit_do_init(d);
     }
 }
@@ -37,5 +37,5 @@ pub fn handler() {
 /// Calculate the number of seconds since boot
 #[allow(dead_code)]
 pub fn seconds() -> usize {
-    unsafe { JIFFIES / hz }
+    unsafe { JIFFIES / HZ }
 }

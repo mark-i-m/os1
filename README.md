@@ -13,7 +13,7 @@ For those that want to build from source, instructions are below.
 
 * `qemu`
 * `gcc`
-* Nightly Rust + Cargo. I am using Rust 1.17.0-nightly (c0b7112ba 2017-03-02)
+* Nightly Rust + Cargo. I am using Rust 1.26.0-nightly (75af15ee6 2018-03-20)
 
   It needs to be _nightly_ Rust, because the project uses unstable language features.
 

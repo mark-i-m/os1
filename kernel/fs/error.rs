@@ -1,7 +1,5 @@
 //! A simple Error object for FS errors
 
-use string::String;
-
 pub struct Error<'err> {
     msg: &'err str,
 }

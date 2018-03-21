@@ -1,8 +1,6 @@
 //! A module of low-level abstractions for disk-level representations of data for OFS.
 
-use core::mem;
-
-use string::String;
+use alloc::string::String;
 
 /// A 4B representation of the date for use in the OS
 #[derive(Clone)]

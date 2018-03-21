@@ -15,6 +15,4 @@ pub fn run(this: &Process) -> usize {
     exec(1);
 
     panic!("Oh no!");
-
-    0
 }

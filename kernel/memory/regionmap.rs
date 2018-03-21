@@ -3,9 +3,10 @@
 //! Get memory map at boot time and use it construct `RegionMap`s.
 //! The BIOS calls needed have to run before we switch to protected mode,
 
+use alloc::vec::Vec;
+
 use core::iter::Iterator;
 
-use super::super::vec::Vec;
 use super::physmem::Frame;
 
 extern "C" {
@@ -44,21 +45,23 @@ fn find(addr: usize) -> Option<(usize, usize)> {
     let mut most = 0;
     let mut length = 0;
     let mut region_start = 0;
-    for i in 0..(memory_map_count as usize) {
-        let start = memory_map[i].base_l as usize;
-        let end = if memory_map[i].base_l == 0 {
-            (memory_map[i].base_l + memory_map[i].length_l) - 1
-        } else {
-            (memory_map[i].base_l - 1) + memory_map[i].length_l
-        } as usize;
-        let region_type = memory_map[i].region_type as usize;
+    unsafe {
+        for i in 0..(memory_map_count as usize) {
+            let start = memory_map[i].base_l as usize;
+            let end = if memory_map[i].base_l == 0 {
+                (memory_map[i].base_l + memory_map[i].length_l) - 1
+            } else {
+                (memory_map[i].base_l - 1) + memory_map[i].length_l
+            } as usize;
+            let region_type = memory_map[i].region_type as usize;
 
-        if start <= addr && addr <= end && region_type > most {
-            length = end - start;
-            most = region_type;
-            region_start = start;
-            if most > 1 {
-                break;
+            if start <= addr && addr <= end && region_type > most {
+                length = end - start;
+                most = region_type;
+                region_start = start;
+                if most > 1 {
+                    break;
+                }
             }
         }
     }
@@ -75,11 +78,13 @@ fn find(addr: usize) -> Option<(usize, usize)> {
 /// based on the E820 BIOS call
 fn find_next(addr: usize) -> usize {
     let mut least = 0xFFFF_FFFF;
-    for i in 0..(memory_map_count as usize) {
-        let start = memory_map[i].base_l as usize;
+    unsafe {
+        for i in 0..(memory_map_count as usize) {
+            let start = memory_map[i].base_l as usize;
 
-        if addr < start && start < least {
-            least = start;
+            if addr < start && start < least {
+                least = start;
+            }
         }
     }
 

@@ -92,7 +92,7 @@ impl AddressSpace {
             self.lock.down();
         }
 
-        let mut pd = unsafe { &mut *PD_ADDRESS };
+        let pd = unsafe { &mut *PD_ADDRESS };
         let pde = &mut pd[pde_index];
 
         // invalidate TLB entry
@@ -113,8 +113,9 @@ impl AddressSpace {
             pde.set_present(true); // present
 
             // clear the pt
-            let mut pt =
-                unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
+            let pt = unsafe {
+                &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable)
+            };
             for p in 0..1024 {
                 pt[p] = PagingEntry::new();
                 unsafe { invlpg((pde_index << 22) | (p << 12)) };
@@ -124,7 +125,7 @@ impl AddressSpace {
         }
 
         // follow pde to get pt
-        let mut pt = unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
+        let pt = unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
         let pte = &mut pt[pte_index];
 
         // if pt entry is not already there
@@ -200,8 +201,7 @@ impl AddressSpace {
             // present bit
             off();
 
-            let mut pt =
-                unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
+            let pt = unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
 
             // unmap and deallocate frame
             pt[pte_index].free(virt >= unsafe { USER_ADDRESS });
