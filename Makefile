@@ -37,6 +37,3 @@ clean:
 	${MAKE} -C kernel clean
 	${MAKE} -C mkfs clean
 	${MAKE} -C user clean
-
-clean-all: clean
-	${MAKE} -C kernel clean-all
