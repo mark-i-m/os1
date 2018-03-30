@@ -13,8 +13,8 @@ mod regionmap;
 mod vm;
 
 /// Initialize all memory subsystems
-pub fn init(kheap_start: usize, kheap_size: usize) {
-    heap::init(kheap_start, kheap_size);
+pub fn init(allocator: &mut KernelAllocator, kheap_start: usize, kheap_size: usize) {
+    heap::init(allocator, kheap_start, kheap_size);
     physmem::init(kheap_start + kheap_size);
     vm::init(kheap_start + kheap_size + (4 << 20));
 }

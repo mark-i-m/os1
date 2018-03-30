@@ -7,7 +7,7 @@
 
 // To use unstable features of Rust, we need to have nightly rustc
 #![feature(lang_items, alloc, heap_api, global_allocator, allocator_api, box_syntax, box_patterns,
-           const_fn, dropck_eyepatch, core_intrinsics)]
+           const_fn, dropck_eyepatch, core_intrinsics, nonnull_cast)]
 // Compile without libstd
 #![no_std]
 #![crate_type = "staticlib"]
@@ -43,7 +43,7 @@ pub use self::memory::vmm_page_fault;
 
 /// The global allocator
 #[global_allocator]
-static ALLOCATOR: memory::KernelAllocator = memory::KernelAllocator;
+static ALLOCATOR: memory::KernelAllocator = memory::KernelAllocator::new();
 
 /// This is the entry point to the kernel. It is the first rust code that runs.
 #[no_mangle]
@@ -65,7 +65,7 @@ pub fn kernel_main() {
 
     // make the kernel heap 3MiB starting at 1MiB.
     // make memory data structures take up the next 4MiB.
-    memory::init(1 << 20, 3 << 20);
+    memory::init(unsafe { &mut ALLOCATOR }, 1 << 20, 3 << 20);
 
     // init processes
     process::init();
