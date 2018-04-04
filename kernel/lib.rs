@@ -16,6 +16,7 @@
 // use libcore
 extern crate alloc;
 extern crate rlibc;
+extern crate smallheap;
 
 // kernel module declarations
 // debug must be first, since it defines macros the others need
@@ -43,7 +44,7 @@ pub use self::memory::vmm_page_fault;
 
 /// The global allocator
 #[global_allocator]
-static ALLOCATOR: memory::KernelAllocator = memory::KernelAllocator::new();
+static mut ALLOCATOR: memory::KernelAllocator = memory::KernelAllocator::new();
 
 /// This is the entry point to the kernel. It is the first rust code that runs.
 #[no_mangle]

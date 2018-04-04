@@ -5,6 +5,7 @@ authors = ["mark"]
 
 [dependencies]
 rlibc = "*"
+smallheap = { git = "https://github.com/mark-i-m/smallheap", features = ["no_std"] }
 
 [lib]
 name = "kernel"
