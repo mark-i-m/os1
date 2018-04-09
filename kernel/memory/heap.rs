@@ -6,7 +6,7 @@ use core::cell::RefCell;
 
 use smallheap::{self, Allocator};
 
-use interrupts::{off, on};
+use interrupts::no_interrupts;
 
 /// A wrapper around the heap allocator for use as the `global_allocator`.
 pub struct KernelAllocator {
@@ -27,33 +27,33 @@ impl KernelAllocator {
 
 unsafe impl<'a> Alloc for &'a KernelAllocator {
     unsafe fn alloc(&mut self, layout: Layout) -> Result<*mut u8, AllocErr> {
-        off();
-        let ret = self.heap
-            .borrow_mut()
-            .as_mut()
-            .unwrap()
-            .malloc(layout.size(), layout.align()).map(|p| p.as_ptr()).map_err(|e| match e {
-                smallheap::AllocErr::OutOfMemory => AllocErr::Exhausted{request: layout},
-                smallheap::AllocErr::Corrupted => AllocErr::Unsupported{
-                    details: "Heap was corrupted"
-                },
-                smallheap::AllocErr::Invalid => AllocErr::Unsupported{
-                    details: "Heap operation was given invalid arguments"
-                },
-            });
-        on();
-        ret
+        no_interrupts(|| {
+            self.heap
+                .borrow_mut()
+                .as_mut()
+                .unwrap()
+                .malloc(layout.size(), layout.align())
+                .map(|p| p.as_ptr())
+                .map_err(|e| match e {
+                    smallheap::AllocErr::OutOfMemory => AllocErr::Exhausted { request: layout },
+                    smallheap::AllocErr::Corrupted => AllocErr::Unsupported {
+                        details: "Heap was corrupted",
+                    },
+                    smallheap::AllocErr::Invalid => AllocErr::Unsupported {
+                        details: "Heap operation was given invalid arguments",
+                    },
+                })
+        })
     }
 
     unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {
-        off();
-        let ret = self.heap
-            .borrow_mut()
-            .as_mut()
-            .unwrap()
-            .free(ptr, layout.size());
-        on();
-        ret
+        no_interrupts(|| {
+            self.heap
+                .borrow_mut()
+                .as_mut()
+                .unwrap()
+                .free(ptr, layout.size())
+        })
     }
 }
 

@@ -31,6 +31,18 @@ pub fn off() {
     }
 }
 
+/// Run the given closure without interrupts enabled.
+pub fn no_interrupts<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    off();
+    let ret = f();
+    on();
+
+    ret
+}
+
 /// Helper method for use in IRQ
 /// Bookkeeping to start an irq.
 /// This should never happen if there is no current process.
