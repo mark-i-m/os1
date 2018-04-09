@@ -4,7 +4,7 @@
 use alloc::heap::{Alloc, AllocErr, Layout};
 use core::cell::RefCell;
 
-use smallheap::Allocator;
+use smallheap::{self, Allocator};
 
 use interrupts::{off, on};
 
@@ -32,9 +32,17 @@ unsafe impl<'a> Alloc for &'a KernelAllocator {
             .borrow_mut()
             .as_mut()
             .unwrap()
-            .malloc(layout.size(), layout.align());
+            .malloc(layout.size(), layout.align()).map(|p| p.as_ptr()).map_err(|e| match e {
+                smallheap::AllocErr::OutOfMemory => AllocErr::Exhausted{request: layout},
+                smallheap::AllocErr::Corrupted => AllocErr::Unsupported{
+                    details: "Heap was corrupted"
+                },
+                smallheap::AllocErr::Invalid => AllocErr::Unsupported{
+                    details: "Heap operation was given invalid arguments"
+                },
+            });
         on();
-        Ok(ret)
+        ret
     }
 
     unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {
