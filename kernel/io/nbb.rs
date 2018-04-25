@@ -36,13 +36,15 @@ impl InputStream for NonBlockingBuffer {
 
     /// Get the next character in the stream if there is one
     fn get(&mut self) -> Option<char> {
-        no_interrupts(|| if self.size > 0 {
-            let i = self.front;
-            self.front = (self.front + 1) % self.buffer.cap();
-            self.size -= 1;
-            unsafe { Some(ptr::read(self.buffer.ptr().offset(i as isize))) }
-        } else {
-            None
+        no_interrupts(|| {
+            if self.size > 0 {
+                let i = self.front;
+                self.front = (self.front + 1) % self.buffer.cap();
+                self.size -= 1;
+                unsafe { Some(ptr::read(self.buffer.ptr().offset(i as isize))) }
+            } else {
+                None
+            }
         })
     }
 }
@@ -61,12 +63,14 @@ impl OutputStream<char> for NonBlockingBuffer {
     /// If there is no room in the buffer, the character is
     /// dropped.
     fn put(&mut self, c: char) {
-        no_interrupts(|| if self.size < self.buffer.cap() {
-            let next = (self.front + self.size) % self.buffer.cap();
-            unsafe {
-                ptr::write(self.buffer.ptr().offset(next as isize), c);
+        no_interrupts(|| {
+            if self.size < self.buffer.cap() {
+                let next = (self.front + self.size) % self.buffer.cap();
+                unsafe {
+                    ptr::write(self.buffer.ptr().offset(next as isize), c);
+                }
+                self.size += 1;
             }
-            self.size += 1;
         })
     }
 }

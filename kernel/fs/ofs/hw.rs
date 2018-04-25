@@ -50,7 +50,7 @@ pub struct Dnode {
 }
 
 pub const UNNAMED: [u8; 12] = [
-    'u' as u8, 'n' as u8, 'n' as u8, 'a' as u8, 'm' as u8, 'e' as u8, 'd' as u8, 0, 0, 0, 0, 0
+    'u' as u8, 'n' as u8, 'n' as u8, 'a' as u8, 'm' as u8, 'e' as u8, 'd' as u8, 0, 0, 0, 0, 0,
 ];
 
 impl OFSDate {

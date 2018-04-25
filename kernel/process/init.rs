@@ -2,10 +2,10 @@
 
 #![allow(unused_variables)]
 
-use vga::rectangle::Rectangle;
 use super::load::exec;
-use super::Process;
 use super::ready_queue;
+use super::Process;
+use vga::rectangle::Rectangle;
 
 /// The init process routine
 pub fn run(this: &Process) -> usize {

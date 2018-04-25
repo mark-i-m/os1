@@ -8,7 +8,7 @@ use core::fmt::{Debug, Formatter, Result};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use fs::ROOT_FS;
-use interrupts::{off, on, esp0};
+use interrupts::{esp0, off, on};
 use io::NonBlockingBuffer;
 use machine::{self, context_switch};
 use memory::AddressSpace;

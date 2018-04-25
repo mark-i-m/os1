@@ -984,10 +984,10 @@ impl<A: Hash> Hash for StaticLinkedList<A> {
 
 #[cfg(test)]
 mod tests {
+    use std::__rand::{thread_rng, Rng};
     use std::clone::Clone;
     use std::iter::{Extend, IntoIterator, Iterator};
     use std::option::Option::{self, None, Some};
-    use std::__rand::{thread_rng, Rng};
     use std::thread;
     use std::vec::Vec;
 

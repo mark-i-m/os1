@@ -4,19 +4,19 @@
 
 pub mod file;
 
-mod internals;
 mod hw;
+mod internals;
 
 use alloc::arc::Arc;
 
 use core::mem;
 
+use self::file::File;
+use self::hw::*;
+use self::internals::*;
+use super::error::Error;
 use io::block::{BlockDataBuffer, BlockDevice};
 use sync::Semaphore;
-use self::file::File;
-use self::internals::*;
-use self::hw::*;
-use super::error::Error;
 
 /// A safe handle on the file system for all needed operations.
 pub struct OFSHandle<B: BlockDevice> {

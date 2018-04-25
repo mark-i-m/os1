@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 
 use core::ops::{Index, IndexMut};
 
-use interrupts::{off, on, no_interrupts};
+use interrupts::{no_interrupts, off, on};
 use process::CURRENT_PROCESS;
 use static_linked_list::StaticLinkedList;
 
@@ -147,16 +147,15 @@ impl FrameInfo {
         }
 
         // Remove from list
-        no_interrupts( || unsafe { FREE_FRAMES = self.get_next_free() } );
+        no_interrupts(|| unsafe { FREE_FRAMES = self.get_next_free() });
 
         // mark not free
         self.clear_shared_info();
         self.set_free(false);
     }
 
-    /// Free the frame referred to by this FrameInfo
-    /// if this is the last sharere; otherwise, just remove this
-    /// process's `SharedFrameInfo`.
+    /// Free the frame referred to by this FrameInfo if this is the last sharere; otherwise, just
+    /// remove this process's `SharedFrameInfo`.
     pub fn free(&mut self) {
         // remove shared page info for this process
         let pid = unsafe { (*CURRENT_PROCESS).get_pid() };

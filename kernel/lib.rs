@@ -6,8 +6,10 @@
 //! `liballoc` are used, since they provide core Rust functionality.
 
 // To use unstable features of Rust, we need to have nightly rustc
-#![feature(lang_items, alloc, heap_api, global_allocator, allocator_api, box_syntax, box_patterns,
-           const_fn, dropck_eyepatch, core_intrinsics, nonnull_cast)]
+#![feature(
+    lang_items, alloc, heap_api, global_allocator, allocator_api, box_syntax, box_patterns,
+    const_fn, dropck_eyepatch, core_intrinsics, nonnull_cast
+)]
 // Compile without libstd
 #![no_std]
 #![crate_type = "staticlib"]
@@ -37,10 +39,10 @@ mod vga;
 
 // exported functions -- to use in asm functions
 pub use self::bare_bones::*;
-pub use self::process::context::store_kcontext;
-pub use self::process::{_proc_yield, syscall_handler};
 pub use self::interrupts::pic::pic_irq;
 pub use self::memory::vmm_page_fault;
+pub use self::process::context::store_kcontext;
+pub use self::process::{_proc_yield, syscall_handler};
 
 /// The global allocator
 #[global_allocator]

@@ -4,16 +4,16 @@
 use core::fmt::Write;
 use core::ptr;
 
+use super::focus::focus;
+use super::proc_table::PROCESS_TABLE;
+use super::ready_queue;
+use super::Process;
+use fs::ROOT_FS;
 use io::block::BlockDataBuffer;
 use io::stream::InputStream;
-use fs::ROOT_FS;
 use sync::{Semaphore, StaticSemaphore};
-use vga::rectangle::{Color, Rectangle};
 use vga::input::{InputElement, TextBox};
-use super::Process;
-use super::focus::focus;
-use super::ready_queue;
-use super::proc_table::PROCESS_TABLE;
+use vga::rectangle::{Color, Rectangle};
 
 // useful constants
 const ROWS: usize = 25;

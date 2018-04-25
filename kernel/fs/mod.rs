@@ -1,12 +1,12 @@
 //! A module for file system stuff
 
-pub mod ofs;
 pub mod error;
+pub mod ofs;
 
 use alloc::boxed::Box;
 
-use io::ide::IDE;
 use self::ofs::OFSHandle;
+use io::ide::IDE;
 
 pub static mut ROOT_FS: *mut OFSHandle<IDE> = 0 as *mut OFSHandle<IDE>;
 

@@ -6,10 +6,10 @@ use core::cmp::min;
 use core::mem;
 use core::ptr::copy;
 
+use super::hw::*;
+use super::internals::*;
 use io::block::{BlockDataBuffer, BlockDevice};
 use sync::Semaphore;
-use super::internals::*;
-use super::hw::*;
 
 /// A handle on the file for all needed operations.
 pub struct File<B: BlockDevice> {

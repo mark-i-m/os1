@@ -2,7 +2,6 @@
 //! in this module.
 
 #[link(name = "asmcode", repr = "static")]
-
 use process::ProcessQueue;
 
 #[allow(improper_ctypes)]

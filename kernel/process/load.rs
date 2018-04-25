@@ -3,10 +3,10 @@
 use core::mem::size_of;
 use core::ptr;
 
-use io::block::BlockDataBuffer;
-use fs::ROOT_FS;
-use machine::switch_to_user;
 use super::elf::*;
+use fs::ROOT_FS;
+use io::block::BlockDataBuffer;
+use machine::switch_to_user;
 
 /// Exec the given file
 /// TODO: use filenames, rather than inode numbers

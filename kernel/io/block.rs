@@ -4,8 +4,8 @@ use alloc::Vec;
 
 use core::borrow::{Borrow, BorrowMut};
 use core::cmp::min;
-use core::ptr::copy;
 use core::mem;
+use core::ptr::copy;
 
 /// A data structure for use with block devices.
 ///

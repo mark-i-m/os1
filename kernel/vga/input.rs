@@ -4,9 +4,9 @@ use alloc::string::String;
 
 use core::fmt::Write;
 
+use super::rectangle::Rectangle;
 use process::focus::focus;
 use process::CURRENT_PROCESS;
-use super::rectangle::Rectangle;
 
 pub trait InputElement {
     fn get_str(&mut self) -> String;

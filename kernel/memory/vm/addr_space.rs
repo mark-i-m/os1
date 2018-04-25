@@ -2,12 +2,12 @@
 
 use super::super::super::interrupts::{off, on};
 use super::super::super::machine::{invlpg, vmm_on};
-use super::super::super::process::{State, CURRENT_PROCESS};
 use super::super::super::process::proc_table::PROCESS_TABLE;
+use super::super::super::process::{State, CURRENT_PROCESS};
 use super::super::super::sync::{Barrier, Event, StaticSemaphore};
 use super::super::physmem::Frame;
-use super::{KMAP_ADDRESS, NUM_SHARED, PD_ADDRESS, SHARED_PDES, USER_ADDRESS, VMM_ON};
 use super::structs::{PagingEntry, VMTable};
+use super::{KMAP_ADDRESS, NUM_SHARED, PD_ADDRESS, SHARED_PDES, USER_ADDRESS, VMM_ON};
 
 /// The address space of a single process
 pub struct AddressSpace {

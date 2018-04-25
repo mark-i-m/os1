@@ -5,8 +5,8 @@ use alloc::boxed::Box;
 
 use super::super::interrupts::{off, on};
 use super::super::sync::StaticSemaphore;
-use super::{ready_queue, Process, ProcessQueue};
 use super::proc_table::PROCESS_TABLE;
+use super::{ready_queue, Process, ProcessQueue};
 
 /// The reaper blocks onto this semaphore until enough have died
 static mut REAPER_SEMAPHORE: StaticSemaphore = StaticSemaphore::new(0);

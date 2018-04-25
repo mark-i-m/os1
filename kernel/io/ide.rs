@@ -3,10 +3,10 @@
 
 use core::mem;
 
+use super::block::*;
 use machine::{inb, inl, outb, outl};
 use process::{proc_yield, CURRENT_PROCESS};
 use sync::StaticSemaphore;
-use super::block::*;
 
 /// The size of a sector
 pub const SECTOR_SIZE: usize = 512;

@@ -1,8 +1,8 @@
 //! A module for getting keyboard input
 
 use super::super::machine::inb;
-use super::super::process::proc_table::PROCESS_TABLE;
 use super::super::process::focus::get_focused;
+use super::super::process::proc_table::PROCESS_TABLE;
 use super::stream::OutputStream;
 
 /// The difference between a capital and lowercase

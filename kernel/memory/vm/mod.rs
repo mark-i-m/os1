@@ -22,11 +22,11 @@ pub use self::addr_space::{vmm_page_fault, AddressSpace};
 mod addr_space;
 mod structs;
 
+use self::structs::{PagingEntry, VMTable};
 use super::super::interrupts::add_trap_handler;
 use super::super::machine::page_fault_handler;
 use super::super::static_linked_list::StaticLinkedList;
 use super::physmem::Frame;
-use self::structs::{PagingEntry, VMTable};
 
 /// A list of shared PDEs direct mapping the beginning of memory
 static mut SHARED_PDES: StaticLinkedList<PagingEntry> = StaticLinkedList::new();

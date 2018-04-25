@@ -4,8 +4,8 @@
 
 use core::mem;
 
-use io::block::{BlockDataBuffer, BlockDevice};
 use super::hw::*;
+use io::block::{BlockDataBuffer, BlockDevice};
 
 // NOTE: for now, the number of inodes must be chosen so that the last inode just completes its
 // block. That is, the first dnode comes immediately after the last inode *AND* at the start of the

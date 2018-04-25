@@ -2,9 +2,9 @@
 
 use alloc::boxed::Box;
 
-use core::sync::atomic::{AtomicIsize, Ordering};
 use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
+use core::sync::atomic::{AtomicIsize, Ordering};
 
 use super::super::interrupts::{off, on};
 use super::super::process::{proc_yield, ready_queue, ProcessQueue};
