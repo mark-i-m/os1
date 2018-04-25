@@ -4,9 +4,10 @@ use alloc::boxed::Box;
 
 use core::ops::{Index, IndexMut};
 
-use super::super::interrupts::{off, on};
-use super::super::process::CURRENT_PROCESS;
-use super::super::static_linked_list::StaticLinkedList;
+use interrupts::{off, on, no_interrupts};
+use process::CURRENT_PROCESS;
+use static_linked_list::StaticLinkedList;
+
 use super::regionmap::RegionMap;
 
 /// Array of `FrameInfo`. This is a pointer to the region of memory used
@@ -59,30 +60,25 @@ impl Frame {
     pub fn alloc() -> usize {
         let all_frames = unsafe { &mut *FRAME_INFO };
 
-        off();
+        no_interrupts(|| {
+            // get a frame
+            let free = unsafe { FREE_FRAMES };
 
-        // get a frame
-        let free = unsafe { FREE_FRAMES };
+            if free == 0 {
+                // TODO: page out
+                panic!("Out of physical memory");
+            }
 
-        if free == 0 {
-            // TODO: page out
-            panic!("Out of physical memory");
-        }
+            all_frames[free].alloc();
 
-        all_frames[free].alloc();
-
-        on();
-
-        free << 12
+            free << 12
+        })
     }
 
     /// Free the frame with the given index
     pub fn free(index: usize) {
         let all_frames = unsafe { &mut *FRAME_INFO };
-
-        off();
-        all_frames[index].free();
-        on();
+        no_interrupts(|| all_frames[index].free());
     }
 
     /// Add the given pid as a sharer of this frame.
@@ -93,20 +89,18 @@ impl Frame {
         let all_frames = unsafe { &mut *FRAME_INFO };
         let index = paddr >> 12;
 
-        off();
+        no_interrupts(|| {
+            let frame = &mut all_frames[index];
+            let sfi = if frame.has_shared_info() {
+                frame.get_shared_info().expect("No shared frame info!")
+            } else {
+                let raw_sfi = Box::into_raw(box SharedFrameInfo::new());
+                frame.set_shared_info(raw_sfi);
+                unsafe { &mut *raw_sfi }
+            };
 
-        let frame = &mut all_frames[index];
-        let sfi = if frame.has_shared_info() {
-            frame.get_shared_info().expect("No shared frame info!")
-        } else {
-            let raw_sfi = Box::into_raw(box SharedFrameInfo::new());
-            frame.set_shared_info(raw_sfi);
-            unsafe { &mut *raw_sfi }
-        };
-
-        sfi.list.push_back((pid, vaddr));
-
-        on();
+            sfi.list.push_back((pid, vaddr));
+        });
 
         // printf!("Shared {:X} {:X}\n", vaddr, paddr);
     }
@@ -152,14 +146,8 @@ impl FrameInfo {
             panic!("Attempt to alloc middle free frame {}", self.get_index());
         }
 
-        off();
-
         // Remove from list
-        unsafe {
-            FREE_FRAMES = self.get_next_free();
-        }
-
-        on();
+        no_interrupts( || unsafe { FREE_FRAMES = self.get_next_free() } );
 
         // mark not free
         self.clear_shared_info();
