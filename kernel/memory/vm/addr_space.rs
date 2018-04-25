@@ -1,10 +1,11 @@
 //! A module process address spaces
 
-use super::super::super::interrupts::{off, on};
-use super::super::super::machine::{invlpg, vmm_on};
-use super::super::super::process::proc_table::PROCESS_TABLE;
-use super::super::super::process::{State, CURRENT_PROCESS};
-use super::super::super::sync::{Barrier, Event, StaticSemaphore};
+use interrupts::no_interrupts;
+use machine::{invlpg, vmm_on};
+use process::proc_table::PROCESS_TABLE;
+use process::{State, CURRENT_PROCESS};
+use sync::{Barrier, Event, StaticSemaphore};
+
 use super::super::physmem::Frame;
 use super::structs::{PagingEntry, VMTable};
 use super::{KMAP_ADDRESS, NUM_SHARED, PD_ADDRESS, SHARED_PDES, USER_ADDRESS, VMM_ON};
@@ -103,23 +104,22 @@ impl AddressSpace {
             // present bit
             // no pd entry yet => create one
 
-            off();
+            no_interrupts(|| {
+                // set pde
+                pde.set_read_write(true); // read/write
+                pde.set_privelege_level(virt >= 0xD00000); // kernel only if vaddr < 0xD00000
+                pde.set_caching(false); // write-back
+                pde.set_address(Frame::alloc()); // alloc a new frame
+                pde.set_present(true); // present
 
-            // set pde
-            pde.set_read_write(true); // read/write
-            pde.set_privelege_level(virt >= 0xD00000); // kernel only if vaddr < 0xD00000
-            pde.set_caching(false); // write-back
-            pde.set_address(Frame::alloc()); // alloc a new frame
-            pde.set_present(true); // present
-
-            // clear the pt
-            let pt = unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
-            for p in 0..1024 {
-                pt[p] = PagingEntry::new();
-                unsafe { invlpg((pde_index << 22) | (p << 12)) };
-            }
-
-            on();
+                // clear the pt
+                let pt =
+                    unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
+                for p in 0..1024 {
+                    pt[p] = PagingEntry::new();
+                    unsafe { invlpg((pde_index << 22) | (p << 12)) };
+                }
+            })
         }
 
         // follow pde to get pt
@@ -131,16 +131,14 @@ impl AddressSpace {
             // present bit
             // no pt entry yet -> create one
 
-            off();
-
-            // set pte
-            pte.set_read_write(true); // read/write
-            pte.set_privelege_level(virt >= 0xD00000); // kernel only if vaddr < 0xD00000
-            pte.set_caching(false); // write-back
-            pte.set_address(phys); // point to frame
-            pte.set_present(true); // present
-
-            on();
+            no_interrupts(|| {
+                // set pte
+                pte.set_read_write(true); // read/write
+                pte.set_privelege_level(virt >= 0xD00000); // kernel only if vaddr < 0xD00000
+                pte.set_caching(false); // write-back
+                pte.set_address(phys); // point to frame
+                pte.set_present(true); // present
+            })
         }
 
         if lock {
@@ -197,17 +195,18 @@ impl AddressSpace {
 
         if pd[pde_index].is_flag(0) {
             // present bit
-            off();
+            let pt = no_interrupts(|| {
+                let pt =
+                    unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
 
-            let pt = unsafe { &mut *(((NUM_SHARED << 22) | (pde_index << 12)) as *mut VMTable) };
+                // unmap and deallocate frame
+                pt[pte_index].free(virt >= unsafe { USER_ADDRESS });
 
-            // unmap and deallocate frame
-            pt[pte_index].free(virt >= unsafe { USER_ADDRESS });
+                // invalidate TLB entry
+                unsafe { invlpg(virt) };
 
-            // invalidate TLB entry
-            unsafe { invlpg(virt) };
-
-            on();
+                pt
+            });
 
             // if page table is now empty,
             // unmap and deallocate it
@@ -263,12 +262,10 @@ impl AddressSpace {
 
     /// Activate the current address space and turn on VM if needed
     pub fn activate(&mut self) {
-        off();
-        unsafe {
+        no_interrupts(|| unsafe {
             vmm_on(self.page_dir);
             VMM_ON = true;
-        }
-        on();
+        })
     }
 
     /// Send a page-share request to the process with PID `pid` for
@@ -345,10 +342,10 @@ impl AddressSpace {
             if addr_space.req_pid == my_pid {
                 break;
             } else {
-                off();
-                addr_space.lock.up();
-                addr_space.req_wait.wait();
-                on();
+                no_interrupts(|| {
+                    addr_space.lock.up();
+                    addr_space.req_wait.wait();
+                })
             }
         }
 
