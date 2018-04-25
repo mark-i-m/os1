@@ -1,7 +1,7 @@
 //! This file contains the memory allocator used by the kernel. It is a thin wrapper around
 //! smallheap.
 
-use alloc::heap::{Alloc, AllocErr, Layout};
+use core::alloc::{GlobalAlloc, Layout, Opaque};
 use core::cell::RefCell;
 
 use smallheap::{self, Allocator};
@@ -25,34 +25,26 @@ impl KernelAllocator {
     }
 }
 
-unsafe impl<'a> Alloc for &'a KernelAllocator {
-    unsafe fn alloc(&mut self, layout: Layout) -> Result<*mut u8, AllocErr> {
+unsafe impl GlobalAlloc for KernelAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut Opaque {
         no_interrupts(|| {
             self.heap
                 .borrow_mut()
                 .as_mut()
                 .unwrap()
                 .malloc(layout.size(), layout.align())
-                .map(|p| p.as_ptr())
-                .map_err(|e| match e {
-                    smallheap::AllocErr::OutOfMemory => AllocErr::Exhausted { request: layout },
-                    smallheap::AllocErr::Corrupted => AllocErr::Unsupported {
-                        details: "Heap was corrupted",
-                    },
-                    smallheap::AllocErr::Invalid => AllocErr::Unsupported {
-                        details: "Heap operation was given invalid arguments",
-                    },
-                })
+                .map(|p| p.as_ptr() as *mut Opaque)
+                .unwrap_or(0 as *mut Opaque)
         })
     }
 
-    unsafe fn dealloc(&mut self, ptr: *mut u8, layout: Layout) {
+    unsafe fn dealloc(&self, ptr: *mut Opaque, layout: Layout) {
         no_interrupts(|| {
             self.heap
                 .borrow_mut()
                 .as_mut()
                 .unwrap()
-                .free(ptr, layout.size())
+                .free(ptr as *mut u8, layout.size())
         })
     }
 }
