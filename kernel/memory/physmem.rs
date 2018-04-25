@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 
 use core::ops::{Index, IndexMut};
 
-use interrupts::{no_interrupts, off, on};
+use interrupts::no_interrupts;
 use process::CURRENT_PROCESS;
 use static_linked_list::StaticLinkedList;
 
@@ -159,32 +159,28 @@ impl FrameInfo {
     pub fn free(&mut self) {
         // remove shared page info for this process
         let pid = unsafe { (*CURRENT_PROCESS).get_pid() };
-        let mut dealloced = false;
         if self.has_shared_info() {
-            let sfi_list = &mut self.get_shared_info()
-                .expect("No shared frame info to free")
-                .list;
-            let i = sfi_list
-                .iter()
-                .position(|&(req_pid, _)| req_pid == pid)
-                .expect("Attempt to free shared page which this process is not sharing!");
-            let _ = sfi_list.remove(i);
+            // remove this share
+            {
+                let sfi_list = &mut self.get_shared_info()
+                    .expect("No shared frame info to free")
+                    .list;
+                let i = sfi_list
+                    .iter()
+                    .position(|&(req_pid, _)| req_pid == pid)
+                    .expect("Attempt to free shared page which this process is not sharing!");
+                let _ = sfi_list.remove(i);
+            }
 
             // if no more sharers, drop the shared info
-            if sfi_list.is_empty() {
+            if self.get_shared_info().unwrap().list.is_empty() {
                 let addr = self.0 & !3;
                 let ptr = addr as *mut SharedFrameInfo;
-                off();
-                unsafe {
-                    Box::from_raw(ptr);
-                }
-                dealloced = true;
+                no_interrupts(|| {
+                    unsafe { drop(Box::from_raw(ptr)) };
+                    self.clear_shared_info();
+                })
             }
-        }
-
-        if dealloced {
-            self.clear_shared_info();
-            on();
         }
 
         // if there is only one "sharer" left, free the page
@@ -193,14 +189,10 @@ impl FrameInfo {
             self.set_free(true);
 
             // add to free list
-            off();
-
-            unsafe {
+            no_interrupts(|| unsafe {
                 self.set_next_free(FREE_FRAMES);
                 FREE_FRAMES = self.get_index();
-            }
-
-            on();
+            });
         }
     }
 
