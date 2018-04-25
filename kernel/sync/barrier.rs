@@ -1,6 +1,7 @@
 //! A module containing a barrier implementation
 
-use super::super::interrupts::{off, on};
+use interrupts::no_interrupts;
+
 use super::Event;
 
 /// A Barrier implementation.
@@ -26,14 +27,14 @@ impl Barrier {
 
     /// This process reaches the barrier
     pub fn reach(&mut self) {
-        off();
-        if self.count == self.n - 1 {
-            self.count = 0;
-            self.event.notify();
-        } else {
-            self.count += 1;
-            self.event.wait();
-        }
-        on();
+        no_interrupts(|| {
+            if self.count == self.n - 1 {
+                self.count = 0;
+                self.event.notify();
+            } else {
+                self.count += 1;
+                self.event.wait();
+            }
+        })
     }
 }

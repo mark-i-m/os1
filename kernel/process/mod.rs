@@ -8,7 +8,7 @@ use core::fmt::{Debug, Formatter, Result};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
 use fs::ROOT_FS;
-use interrupts::{esp0, off, on};
+use interrupts::{esp0, no_interrupts, off};
 use io::NonBlockingBuffer;
 use machine::{self, context_switch};
 use memory::AddressSpace;
@@ -298,11 +298,7 @@ fn start_proc() {
 /// `ProcessQueue` to yield onto, or if None is specified, it
 /// yields onto the ready queue.
 pub fn proc_yield<'a>(q: Option<&'a mut ProcessQueue>) {
-    unsafe {
-        off();
-        machine::proc_yield(q);
-        on();
-    }
+    no_interrupts(|| unsafe { machine::proc_yield(q) });
 }
 
 /// The unsafe function that does the actual work of choosing the

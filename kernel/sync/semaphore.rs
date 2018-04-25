@@ -6,8 +6,8 @@ use core::cell::UnsafeCell;
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{AtomicIsize, Ordering};
 
-use super::super::interrupts::{off, on};
-use super::super::process::{proc_yield, ready_queue, ProcessQueue};
+use interrupts::no_interrupts;
+use process::{proc_yield, ready_queue, ProcessQueue};
 
 /// `Semaphore` is a much more Rustic semaphore. It returns an RAII
 /// `SemaphoreGuard`, which automatically calls "up" when it goes out of
@@ -85,28 +85,24 @@ impl StaticSemaphore {
 
     /// Acquire
     pub fn down(&self) {
-        off();
-        unsafe {
+        no_interrupts(|| unsafe {
             if (*self.count.get()).fetch_sub(1, Ordering::AcqRel) <= 0 {
                 (*self.count.get()).fetch_add(1, Ordering::AcqRel);
                 // block
                 proc_yield(Some(&mut *self.queue.get()));
             }
-        }
-        on();
+        })
     }
 
     /// Release
     pub fn up(&self) {
-        off();
-        unsafe {
+        no_interrupts(|| unsafe {
             if let Some(next) = (*self.queue.get()).pop_front() {
                 ready_queue::make_ready(next);
             } else {
                 (*self.count.get()).fetch_add(1, Ordering::AcqRel);
             }
-        }
-        on();
+        })
     }
 
     /// Clean up.

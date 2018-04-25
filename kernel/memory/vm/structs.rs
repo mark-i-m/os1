@@ -3,8 +3,9 @@
 use core::intrinsics::transmute;
 use core::ops::{Index, IndexMut};
 
-use super::super::super::interrupts::{off, on};
-use super::super::super::process::CURRENT_PROCESS;
+use interrupts::no_interrupts;
+use process::CURRENT_PROCESS;
+
 use super::super::physmem::Frame;
 use super::VMM_ON;
 
@@ -98,26 +99,26 @@ impl PagingEntry {
 
     /// Free the frame pointed to if `dealloc` and mark this entry not present.
     pub fn free(&mut self, dealloc: bool) {
-        off();
-        if self.is_flag(0) {
-            if dealloc {
-                Frame::free(self.get_address() >> 12);
-            }
+        no_interrupts(|| {
+            if self.is_flag(0) {
+                if dealloc {
+                    Frame::free(self.get_address() >> 12);
+                }
 
-            // clear the entry
-            self.set_flag(0, false);
-            self.set_flag(1, false);
-            self.set_flag(2, false);
-            self.set_flag(3, false);
-            self.set_flag(4, false);
-            self.set_flag(5, false);
-            self.set_flag(6, false);
-            self.set_flag(7, false);
-            self.set_flag(8, false);
-            self.set_flag(9, false);
-            self.set_address(0);
-        }
-        on();
+                // clear the entry
+                self.set_flag(0, false);
+                self.set_flag(1, false);
+                self.set_flag(2, false);
+                self.set_flag(3, false);
+                self.set_flag(4, false);
+                self.set_flag(5, false);
+                self.set_flag(6, false);
+                self.set_flag(7, false);
+                self.set_flag(8, false);
+                self.set_flag(9, false);
+                self.set_address(0);
+            }
+        })
     }
 }
 

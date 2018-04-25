@@ -3,8 +3,9 @@
 
 use alloc::boxed::Box;
 
-use super::super::interrupts::{off, on};
-use super::super::sync::StaticSemaphore;
+use interrupts::no_interrupts;
+use sync::StaticSemaphore;
+
 use super::proc_table::PROCESS_TABLE;
 use super::{ready_queue, Process, ProcessQueue};
 
@@ -28,9 +29,8 @@ pub fn run(this: &Process) -> usize {
 
             // reap the 10 processes
             for _ in 0..10 {
-                off();
-                let dead_proc = REAPER_QUEUE.pop_front().expect("Repear queue is empty");
-                on();
+                let dead_proc =
+                    no_interrupts(|| REAPER_QUEUE.pop_front().expect("Repear queue is empty"));
 
                 PROCESS_TABLE.remove((*dead_proc).pid);
 
@@ -45,12 +45,10 @@ pub fn run(this: &Process) -> usize {
 /// Add a dead process to the reaper queue.
 /// NOTE: This should only be done for processes that will never run again
 pub fn reaper_add(dead_proc: *mut Process) {
-    off();
-    unsafe {
+    no_interrupts(|| unsafe {
         REAPER_QUEUE.push_back(dead_proc);
         REAPER_SEMAPHORE.up();
-    }
-    on();
+    })
 }
 
 /// Create the reaper process and add it to the ready queue
